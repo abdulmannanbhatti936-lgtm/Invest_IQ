@@ -1,0 +1,114 @@
+PROJECT: InvestIQ — AI-Based Portfolio Management System for PSX Investors
+CONTEXT: This is a Final Year Project (BSCS, NUML Islamabad). I am providing you
+with 7 complete planning documents. You must treat these documents as the
+absolute source of truth for this entire project — not suggestions, not
+starting points to improvise from, but binding specifications.
+
+THE 7 DOCUMENTS (all provided to you — read them in this exact order before
+writing a single line of code):
+1. Memory.md      — current project state, decisions log, open questions
+2. PRD.md         — what to build (functional + non-functional requirements)
+3. Architecture.md — the technical architecture, stack, DB schema, API design
+4. Rules.md       — coding standards, conventions, and guardrails
+5. Phases.md      — the phase-by-phase roadmap with dependencies and exit criteria
+6. Design.md      — the UI/UX design system
+7. Workflow.md    — the literal, step-by-step execution playbook (this is what
+                     you follow moment-to-moment)
+
+YOUR INSTRUCTIONS:
+
+1. Read all 7 documents fully, in the order listed above, before doing anything
+   else. Do not skim — every section may contain a constraint that changes how
+   you implement something later.
+
+2. Start at Workflow.md, Phase 0, Step 0.1. Proceed strictly sequentially,
+   step by step, exactly as written. Do not reorder steps, do not skip a step,
+   and do not jump ahead to a later phase even if it seems more interesting or
+   efficient — Phases.md explains exactly why the sequencing exists (later
+   phases depend on real data/output from earlier ones, not placeholders).
+
+3. Every step in Workflow.md ends in a "Checkpoint ✅." Do not mark a step
+   complete or move to the next one until you have ACTUALLY VERIFIED the
+   checkpoint is true — run the command, hit the endpoint, check the UI, run
+   the test. Never assume something works because the code "looks correct."
+   If a checkpoint fails, stop, fix the underlying issue, and re-verify before
+   continuing.
+
+4. Follow Rules.md without exception for every line of code you write:
+   - No business logic, prediction logic, or fee/tax math in the frontend —
+     backend only.
+   - All money/fee/tax calculations use Decimal, never float.
+   - Every new endpoint gets Pydantic types and at least one test.
+   - No hardcoded secrets — everything through environment variables.
+   - No hallucinated financial output anywhere, especially in the chatbot —
+     it only explains real data fetched from the database, never invents a
+     figure or a guarantee.
+   - Follow the Git/commit conventions exactly as specified.
+
+5. Follow Architecture.md exactly for the tech stack, folder structure,
+   database schema, and API design. Do not introduce a new library, a new
+   folder pattern, or a different database without first flagging it to me —
+   if you believe a deviation is genuinely necessary, explain why before
+   proceeding, don't just silently do it differently.
+
+6. Follow Design.md exactly for every UI screen — including the parts that are
+   easy to skip: loading states, empty states, error states, the disclaimer
+   banner on every prediction/recommendation screen, bilingual (English/Urdu)
+   support with correct RTL handling, and accessibility rules. The color
+   palette in Design.md is intentionally a placeholder — use the placeholder
+   token names with neutral gray/blue values until I give you final colors;
+   do not invent a final palette yourself.
+
+7. Update Memory.md continuously — not just at the end of the whole project:
+   - At the end of every session, update Section 2 (Current Status).
+   - Append a dated entry to Section 7 (Session Log) using the template in
+     Section 17.
+   - Log any new decision in Section 3, any new pitfall/lesson in Section 11.
+   - Keep Section 9 (External Dependencies) and Section 10 (Model Performance
+     Tracker) current as things actually get integrated/trained.
+   Memory.md must always accurately reflect reality — an out-of-date Memory.md
+   is worse than none, because the next session (yours or mine) will trust it.
+
+8. If you hit an open question (see Memory.md Section 4), a blocked dependency,
+   or a genuinely ambiguous requirement:
+   - State the assumption you're making and proceed if there's a reasonable
+     default (per Rules.md Section 9.2) — don't stall on everything.
+   - But clearly flag it back to me in your response and log it in Memory.md
+     — never silently guess on anything involving money math, security, or
+     scope boundaries (e.g., never quietly add trade-execution functionality —
+     that boundary in PRD.md is permanent, not a placeholder).
+
+9. Error handling standard for the whole project: nothing should ever hard-crash
+   because of a third-party failure (Yahoo Finance, PSX data, news scraper,
+   Claude API, Firebase). Every external call needs a graceful fallback per
+   Architecture.md Section 8.3 — this is not optional polish, build it in from
+   the start of Phase 2 onward, not retrofitted later.
+
+10. Before declaring any phase complete, run through Workflow.md Appendix A
+    (the per-phase checklist) honestly against the actual current state of the
+    code — migrations applied, tests passing, i18n done in both languages,
+    disclaimers present, CI green, Memory.md updated. Report back explicitly
+    which items pass and which don't; don't just say "Phase X is done."
+
+11. If something goes wrong — a migration breaks, a model underperforms, an
+    architectural decision needs to change, CI breaks on main — follow
+    Workflow.md Appendix B (mid-phase problems) and Appendix E (rollback/
+    recovery procedures) exactly. Never patch around a real problem silently;
+    fix it properly or flag it to me.
+
+12. Use the CLI commands in Workflow.md Appendix C as your reference for every
+    setup/run/test/migration command — don't improvise different commands or
+    tooling than what's specified there.
+
+13. At the start of every new session (including this first one), read
+    Memory.md Section 2 first to know exactly where things stand, then resume
+    from the correct next step in Workflow.md — never restart from scratch or
+    assume you know the state without checking.
+
+GOAL: A fully working, end-to-end InvestIQ (web + mobile) that matches every
+functional requirement in PRD.md, built in the correct phase order from
+Phases.md/Workflow.md, with clean, tested, documented code following Rules.md
+and Design.md — ready for an FYP defense with honest, real model results
+(not fabricated numbers) documented in Memory.md.
+
+Begin now: confirm you've read all 7 documents, then start Workflow.md Step 0.1.

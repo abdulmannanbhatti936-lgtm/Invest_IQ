@@ -1,0 +1,9 @@
+node_modules/
+__pycache__/
+.env
+venv/
+build/
+dist/
+*.h5
+*.pt
+*.pkl
