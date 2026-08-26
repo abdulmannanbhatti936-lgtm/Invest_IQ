@@ -1,0 +1,315 @@
+{
+  "name": "InvestIQ - Daily Stock Alert Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "1a2b3c4d-0001-0000-0000-000000000001",
+      "name": "Schedule Trigger (9 AM, Mon-Fri)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-1200, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.INVESTIQ_API_BASE}}/api/watchlist",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "1a2b3c4d-0002-0000-0000-000000000002",
+      "name": "Get Watchlist Symbols",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-980, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "investiq-api-key",
+          "name": "InvestIQ API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "symbols",
+        "options": {}
+      },
+      "id": "1a2b3c4d-0003-0000-0000-000000000003",
+      "name": "Split Out Symbols",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [-760, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "1a2b3c4d-0004-0000-0000-000000000004",
+      "name": "Loop Over Symbols",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [-540, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://query1.finance.yahoo.com/v8/finance/chart/{{$json.symbol}}.KAR",
+        "options": {
+          "queryParameters": {
+            "parameters": [
+              { "name": "interval", "value": "1d" },
+              { "name": "range", "value": "1mo" }
+            ]
+          }
+        }
+      },
+      "id": "1a2b3c4d-0005-0000-0000-000000000005",
+      "name": "Fetch PSX Price Data (Yahoo Finance)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-320, 180]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.NEWS_API_BASE}}/v2/everything",
+        "options": {
+          "queryParameters": {
+            "parameters": [
+              { "name": "q", "value": "={{$('Loop Over Symbols').item.json.symbol}} PSX stock" },
+              { "name": "language", "value": "en" },
+              { "name": "sortBy", "value": "publishedAt" },
+              { "name": "pageSize", "value": "10" },
+              { "name": "apiKey", "value": "={{$env.NEWS_API_KEY}}" }
+            ]
+          }
+        }
+      },
+      "id": "1a2b3c4d-0006-0000-0000-000000000006",
+      "name": "Fetch News Headlines",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-320, 420]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "1a2b3c4d-0007-0000-0000-000000000007",
+      "name": "Merge Price + News",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [-100, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.INVESTIQ_API_BASE}}/api/predict/sentiment",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"symbol\": $('Loop Over Symbols').item.json.symbol, \"headlines\": $json.articles.map(a => a.title) } }}",
+        "options": {}
+      },
+      "id": "1a2b3c4d-0008-0000-0000-000000000008",
+      "name": "FinBERT Sentiment Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [120, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.INVESTIQ_API_BASE}}/api/predict/price",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"symbol\": $('Loop Over Symbols').item.json.symbol, \"prices\": $('Fetch PSX Price Data (Yahoo Finance)').item.json.chart.result[0].indicators.quote[0].close } }}",
+        "options": {}
+      },
+      "id": "1a2b3c4d-0009-0000-0000-000000000009",
+      "name": "LSTM Price Prediction",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [120, 420]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "1a2b3c4d-0010-0000-0000-000000000010",
+      "name": "Merge Predictions",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [340, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine LSTM price prediction + FinBERT sentiment into a single trade signal\nconst sentiment = $input.first().json.sentiment_score; // -1 to 1\nconst predictedChangePct = $input.first().json.predicted_change_pct; // e.g. 3.2\nconst symbol = $('Loop Over Symbols').item.json.symbol;\n\nlet signal = 'HOLD';\nif (predictedChangePct > 2 && sentiment > 0.2) {\n  signal = 'BUY';\n} else if (predictedChangePct < -2 && sentiment < -0.2) {\n  signal = 'SELL';\n} else if (Math.abs(predictedChangePct) > 5) {\n  signal = 'ROLL';\n}\n\nreturn [{\n  json: {\n    symbol,\n    signal,\n    predictedChangePct,\n    sentiment,\n    generatedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "1a2b3c4d-0011-0000-0000-000000000011",
+      "name": "Decision Logic (Buy/Sell/Roll)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [560, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{$json.signal}}",
+              "rightValue": "HOLD",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1a2b3c4d-0012-0000-0000-000000000012",
+      "name": "IF Actionable Signal?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [780, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.INVESTIQ_API_BASE}}/api/alerts",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "1a2b3c4d-0013-0000-0000-000000000013",
+      "name": "Log Alert to Backend (MySQL)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://fcm.googleapis.com/v1/projects/{{$env.FIREBASE_PROJECT_ID}}/messages:send",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"message\": { \"topic\": $json.symbol, \"notification\": { \"title\": `InvestIQ Alert: ${$json.signal} ${$json.symbol}`, \"body\": `Predicted change: ${$json.predictedChangePct}% | Sentiment: ${$json.sentiment}` } } } }}",
+        "options": {}
+      },
+      "id": "1a2b3c4d-0014-0000-0000-000000000014",
+      "name": "Send Push Notification (FCM)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 400],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "firebase-server-key",
+          "name": "Firebase Server Key"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "1a2b3c4d-0015-0000-0000-000000000015",
+      "name": "Loop Back / Next Symbol",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1220, 300]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (9 AM, Mon-Fri)": {
+      "main": [[{ "node": "Get Watchlist Symbols", "type": "main", "index": 0 }]]
+    },
+    "Get Watchlist Symbols": {
+      "main": [[{ "node": "Split Out Symbols", "type": "main", "index": 0 }]]
+    },
+    "Split Out Symbols": {
+      "main": [[{ "node": "Loop Over Symbols", "type": "main", "index": 0 }]]
+    },
+    "Loop Over Symbols": {
+      "main": [
+        [
+          { "node": "Fetch PSX Price Data (Yahoo Finance)", "type": "main", "index": 0 },
+          { "node": "Fetch News Headlines", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Fetch PSX Price Data (Yahoo Finance)": {
+      "main": [[{ "node": "Merge Price + News", "type": "main", "index": 0 }]]
+    },
+    "Fetch News Headlines": {
+      "main": [[{ "node": "Merge Price + News", "type": "main", "index": 1 }]]
+    },
+    "Merge Price + News": {
+      "main": [
+        [
+          { "node": "FinBERT Sentiment Analysis", "type": "main", "index": 0 },
+          { "node": "LSTM Price Prediction", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "FinBERT Sentiment Analysis": {
+      "main": [[{ "node": "Merge Predictions", "type": "main", "index": 0 }]]
+    },
+    "LSTM Price Prediction": {
+      "main": [[{ "node": "Merge Predictions", "type": "main", "index": 1 }]]
+    },
+    "Merge Predictions": {
+      "main": [[{ "node": "Decision Logic (Buy/Sell/Roll)", "type": "main", "index": 0 }]]
+    },
+    "Decision Logic (Buy/Sell/Roll)": {
+      "main": [[{ "node": "IF Actionable Signal?", "type": "main", "index": 0 }]]
+    },
+    "IF Actionable Signal?": {
+      "main": [
+        [
+          { "node": "Log Alert to Backend (MySQL)", "type": "main", "index": 0 },
+          { "node": "Send Push Notification (FCM)", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Loop Back / Next Symbol", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Log Alert to Backend (MySQL)": {
+      "main": [[{ "node": "Loop Back / Next Symbol", "type": "main", "index": 0 }]]
+    },
+    "Send Push Notification (FCM)": {
+      "main": [[{ "node": "Loop Back / Next Symbol", "type": "main", "index": 0 }]]
+    },
+    "Loop Back / Next Symbol": {
+      "main": [[{ "node": "Loop Over Symbols", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

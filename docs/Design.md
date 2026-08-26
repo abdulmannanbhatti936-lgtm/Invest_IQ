@@ -1,4 +1,5 @@
 # Design.md — InvestIQ
+
 ### UI/UX Design System
 
 **Companion docs:** PRD.md, Architecture.md, Rules.md, Phases.md
@@ -38,19 +39,21 @@
 ```
 
 **Rules regardless of final palette chosen:**
+
 - Success/danger/warning colors must be color-blind-safe distinguishable (don't rely on red/green alone — pair with icons: ▲/▼, or +/− prefixes, per Section 6.3)
 - Maintain WCAG AA contrast ratio (4.5:1 minimum) for all text against its background
 - If dark mode is chosen as the primary theme, still define a light-mode fallback token set — some users will have system-level light mode forced, and Antigravity AI should implement theme-switching via CSS variables/tokens (not hardcoded hex values scattered through components) so swapping the palette later is a one-file change, not a rewrite
 
 ## 3. Typography
 
-| Use | Font | Notes |
-|---|---|---|
-| Primary UI font (English) | Inter or system font stack (`-apple-system, Segoe UI, Roboto`) | Clean, highly legible, standard for fintech UIs |
-| Urdu font | Noto Nastaliq Urdu (for headings/emphasis) or Noto Sans Arabic/Urdu (for body text, better readability at small sizes) | Body Urdu text should use the Naskh-style font, not Nastaliq, for readability at small UI sizes — reserve Nastaliq (if used at all) for large decorative headings only |
-| Numeric/financial figures | Tabular (monospaced-number) figures, e.g., Inter's tabular-nums feature | Prevents prices/percentages from jittering in width as digits change |
+| Use                       | Font                                                                                                                   | Notes                                                                                                                                                                  |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Primary UI font (English) | Inter or system font stack (`-apple-system, Segoe UI, Roboto`)                                                         | Clean, highly legible, standard for fintech UIs                                                                                                                        |
+| Urdu font                 | Noto Nastaliq Urdu (for headings/emphasis) or Noto Sans Arabic/Urdu (for body text, better readability at small sizes) | Body Urdu text should use the Naskh-style font, not Nastaliq, for readability at small UI sizes — reserve Nastaliq (if used at all) for large decorative headings only |
+| Numeric/financial figures | Tabular (monospaced-number) figures, e.g., Inter's tabular-nums feature                                                | Prevents prices/percentages from jittering in width as digits change                                                                                                   |
 
 **Scale (web, rem-based):**
+
 ```
 --text-xs:    0.75rem   (12px)  — captions, disclaimers, timestamps
 --text-sm:    0.875rem  (14px)  — secondary body text, labels
@@ -79,67 +82,81 @@ Mobile app uses the same scale ratios via React Native's platform-appropriate `r
 ## 6. Core Components
 
 ### 6.1 Buttons
+
 - Primary (filled, `--color-primary`) — one primary action per screen max
 - Secondary (outlined) — secondary actions
 - Destructive (uses `--color-danger`) — reserved for things like "exclude stock" or "log out," never for normal navigation
 - Disabled state must be visually distinct, not just a slightly duller version of enabled
 
 ### 6.2 Card
+
 - Used for: stock listings, portfolio holdings, notifications, backtest result summaries
 - Standard structure: title row → key metric (large, tabular numerals) → secondary details → optional action row
 - Consistent border-radius and shadow token across the whole app (define once, reuse — don't let each screen invent its own card style)
 
 ### 6.3 Financial Figure Display (critical, reused everywhere a number appears)
+
 Every price/return/fee figure follows this pattern:
+
 ```
 [±][value][unit]   e.g.  +12.4%   or   Rs. 45,230
 (label beneath in --text-xs, --color-text-secondary)   e.g. "Net return after fees & tax"
 ```
+
 - Gains: `--color-success` + ▲ prefix
 - Losses: `--color-danger` + ▼ prefix
 - Always show currency as "Rs." or "PKR" — never a bare number that could be mistaken for a different currency
 - Gross vs net figures, when both are relevant (e.g., portfolio recommendation screen), always shown side-by-side or in a clearly labeled breakdown — never just "net" with gross hidden
 
 ### 6.4 Confidence/Uncertainty Indicator
+
 - A visual meter or badge (not just a number) accompanies every AI prediction: e.g., a 3-segment bar (Low/Medium/High confidence) or a percentage badge with a color from the success/warning/neutral set
 - Low-confidence predictions (per PRD.md FR16) get a visibly different treatment — a border/background tint using `--color-warning`, not just a small text note easy to miss
 
 ### 6.5 Chat Bubble (Chatbot UI)
+
 - User messages: right-aligned, `--color-primary` background, `--color-text-inverse` text
 - Assistant messages: left-aligned, `--color-surface` background, `--color-text-primary` text
 - Assistant messages referencing real data (predictions, portfolio figures) visually cite the source inline (e.g., a small "from your current portfolio" tag) — reinforces the grounding principle from Architecture.md Section 12 and builds user trust that the bot isn't making things up
 - Language toggle visible within the chat interface at all times, not buried in settings
 
 ### 6.6 Disclaimer Banner
+
 - Persistent, non-dismissible-on-first-view banner/footer on onboarding and every recommendation/prediction screen: "Advisory only. Not a licensed financial advisor. Predictions are probabilistic. Execute trades only through a licensed PSX broker." (PRD.md Section 8.5)
 - Styled to be legible, not hidden in tiny gray text — use `--text-sm` minimum, sufficient contrast, but visually secondary (not competing with primary content) via placement and a muted `--color-surface` background band
 
 ## 7. Key Screen UX Patterns
 
 ### 7.1 Onboarding / Risk Profiling
+
 - Single-question-per-screen wizard, progress indicator at top, back button always available
 - Plain-language question phrasing (no jargon) — e.g., instead of "What is your risk tolerance?", ask something concrete like "If your investment dropped 15% in a month, what would you do?"
 - Result screen explains the assigned risk category in a sentence or two, not just a label — sets the tone for the whole product's "explain, don't just declare" philosophy
 
 ### 7.2 Stock Detail Screen
+
 - Order top to bottom: price chart → key stats → AI prediction (with confidence) → sentiment ("what's driving this," headlines) → "add to portfolio consideration" action
 - Chart interactions (zoom/pan on web, pinch/swipe on mobile) but never required to understand the basic trend — a plain-language summary line above the chart (e.g., "Up 8% over the last 30 days") for users who don't read charts fluently
 
 ### 7.3 Portfolio Recommendation Screen
+
 - Lead with the plain-language summary (e.g., "Based on your moderate risk profile, here's a portfolio across 5 companies")
 - Each holding as a card (Section 6.2): company, allocation %, gross price, fee/tax breakdown, net price
 - Total portfolio summary at top or bottom: total invested, total fees/tax, net position
 - "Why this stock" expandable detail per holding, pulling from prediction + sentiment data — never just a bare allocation number with no reasoning
 
 ### 7.4 Backtesting Report
+
 - Headline metric (total return) largest/first, followed by Sharpe ratio, max drawdown, win rate as secondary metrics
 - Visual comparison against KSE-100 benchmark (simple line chart, InvestIQ portfolio vs benchmark) — this is the single most persuasive visual for both users and the FYP panel
 
 ### 7.5 Notifications
+
 - Grouped by type (buy/sell/roll) or chronological, user's choice
 - Each notification card shows the action, the reasoning summary, and a direct link to the relevant stock/portfolio screen — never a dead-end notification
 
 ### 7.6 Admin Panel
+
 - Data-dense, utilitarian — this is the one place in the product where "dashboard-y" (tables, status badges, charts) is appropriate, unlike the calmer investor-facing screens
 - System health section uses the same success/warning/danger color logic as the rest of the app (green = healthy, amber = degraded, red = down) for consistency
 
@@ -177,14 +194,17 @@ Every price/return/fee figure follows this pattern:
 ## 12. Loading, Empty, and Error States (every screen needs all three, explicitly designed — never left as a blank white screen)
 
 ### 12.1 Loading States
+
 - Skeleton loaders (gray placeholder shapes matching the eventual content's layout) for cards, charts, and lists — not spinners, except for full-page initial load or button-level in-progress actions (e.g., "Generating your portfolio…" with a small inline spinner on the button itself)
 - Chart loading: show a skeleton chart shape, not a blank area, so layout doesn't jump when data arrives
 
 ### 12.2 Empty States
+
 - Every list/collection screen (portfolio with no holdings yet, notifications with none yet, chat with no history) has a designed empty state: a short explanatory line + a relevant next action (e.g., empty portfolio → "You don't have a portfolio yet — generate one based on your risk profile" with a button)
 - Empty states never just say "No data" with nothing else — always explain why and what to do next
 
 ### 12.3 Error States
+
 - Network/API failure: inline error message + retry button, scoped to the failed section only (don't blank the whole screen if only the sentiment panel failed to load, per Architecture.md Section 8.3 graceful degradation)
 - Form validation errors: inline, next to the specific field, in `--color-danger`, appearing on blur/submit — never a generic toast that doesn't say which field is wrong
 - Full-page error (e.g., failed auth) gets a dedicated state with a clear action (e.g., "Session expired — log in again")
@@ -200,15 +220,18 @@ Every price/return/fee figure follows this pattern:
 ## 14. Navigation Patterns (detail)
 
 ### 14.1 Web
+
 - Top nav bar: logo, primary nav links (Dashboard, Stocks, Portfolio, Backtest, Chat), language toggle, notification bell, user menu (profile, risk profile, logout)
 - Admin routes visually distinct (different top-bar color/badge — e.g., a small "Admin" tag) so it's never ambiguous which mode you're in, especially important since the same person may use both during FYP demos
 
 ### 14.2 Mobile
+
 - Bottom tab bar (5 items max, per Section 8): Home, Stocks, Portfolio, Chat, Notifications
 - Settings/profile/risk-profile access via a top-right icon or a "More"/profile tab, not crammed into the bottom bar
 - Back navigation follows platform convention (Android hardware/gesture back, iOS swipe-back) — never trap the user
 
 ### 14.3 Breadcrumb / Context
+
 - Stock detail, chat, and backtest report screens always show how the user got there or what they're looking at (e.g., a header showing "Portfolio > Engro Fertilizers" ) so deep-linked or notification-triggered navigation never feels disorienting
 
 ## 15. Tooltips & Contextual Help
@@ -255,6 +278,7 @@ packages/design-tokens/
 ├── motion.ts              # durations/easing from Section 11
 └── index.ts                # re-exports everything
 ```
+
 Both `apps/web` (as CSS variables / Tailwind theme extension) and `apps/mobile` (as a React Native theme object) consume this single package — no duplicated token definitions, per Section 8's cross-platform consistency rule.
 
 ## 21. Elevation / Shadow System
@@ -265,6 +289,7 @@ Both `apps/web` (as CSS variables / Tailwind theme extension) and `apps/mobile` 
 --elevation-2: 0 4px 8px rgba(0,0,0,0.08)              /* raised cards, dropdowns */
 --elevation-3: 0 8px 16px rgba(0,0,0,0.12)              /* modals, floating action elements */
 ```
+
 Dark-mode shadow values should use lower opacity + a subtle lighter border instead of relying purely on shadow (shadows read poorly on dark backgrounds) — if dark mode is the chosen theme, define a parallel `--elevation-*-dark` set rather than reusing light-mode shadow values as-is.
 
 ## 22. Grid System

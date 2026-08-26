@@ -1,4 +1,5 @@
 # Memory.md — InvestIQ
+
 ### Persistent Project Context & State
 
 **Purpose:** This is the file an AI coding agent (Antigravity AI) should read **first, every session**, before touching code. PRD.md / Architecture.md / Rules.md / Phases.md / Design.md are the stable reference docs — this file is the living state: what's actually true right now, what's been decided, what's still open, and what happened recently. Update this file at the end of every significant work session.
@@ -15,30 +16,26 @@
 
 ## 2. Current Status (update this section every session)
 
-**As of last update: Fresh build, Phase 0 not yet started.**
+### **Phase 1: Auth, Onboarding & Risk Profiling (In Progress)**
+- **Completed:** Step 1.1 (Database Models), Step 1.2 (Auth API Endpoints)
 
-- A prior demo of InvestIQ existed but was explicitly **not carried forward** — this is a greenfield rebuild. Do not assume any old demo code, data, or decisions are still valid unless restated in these docs.
-- Web + Mobile are both in scope from the start (not mobile-later) — see PRD.md Section 6.1.
-- Six planning docs are complete: PRD.md, Architecture.md, Rules.md, Phases.md, Design.md, Memory.md (this file).
-- **No code has been written yet.** Next action is Phase 0 (Foundation & Project Setup) per Phases.md.
-
-> *Update instructions: replace this section's content each session with (a) which phase is active, (b) what was completed since the last update, (c) what's in progress, (d) what's blocked/waiting on a decision.*
+> _Update instructions: replace this section's content each session with (a) which phase is active, (b) what was completed since the last update, (c) what's in progress, (d) what's blocked/waiting on a decision._
 
 ## 3. Key Decisions Log
 
 Decisions made so far, with the reasoning, so they're never silently re-litigated or reversed by accident:
 
-| Decision | Reasoning | Where documented |
-|---|---|---|
-| Fresh rebuild, old demo discarded | Team chose to start clean rather than extend prior demo | Memory.md (this entry) |
-| Web + Mobile both in Phase 1 scope | Explicit team choice, not deferred | PRD.md §6.1 |
-| Mobile framework: **React Native (Expo)**, not Flutter | Team's existing stack is React/JS; enables shared TS types/API client with web; lower ramp-up for a 2-person FYP team | Architecture.md §4 |
-| Monorepo structure | Keeps API contract, shared types, and both frontends in sync across a small team | Architecture.md §5 |
-| Database: Postgres recommended over MySQL | Better JSONB support for risk-profile answers | Architecture.md §21 (still technically "open" — confirm before Phase 1 DB setup) |
-| Admin panel: route within `apps/web`, not a separate app | Simplicity for FYP scale | Architecture.md §21 |
-| LLM chatbot always grounded in real DB data, never freeform | Prevents hallucinated financial advice — named as a top risk in PRD.md §15 | Architecture.md §12, Rules.md §1 |
-| Color palette: **left as placeholder** | Manam will decide and provide later | Design.md §2 |
-| Financial math uses `Decimal`, never float | Rounding errors unacceptable when showing real prices | Rules.md §3.4 |
+| Decision                                                    | Reasoning                                                                                                             | Where documented                                                                 |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Fresh rebuild, old demo discarded                           | Team chose to start clean rather than extend prior demo                                                               | Memory.md (this entry)                                                           |
+| Web + Mobile both in Phase 1 scope                          | Explicit team choice, not deferred                                                                                    | PRD.md §6.1                                                                      |
+| Mobile framework: **React Native (Expo)**, not Flutter      | Team's existing stack is React/JS; enables shared TS types/API client with web; lower ramp-up for a 2-person FYP team | Architecture.md §4                                                               |
+| Monorepo structure                                          | Keeps API contract, shared types, and both frontends in sync across a small team                                      | Architecture.md §5                                                               |
+| Database: Postgres recommended over MySQL                   | Better JSONB support for risk-profile answers                                                                         | Architecture.md §21 (still technically "open" — confirm before Phase 1 DB setup) |
+| Admin panel: route within `apps/web`, not a separate app    | Simplicity for FYP scale                                                                                              | Architecture.md §21                                                              |
+| LLM chatbot always grounded in real DB data, never freeform | Prevents hallucinated financial advice — named as a top risk in PRD.md §15                                            | Architecture.md §12, Rules.md §1                                                 |
+| Color palette: **left as placeholder**                      | Manam will decide and provide later                                                                                   | Design.md §2                                                                     |
+| Financial math uses `Decimal`, never float                  | Rounding errors unacceptable when showing real prices                                                                 | Rules.md §3.4                                                                    |
 
 ## 4. Open Questions / Not Yet Decided
 
@@ -60,64 +57,89 @@ Carried over from PRD.md §17 and Architecture.md §21 — resolve these before/
 
 ## 6. Document Map (what lives where — check before asking or duplicating)
 
-| Question | Go to |
-|---|---|
-| What should this feature do exactly? | PRD.md (functional requirements, FR#) |
-| What's the tech stack / how do services talk to each other? | Architecture.md |
-| What's the DB schema / API endpoint shape? | Architecture.md §7–8 |
-| How should this code be written/formatted/committed? | Rules.md |
-| Can I build this now, or does it depend on something else first? | Phases.md |
-| What should this look like / what color-blind-safe pattern applies? | Design.md |
-| What's already been decided, what's still open, what's the current state? | Memory.md (this file) |
+| Question                                                                  | Go to                                 |
+| ------------------------------------------------------------------------- | ------------------------------------- |
+| What should this feature do exactly?                                      | PRD.md (functional requirements, FR#) |
+| What's the tech stack / how do services talk to each other?               | Architecture.md                       |
+| What's the DB schema / API endpoint shape?                                | Architecture.md §7–8                  |
+| How should this code be written/formatted/committed?                      | Rules.md                              |
+| Can I build this now, or does it depend on something else first?          | Phases.md                             |
+| What should this look like / what color-blind-safe pattern applies?       | Design.md                             |
+| What's already been decided, what's still open, what's the current state? | Memory.md (this file)                 |
 
 ## 7. Session Log
 
-*(Append a new dated entry each significant session — keep entries short. This is a changelog, not a diary.)*
+_(Append a new dated entry each significant session — keep entries short. This is a changelog, not a diary.)_
 
-```
 [Date TBD] — Initial planning phase complete. PRD.md, Architecture.md, Rules.md,
 Phases.md, Design.md, Memory.md created. No code written yet. Next: Phase 0
 (Foundation & Project Setup) per Phases.md.
-```
+
+[2026-08-14] — Phase 0
+Completed: Step 0.1 (Repository skeleton, docs sync).
+Completed: Step 0.2 (Local Infrastructure - Docker).
+Completed: Step 0.3 (Backend Skeleton - FastAPI, Alembic).
+Completed: Step 0.4 (Web App Skeleton - Vite, React Router, Tailwind, React Query).
+Completed: Step 0.5 (Mobile App Skeleton - Expo, React Navigation, React Query).
+Completed: Step 0.6 (Shared Packages - Types, API client, i18n, Tokens).
+Blocked: None.
+Decisions made:
+
+- Changed Postgres port to 5435 in docker-compose.yml to avoid conflicts with native Windows Postgres on 5432.
+- Configured npm workspaces in root package.json for sharing packages between mobile and web.
+  Next session should: Proceed to Step 0.7 (Linting, Formatting, CI).
+
+[2026-08-15] — Phase 0 Completion
+Completed: Step 0.5 through Step 0.8.
+Completed: Step 0.7 (Linting, Formatting, CI - ESLint, Prettier, Ruff, Black, Pytest in GitHub Actions).
+Completed: Step 0.8 (Documentation Sync - README.md updated, Phase 0 complete).
+Blocked: None.
+Decisions made:
+- Added `CORSMiddleware` directly to the FastAPI skeleton to ensure smooth frontend-backend connection in local dev.
+[2026-08-16] — Phase 1, Step 1.2 Complete
+Completed: Step 1.2 (Auth API Endpoints) - Implemented FastAPI endpoints for register, login, and `/users/me`. Verified via tests.
+Blocked: None.
+Next session should: Proceed to Step 1.3 (Auth Frontend Web) or Step 1.4 (Auth Mobile).
 
 ## 8. Team & Responsibilities
 
-| Person | Role (suggested per Phases.md owner-splits) | Notes |
-|---|---|---|
-| Muhammad Ali Khaliq | ML/backend-leaning (adjust as work actually splits) | CGPA 3.08 |
-| Abdul Mannan Bhatti (Manam) | Frontend/full-stack-leaning; also runs Buildora (web agency) and freelances — brings existing React/Next.js/FastAPI/Claude-API experience directly relevant to this stack | CGPA 2.58 |
-| Mr. Zain-ul-Abideen | Academic supervisor | Approves scope changes, evaluates progress at each phase gate |
+| Person                      | Role (suggested per Phases.md owner-splits)                                                                                                                               | Notes                                                         |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Muhammad Ali Khaliq         | ML/backend-leaning (adjust as work actually splits)                                                                                                                       | CGPA 3.08                                                     |
+| Abdul Mannan Bhatti (Manam) | Frontend/full-stack-leaning; also runs Buildora (web agency) and freelances — brings existing React/Next.js/FastAPI/Claude-API experience directly relevant to this stack | CGPA 2.58                                                     |
+| Mr. Zain-ul-Abideen         | Academic supervisor                                                                                                                                                       | Approves scope changes, evaluates progress at each phase gate |
 
-> *Update instructions: as actual task ownership solidifies (vs. the suggested splits in Phases.md), record who actually owns which module here so the agent knows who to flag questions toward in commit/PR descriptions.*
+> _Update instructions: as actual task ownership solidifies (vs. the suggested splits in Phases.md), record who actually owns which module here so the agent knows who to flag questions toward in commit/PR descriptions._
 
 ## 9. External Dependencies — Status Tracker
 
-| Dependency | Status | Notes |
-|---|---|---|
-| Yahoo Finance API | Not yet integrated | Confirm rate limits before Phase 2 |
-| PSX Data API / website | Not yet integrated | Official API access vs scraping — open question (§4) |
-| Claude API | Not yet integrated | Needed for chatbot (Phase 8) — key budgeted per PRD.md §14 assumption |
-| Firebase Cloud Messaging | Not yet integrated | Needed for Phase 7 (notifications) |
-| Financial news sources | Not yet selected | Specific outlets TBD before Phase 4 |
-| Twitter/X (Tweepy) | Optional, not yet decided | Supplementary sentiment only — not a hard dependency |
+| Dependency               | Status                    | Notes                                                                 |
+| ------------------------ | ------------------------- | --------------------------------------------------------------------- |
+| Yahoo Finance API        | Not yet integrated        | Confirm rate limits before Phase 2                                    |
+| PSX Data API / website   | Not yet integrated        | Official API access vs scraping — open question (§4)                  |
+| Claude API               | Not yet integrated        | Needed for chatbot (Phase 8) — key budgeted per PRD.md §14 assumption |
+| Firebase Cloud Messaging | Not yet integrated        | Needed for Phase 7 (notifications)                                    |
+| Financial news sources   | Not yet selected          | Specific outlets TBD before Phase 4                                   |
+| Twitter/X (Tweepy)       | Optional, not yet decided | Supplementary sentiment only — not a hard dependency                  |
 
-> *Update instructions: flip each row to "Integrated ✅" with the date once working, or "Blocked ⚠️" with the reason if something's not accessible — this is the first place to check if a phase seems stuck on an external factor rather than internal work.*
+> _Update instructions: flip each row to "Integrated ✅" with the date once working, or "Blocked ⚠️" with the reason if something's not accessible — this is the first place to check if a phase seems stuck on an external factor rather than internal work._
 
 ## 10. Model Performance Tracker
 
-*(Fill in once Phase 3/4 training actually happens — this table becomes primary evidence for the FYP report and defense.)*
+_(Fill in once Phase 3/4 training actually happens — this table becomes primary evidence for the FYP report and defense.)_
 
-| Model | Version | Trained on | RMSE | Directional Accuracy | Notes |
-|---|---|---|---|---|---|
-| LSTM/BiLSTM (price prediction) | — | — | — | — | Target: RMSE < 5%, accuracy > 80% (PRD.md §8.2) |
-| SVM (buy/sell/hold) | — | — | — | — | — |
-| Random Forest (buy/sell/hold) | — | — | — | — | — |
-| FinBERT (sentiment) | — | — | — | Accuracy: — | Target: > 85% (PRD.md §8.2) |
+| Model                          | Version | Trained on | RMSE | Directional Accuracy | Notes                                           |
+| ------------------------------ | ------- | ---------- | ---- | -------------------- | ----------------------------------------------- |
+| LSTM/BiLSTM (price prediction) | —       | —          | —    | —                    | Target: RMSE < 5%, accuracy > 80% (PRD.md §8.2) |
+| SVM (buy/sell/hold)            | —       | —          | —    | —                    | —                                               |
+| Random Forest (buy/sell/hold)  | —       | —          | —    | —                    | —                                               |
+| FinBERT (sentiment)            | —       | —          | —    | Accuracy: —          | Target: > 85% (PRD.md §8.2)                     |
 
 **Backtest results (once available):**
+
 | Portfolio/strategy | Period tested | Total return | Sharpe ratio | Max drawdown | Win rate |
-|---|---|---|---|---|---|
-| — | — | — | — | — | — |
+| ------------------ | ------------- | ------------ | ------------ | ------------ | -------- |
+| —                  | —             | —            | —            | —            | —        |
 
 ## 11. Known Pitfalls / Gotchas (append as discovered — saves re-learning the same lesson twice)
 
@@ -125,13 +147,13 @@ Phases.md, Design.md, Memory.md created. No code written yet. Next: Phase 0
 - PSX/news scraping is likely to hit rate limits under real use — build the Redis caching layer (Architecture.md §10) early, don't treat it as a later optimization.
 - Floating-point math on fees/tax will produce off-by-a-paisa errors that look fine in testing and embarrassing in a live demo — `Decimal` is mandatory, not a nice-to-have (Rules.md §3.4).
 - Urdu UI text tends to overflow components sized for English string lengths — see Design.md §24, test with real Urdu strings early, not lorem-ipsum placeholders.
-- A previous demo of this project existed and is *not* the baseline — if any old code, screenshots, or decisions surface from that demo, verify against these docs before trusting them (§2).
+- A previous demo of this project existed and is _not_ the baseline — if any old code, screenshots, or decisions surface from that demo, verify against these docs before trusting them (§2).
 
-> *Update instructions: every time something wastes more than an hour because a lesson wasn't written down, add it here.*
+> _Update instructions: every time something wastes more than an hour because a lesson wasn't written down, add it here._
 
 ## 12. Frequently Anticipated Panel/Defense Questions
 
-*(Pre-loaded from the literature gap analysis and known limitations — useful context for anyone, human or AI, drafting defense materials or a report.)*
+_(Pre-loaded from the literature gap analysis and known limitations — useful context for anyone, human or AI, drafting defense materials or a report.)_
 
 - **"Why not just use an existing tool like FolioSync?"** → FolioSync has no AI prediction, no sentiment analysis, no PSX-specific advisory (PRD.md §11 competitive table).
 - **"How is this different from the academic papers you cited?"** → Every cited study is either not PSX-specific, not real-time, or has no user-facing product — InvestIQ is the first to combine all three for Pakistani retail investors (PRD.md §2.2).
@@ -141,7 +163,7 @@ Phases.md, Design.md, Memory.md created. No code written yet. Next: Phase 0
 
 ## 13. Quick Terminology Reference
 
-*(Duplicate of PRD.md §16 glossary, kept here too since Memory.md is the first-read file — avoids a context-switch mid-session just to look up a term.)*
+_(Duplicate of PRD.md §16 glossary, kept here too since Memory.md is the first-read file — avoids a context-switch mid-session just to look up a term.)_
 
 - **PSX** — Pakistan Stock Exchange
 - **LSTM/BiLSTM** — deep learning models for time-series prediction
@@ -154,27 +176,27 @@ Phases.md, Design.md, Memory.md created. No code written yet. Next: Phase 0
 
 ## 14. Resource Links (fill in as they're set up)
 
-| Resource | Link |
-|---|---|
-| GitHub repo | — |
-| Deployed web app (staging) | — |
-| Deployed web app (production/demo) | — |
-| Figma/design file (if used) | — |
-| Shared drive (datasets, FYP report drafts) | — |
-| Model training notebooks | — |
+| Resource                                   | Link |
+| ------------------------------------------ | ---- |
+| GitHub repo                                | —    |
+| Deployed web app (staging)                 | —    |
+| Deployed web app (production/demo)         | —    |
+| Figma/design file (if used)                | —    |
+| Shared drive (datasets, FYP report drafts) | —    |
+| Model training notebooks                   | —    |
 
 ## 15. Dataset Tracker
 
-*(Fill in as historical data is acquired — critical for both model training and the FYP report's methodology section.)*
+_(Fill in as historical data is acquired — critical for both model training and the FYP report's methodology section.)_
 
-| Dataset | Source | Date range covered | Companies/tickers included | Rows/size | Status |
-|---|---|---|---|---|---|
-| PSX historical prices | Yahoo Finance / PSX | — | — | — | Not yet acquired |
-| PSX company fundamentals | — | — | — | — | Not yet acquired |
-| Financial news corpus (for sentiment) | — | — | — | — | Not yet acquired |
-| KSE-100 index history (for backtest benchmark) | — | — | N/A | — | Not yet acquired |
+| Dataset                                        | Source              | Date range covered | Companies/tickers included | Rows/size | Status           |
+| ---------------------------------------------- | ------------------- | ------------------ | -------------------------- | --------- | ---------------- |
+| PSX historical prices                          | Yahoo Finance / PSX | —                  | —                          | —         | Not yet acquired |
+| PSX company fundamentals                       | —                   | —                  | —                          | —         | Not yet acquired |
+| Financial news corpus (for sentiment)          | —                   | —                  | —                          | —         | Not yet acquired |
+| KSE-100 index history (for backtest benchmark) | —                   | —                  | N/A                        | —         | Not yet acquired |
 
-> *Update instructions: record exactly where each dataset came from and when it was pulled — PSX data providers change/rate-limit over time, and being able to say precisely what was used (for reproducibility and for answering panel questions) matters more than it seems early on.*
+> _Update instructions: record exactly where each dataset came from and when it was pulled — PSX data providers change/rate-limit over time, and being able to say precisely what was used (for reproducibility and for answering panel questions) matters more than it seems early on._
 
 ## 16. Quick-Resume Checklist (for starting any new session)
 
@@ -189,7 +211,7 @@ Phases.md, Design.md, Memory.md created. No code written yet. Next: Phase 0
 
 ## 17. Session Log Entry Template
 
-*(Copy this format for every new Section 7 entry — keeps the log scannable instead of freeform.)*
+_(Copy this format for every new Section 7 entry — keeps the log scannable instead of freeform.)_
 
 ```
 [YYYY-MM-DD] — <Phase name/number>

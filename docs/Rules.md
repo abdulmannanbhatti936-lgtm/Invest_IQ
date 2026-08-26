@@ -1,4 +1,5 @@
 # Rules.md — InvestIQ
+
 ### Coding Standards, Conventions & Guardrails
 
 **Audience:** This document is written for an AI coding agent (e.g., Antigravity AI) working autonomously or semi-autonomously on this codebase, as well as human contributors (Manam, Ali).
@@ -19,17 +20,20 @@
 ## 2. Repository & Git Conventions
 
 ### 2.1 Branching
+
 - `main` — always in a demoable state. Never push directly to `main`.
 - Feature branches: `feature/<short-description>` (e.g., `feature/risk-profiling`, `feature/lstm-pipeline`, `feature/portfolio-fee-calc`)
 - Bugfix branches: `fix/<short-description>`
 - One feature branch = one module/functional requirement group where possible, to keep PRs reviewable
 
 ### 2.2 Commit Messages
+
 Format: `<type>(<scope>): <short description>`
 
 Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 
 Examples:
+
 ```
 feat(risk-profiling): add onboarding questionnaire endpoint
 fix(portfolio): correct CGT calculation rounding error
@@ -37,11 +41,13 @@ docs(architecture): update DB schema for sentiment_scores
 ```
 
 ### 2.3 Pull Requests
+
 - Every PR references the FR number(s) it implements (e.g., "Implements FR23–FR26")
 - No PR merges into `main` with failing tests or lint errors (see Section 8, CI/CD)
 - Keep PRs scoped to one module — a PR that touches onboarding, portfolio, and chatbot at once is a sign the work should have been split
 
 ### 2.4 What never gets committed
+
 - `.env` files with real values (only `.env.example` with placeholders)
 - API keys, database credentials, Firebase service account JSON
 - Trained model artifacts above a reasonable size — use `.gitignore` for `*.h5`, `*.pt`, `*.pkl` model files; document how to regenerate them instead
@@ -50,25 +56,30 @@ docs(architecture): update DB schema for sentiment_scores
 ## 3. Backend Rules (Python / FastAPI)
 
 ### 3.1 Style
+
 - Follow PEP 8; format with `black`, lint with `ruff` or `flake8`
 - Type hints required on all function signatures — FastAPI's value comes from this, don't skip it
 - Pydantic models for every request/response body — never accept or return raw untyped dicts at an API boundary
 
 ### 3.2 Structure
+
 - One router per resource (`routers/auth.py`, `routers/portfolio.py`, `routers/stocks.py`, etc.)
 - Business logic lives in `services/`, not inline in route handlers — route handlers should be thin: validate input → call service → return response
 - Database access via a repository/CRUD layer (`crud/`), not raw queries scattered through route handlers
 
 ### 3.3 Error Handling
+
 - Use FastAPI's `HTTPException` with meaningful status codes (400 for bad input, 401/403 for auth, 404 for missing resources, 422 for validation, 500 only for genuine unexpected failures)
 - Every external API call (Yahoo Finance, PSX data, Claude API, FCM) wrapped in try/except with a graceful fallback per Architecture.md Section 8.3 — a third-party outage must never crash an endpoint
 - Never swallow exceptions silently — log them (structured logging per Architecture.md Section 18)
 
 ### 3.4 Financial Calculations
+
 - All fee/tax/price math done with `Decimal`, never raw floats — floating point rounding errors are unacceptable in anything showing a price to a user
 - Every fee/tax calculation function must have a corresponding unit test with known input → expected output pairs (per Architecture.md Section 19)
 
 ### 3.5 ML Code
+
 - Training scripts and inference code are separated — training is not run inside the request/response cycle, ever (use Celery jobs per Architecture.md Section 9)
 - Every model file logs its training data date range, hyperparameters, and evaluation metrics alongside the saved artifact (for reproducibility and for the FYP report)
 - Random seeds fixed during development for reproducible results; documented if intentionally varied for final evaluation
@@ -76,21 +87,25 @@ docs(architecture): update DB schema for sentiment_scores
 ## 4. Frontend Rules (React / React Native)
 
 ### 4.1 Style
+
 - TypeScript everywhere — no `.js`/`.jsx` files in new code
 - Format with Prettier, lint with ESLint (shared config across `apps/web` and `apps/mobile`)
 - Functional components + hooks only — no class components
 
 ### 4.2 Structure
+
 - Components organized by feature, not by type (`features/portfolio/`, `features/onboarding/`, `features/chat/` — not one giant `components/` dump)
 - Shared, truly generic UI pieces (buttons, cards, inputs) live in a `components/ui/` folder
 - No component should directly call `fetch`/`axios` — all API calls go through the shared `packages/api-client`
 
 ### 4.3 State
+
 - Server state (predictions, portfolio, stock data) via React Query — no manual `useEffect` + `useState` data-fetching patterns
 - Never store server data that React Query already owns in local component state — this causes stale-data bugs
 - Language (English/Urdu) and theme are global state, accessible app-wide, persisted locally
 
 ### 4.4 Copy & Language
+
 - All user-facing text goes through `packages/i18n` — no hardcoded English strings in components, even during early development. Retrofitting i18n later is expensive; doing it from day one is not.
 - Every screen that shows a prediction, recommendation, or return figure must include the disclaimer language from PRD.md Section 8.5, in the active language
 
@@ -112,7 +127,7 @@ docs(architecture): update DB schema for sentiment_scores
 
 - Every module's README (or a docstring block at the top of its main file) states: what it does, what FRs it implements (reference PRD.md), and how to run/test it locally
 - Any deviation from Architecture.md must update Architecture.md in the same PR — the docs are the source of truth, not tribal knowledge
-- Complex logic (fee/tax calculation, portfolio rolling thresholds, LSTM feature engineering) gets inline comments explaining *why*, not just *what*
+- Complex logic (fee/tax calculation, portfolio rolling thresholds, LSTM feature engineering) gets inline comments explaining _why_, not just _what_
 
 ## 8. Testing & CI Rules (expands on Architecture.md Section 19–20)
 
@@ -133,6 +148,7 @@ docs(architecture): update DB schema for sentiment_scores
 ## 10. Definition of Done (per feature/module)
 
 A feature is not "done" until:
+
 - [ ] It matches its functional requirement(s) in PRD.md exactly
 - [ ] Backend logic has unit tests (especially any money/fee/tax math)
 - [ ] API contract is reflected in OpenAPI schema and `packages/api-client`

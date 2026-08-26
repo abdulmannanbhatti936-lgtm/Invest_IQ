@@ -1,4 +1,5 @@
 # Phases.md — InvestIQ
+
 ### Development Roadmap, Sequencing & Exit Criteria
 
 **Companion docs:** PRD.md, Architecture.md, Rules.md
@@ -22,6 +23,7 @@
 **Goal:** A working, empty skeleton that both teammates (and the AI agent) can build on without setup friction.
 
 **Tasks:**
+
 - Initialize monorepo per Architecture.md Section 5 (`apps/`, `services/`, `packages/`, `infra/`, `docs/`)
 - Set up `docker-compose.yml` for local Postgres + Redis
 - Scaffold FastAPI backend (`services/api`) with health-check endpoint, base folder structure (`routers/`, `services/`, `crud/`, `models/`)
@@ -38,6 +40,7 @@
 **Depends on:** Nothing (first phase).
 
 **Exit criteria:**
+
 - [ ] `docker-compose up` starts Postgres + Redis locally
 - [ ] FastAPI backend runs locally and `/health` returns 200
 - [ ] Web app runs locally and renders a placeholder home page
@@ -52,6 +55,7 @@
 **Goal:** A user can register, log in, and complete risk profiling on web. Implements PRD.md FR1–FR6.
 
 **Tasks:**
+
 - Backend: `users`, `risk_profiles` tables/models (per Architecture.md Section 7)
 - Backend: `/auth/register`, `/auth/login`, `/auth/refresh` endpoints, JWT issuance, password hashing
 - Backend: `/users/me`, `/users/me/risk-profile` endpoints
@@ -64,6 +68,7 @@
 **Depends on:** Phase 0 complete.
 
 **Exit criteria:**
+
 - [ ] New user can register, log in, complete the risk questionnaire, and land on a (placeholder) dashboard
 - [ ] Risk profile persists across logout/login
 - [ ] Partial-onboarding resume works (FR6 edge case)
@@ -77,6 +82,7 @@
 **Goal:** Any PSX-listed stock can be looked up with real historical/current data. Implements FR7–FR10.
 
 **Tasks:**
+
 - Backend: `stocks`, `price_points` tables
 - Backend: integration with Yahoo Finance API + PSX data source, with Redis caching (Architecture.md Section 10)
 - Backend: `/stocks/search`, `/stocks/{ticker}`, `/stocks/{ticker}/history` endpoints
@@ -89,6 +95,7 @@
 **Depends on:** Phase 0 complete. (Independent of Phase 1's user features, but auth should exist if endpoints are protected.)
 
 **Exit criteria:**
+
 - [ ] Searching any real PSX ticker returns live/cached data
 - [ ] Price chart renders correctly with real historical data
 - [ ] Rate-limit/outage on the data source degrades gracefully, doesn't crash the app
@@ -101,6 +108,7 @@
 **Goal:** Real, trained models produce a price forecast + buy/sell/hold signal for a selected stock. Implements FR11–FR16.
 
 **Tasks:**
+
 - Data pipeline: historical PSX data ingestion for model training (min. 3+ years per PRD.md backtesting requirement)
 - Feature engineering: TA-Lib indicators (RSI, MACD, Bollinger Bands, Moving Averages)
 - Train LSTM/BiLSTM model per Architecture.md Section 15.1; evaluate against RMSE/directional accuracy targets
@@ -115,6 +123,7 @@
 **Depends on:** Phase 2 complete (needs real stock data flowing).
 
 **Exit criteria:**
+
 - [ ] LSTM model trained and evaluated; RMSE and directional accuracy documented (target: RMSE < 5%, accuracy > 80% — if not met, documented and explained, not hidden)
 - [ ] Prediction endpoint returns real model output, not a placeholder
 - [ ] Confidence score displayed and low-confidence predictions visibly flagged in UI
@@ -127,6 +136,7 @@
 **Goal:** Real news sentiment feeds into the prediction pipeline and is visible to the user. Implements FR17–FR22.
 
 **Tasks:**
+
 - News scraper implementation for configured sources (Architecture.md Section 6.3)
 - FinBERT inference pipeline + VADER fallback
 - Backend: `sentiment_scores` table, `/stocks/{ticker}/sentiment` endpoint
@@ -140,6 +150,7 @@
 **Depends on:** Phase 3 complete (sentiment feeds into the existing prediction pipeline, doesn't replace it).
 
 **Exit criteria:**
+
 - [ ] Real news scraped and scored for at least a meaningful set of PSX-listed companies
 - [ ] Sentiment score visibly influences prediction output (documented, testable)
 - [ ] FinBERT accuracy evaluated against target (>85%) and documented
@@ -152,6 +163,7 @@
 **Goal:** A logged-in user with a risk profile gets a real, personalized, fully-costed portfolio. Implements FR23–FR28.
 
 **Tasks:**
+
 - Backend: `portfolios`, `portfolio_holdings` tables
 - Backend: portfolio generation logic — combines risk profile + predictions + sentiment into allocations
 - Backend: fee/tax calculation engine (brokerage fee, CGT, WHT) using `Decimal` per Rules.md Section 3.4, with unit tests
@@ -165,6 +177,7 @@
 **Depends on:** Phase 1 (auth/risk profile), Phase 3 (predictions), Phase 4 (sentiment) all complete.
 
 **Exit criteria:**
+
 - [ ] A real user with a real risk profile receives a portfolio built from real prediction + sentiment data
 - [ ] Every holding shows accurate gross→net price after fee/CGT/WHT
 - [ ] Fee/tax calculation has passing unit tests with known input/output pairs
@@ -177,6 +190,7 @@
 **Goal:** A user can validate a portfolio's historical performance before trusting it. Implements FR29–FR32.
 
 **Tasks:**
+
 - Backend: `backtest_results` table
 - Backend: Backtrader/QuantStats integration, `/backtest/run`, `/backtest/{id}` endpoints
 - Frontend: backtest report screen — total return, Sharpe ratio, max drawdown, win rate, KSE-100 benchmark comparison (FR32)
@@ -186,6 +200,7 @@
 **Depends on:** Phase 5 complete (backtests run against real generated portfolios).
 
 **Exit criteria:**
+
 - [ ] Backtest runs against 3+ years of real historical PSX data
 - [ ] Report metrics match manual spot-check calculations
 - [ ] Sharpe ratio target (>1.0) documented as met or explained if not
@@ -197,6 +212,7 @@
 **Goal:** Users get real, timely push alerts without checking the app manually. Implements FR33–FR36.
 
 **Tasks:**
+
 - Backend: `notifications` table, `monitor_portfolios` and `send_notification` Celery jobs
 - Firebase Cloud Messaging integration (web + mobile)
 - Backend: `/notifications`, `/notifications/preferences` endpoints
@@ -207,6 +223,7 @@
 **Depends on:** Phase 5 complete (needs real active portfolios to monitor).
 
 **Exit criteria:**
+
 - [ ] A simulated buy/sell/roll trigger produces a real push notification on both web and mobile within the 5-second latency target
 - [ ] Notification includes real reasoning text, not a placeholder
 - [ ] User can adjust notification sensitivity and see the effect
@@ -218,6 +235,7 @@
 **Goal:** A user can have a real, grounded conversation about their portfolio/predictions in English or Urdu. Implements FR37–FR41.
 
 **Tasks:**
+
 - Backend: `chat_messages` table, `/chat/message`, `/chat/history` endpoints
 - Backend: context-grounding pipeline per Architecture.md Section 12 (fetch real user data → build context → call Claude API)
 - System prompt engineering: PSX-only scope enforcement, jargon-free tone, mandatory uncertainty disclosure, bilingual capability
@@ -229,6 +247,7 @@
 **Depends on:** Phase 5 (portfolio) and Phase 3/4 (predictions/sentiment) complete — the chatbot has nothing real to ground itself in otherwise.
 
 **Exit criteria:**
+
 - [ ] Chatbot correctly explains a real user's actual current portfolio and predictions, in both English and Urdu
 - [ ] Chatbot never states a figure that doesn't match the database
 - [ ] Chatbot declines out-of-scope questions (e.g., crypto) instead of improvising
@@ -241,6 +260,7 @@
 **Goal:** Admin can manage users, monitor system health, and control models/news sources. Implements FR42–FR46.
 
 **Tasks:**
+
 - Backend: role-based access control (admin vs user), `admin_action_logs` table
 - Backend: `/admin/users`, `/admin/system-health`, `/admin/models/retrain`, `/admin/news-sources` endpoints
 - Frontend: admin route set within `apps/web` (per Architecture.md Section 21 recommendation) — user management, system health dashboard, model retrain trigger, news source management, analytics view
@@ -250,6 +270,7 @@
 **Depends on:** All prior phases (admin panel surfaces status/data from everything built so far).
 
 **Exit criteria:**
+
 - [ ] Admin can view/suspend a user
 - [ ] System health dashboard shows real last-refresh timestamps for prices, sentiment, and models
 - [ ] Admin can trigger a model retrain and see it reflected in `model_version`
@@ -262,6 +283,7 @@
 **Goal:** Everything built for web (Phases 1–9) is also usable on the React Native mobile app.
 
 **Tasks:**
+
 - Port each web screen's equivalent to `apps/mobile` using shared `packages/shared-types`, `packages/api-client`, `packages/i18n`
 - Mobile-specific: push notification permission flow, offline/stale-data handling (Architecture.md Section 16)
 - QA pass on Android emulator/device
@@ -271,6 +293,7 @@
 **Depends on:** Phases 1–9 substantially complete on web (mobile should not be the first place a feature is built, per Architecture.md's "one backend, multiple clients" philosophy).
 
 **Exit criteria:**
+
 - [ ] Every core user flow (onboarding → prediction → portfolio → backtest → chat → notification) works end-to-end on Android
 - [ ] No feature exists on mobile that doesn't also exist on web (and vice versa, ideally)
 
@@ -281,6 +304,7 @@
 **Goal:** A submission-ready, defensible FYP.
 
 **Tasks:**
+
 - Full end-to-end QA pass across web + mobile (Rules.md Section 10, Definition of Done, applied project-wide)
 - Fill any i18n gaps (rough Urdu → polished Urdu)
 - Prepare model evaluation writeups (RMSE, accuracy, Sharpe ratio results) for the FYP report
@@ -292,6 +316,7 @@
 **Depends on:** All prior phases.
 
 **Exit criteria:**
+
 - [ ] Full demo flow (per PRD.md Section 13, Success Metrics) runs live without failure
 - [ ] Documented, honest model metrics ready to present (met targets, or explained gaps)
 - [ ] Defense narrative ready: problem → literature gap → solution → live demo → limitations → future work

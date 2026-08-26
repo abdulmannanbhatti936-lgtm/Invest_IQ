@@ -1,4 +1,5 @@
 # Architecture — InvestIQ
+
 ### AI-Based Portfolio Management System for PSX Investors
 
 **Companion doc to:** PRD.md
@@ -43,32 +44,32 @@ One backend, multiple clients. The web app and mobile app are both thin clients 
 
 ## 3. Tech Stack (final)
 
-| Layer | Technology | Notes |
-|---|---|---|
-| Web Frontend | React.js + Vite, Tailwind CSS | Matches Manam's existing core stack |
-| Mobile App | **React Native** (Expo) | Chosen over Flutter — team already works in React/JS; enables shared TypeScript types/utils between web and mobile via a shared package |
-| Backend | Python, FastAPI | Async-first, auto-generates OpenAPI docs (useful for Antigravity AI to reference the API contract directly) |
-| AI/ML | TensorFlow or PyTorch (LSTM/BiLSTM), Scikit-learn (SVM, Random Forest), HuggingFace Transformers (FinBERT) | Served via a dedicated internal ML service |
-| NLP fallback | VADER (via `nltk`/`vaderSentiment`) | Lightweight fallback when FinBERT confidence is low |
-| LLM Chatbot | Claude API (primary) | Bilingual EN/UR conversational layer, grounded via RAG-style context injection (user's live data) |
-| Database | PostgreSQL (recommended) or MySQL | Relational — the domain (users, portfolios, predictions) is inherently relational |
-| Cache / Queue | Redis | Response caching + Celery broker |
-| Background Jobs | Celery + Redis | Market monitoring agent, model retraining jobs, notification dispatch |
-| Notifications | Firebase Cloud Messaging (FCM) | Cross-platform push (web + mobile) |
-| Technical Indicators | TA-Lib | RSI, MACD, Bollinger Bands, Moving Averages |
-| Backtesting | Backtrader or QuantStats | Historical strategy simulation |
-| Data Sources | Yahoo Finance API, PSX Data API/website | Price + fundamentals |
-| News/Sentiment Ingestion | Custom scrapers (`requests`/`BeautifulSoup` or `Scrapy`), optional Tweepy for Twitter/X | Feeds FinBERT pipeline |
-| Auth | JWT (access + refresh tokens), bcrypt/argon2 password hashing | Stateless auth across web + mobile |
-| Deployment | Backend: Railway or AWS/GCP; Web: Vercel; Mobile: Expo EAS Build | Matches Manam's existing deployment patterns (Vercel + Railway) |
-| Version Control | Git / GitHub, monorepo | See Section 5 |
+| Layer                    | Technology                                                                                                 | Notes                                                                                                                                   |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Web Frontend             | React.js + Vite, Tailwind CSS                                                                              | Matches Manam's existing core stack                                                                                                     |
+| Mobile App               | **React Native** (Expo)                                                                                    | Chosen over Flutter — team already works in React/JS; enables shared TypeScript types/utils between web and mobile via a shared package |
+| Backend                  | Python, FastAPI                                                                                            | Async-first, auto-generates OpenAPI docs (useful for Antigravity AI to reference the API contract directly)                             |
+| AI/ML                    | TensorFlow or PyTorch (LSTM/BiLSTM), Scikit-learn (SVM, Random Forest), HuggingFace Transformers (FinBERT) | Served via a dedicated internal ML service                                                                                              |
+| NLP fallback             | VADER (via `nltk`/`vaderSentiment`)                                                                        | Lightweight fallback when FinBERT confidence is low                                                                                     |
+| LLM Chatbot              | Claude API (primary)                                                                                       | Bilingual EN/UR conversational layer, grounded via RAG-style context injection (user's live data)                                       |
+| Database                 | PostgreSQL (recommended) or MySQL                                                                          | Relational — the domain (users, portfolios, predictions) is inherently relational                                                       |
+| Cache / Queue            | Redis                                                                                                      | Response caching + Celery broker                                                                                                        |
+| Background Jobs          | Celery + Redis                                                                                             | Market monitoring agent, model retraining jobs, notification dispatch                                                                   |
+| Notifications            | Firebase Cloud Messaging (FCM)                                                                             | Cross-platform push (web + mobile)                                                                                                      |
+| Technical Indicators     | TA-Lib                                                                                                     | RSI, MACD, Bollinger Bands, Moving Averages                                                                                             |
+| Backtesting              | Backtrader or QuantStats                                                                                   | Historical strategy simulation                                                                                                          |
+| Data Sources             | Yahoo Finance API, PSX Data API/website                                                                    | Price + fundamentals                                                                                                                    |
+| News/Sentiment Ingestion | Custom scrapers (`requests`/`BeautifulSoup` or `Scrapy`), optional Tweepy for Twitter/X                    | Feeds FinBERT pipeline                                                                                                                  |
+| Auth                     | JWT (access + refresh tokens), bcrypt/argon2 password hashing                                              | Stateless auth across web + mobile                                                                                                      |
+| Deployment               | Backend: Railway or AWS/GCP; Web: Vercel; Mobile: Expo EAS Build                                           | Matches Manam's existing deployment patterns (Vercel + Railway)                                                                         |
+| Version Control          | Git / GitHub, monorepo                                                                                     | See Section 5                                                                                                                           |
 
 ## 4. Why React Native over Flutter (decision rationale)
 
 - Team's core stack is already React/JavaScript/TypeScript (web, Node.js) — no new language (Dart) to learn under FYP time pressure
 - Enables a shared `packages/shared` workspace (types, API client, validation schemas, i18n strings) reused by both web and mobile
 - Expo simplifies build/deploy for a two-person team without dedicated native mobile experience
-- *(If a supervisor/panel specifically prefers Flutter for the defense, this is the one architectural decision easiest to swap — noted as a risk-flagged assumption, not a hard dependency of the rest of the system.)*
+- _(If a supervisor/panel specifically prefers Flutter for the defense, this is the one architectural decision easiest to swap — noted as a risk-flagged assumption, not a hard dependency of the rest of the system.)_
 
 ## 5. Repository Structure (Monorepo)
 
@@ -99,25 +100,30 @@ investiq/
 ## 6. Backend Service Breakdown
 
 ### 6.1 `services/api` (FastAPI — core application layer)
+
 Responsible for: auth, user/risk-profile CRUD, portfolio generation orchestration, backtest requests, notification preferences, admin endpoints. Calls into `ml-engine`, `sentiment-engine`, and `chatbot-service` as internal service calls (or, for FYP simplicity, as importable Python modules within the same deployment — see Section 6.5).
 
 ### 6.2 `services/ml-engine`
+
 - Training pipeline: ingest historical PSX data → feature engineering (TA-Lib indicators) → train LSTM/BiLSTM → evaluate (RMSE, directional accuracy) → save model artifact
 - Inference pipeline: load latest trained model → given a stock, return forecast + confidence score
 - SVM/Random Forest: buy/sell/hold classifiers trained on the same feature set
 
 ### 6.3 `services/sentiment-engine`
+
 - Scraper jobs (scheduled via Celery) pull financial news per PSX-listed company
 - FinBERT inference scores each article; VADER as fallback
 - Aggregated sentiment score per stock, refreshed on a schedule (e.g., every few hours)
 
 ### 6.4 `services/chatbot-service`
+
 - Receives user message + language
 - Builds a grounded context payload: user's risk profile, current portfolio, latest predictions/sentiment for relevant stocks
 - Calls Claude API with that context + system prompt enforcing: PSX-only scope, jargon-free explanation, bilingual capability, mandatory uncertainty disclosure
 - Returns response to `services/api`, which relays it to the client
 
 ### 6.5 Deployment simplification note (FYP-scale)
+
 For a two-person FYP team, running 4 separate microservices in production is unnecessary overhead. Recommended approach: **one FastAPI deployment** with `ml-engine`, `sentiment-engine`, and `chatbot-service` as internal Python packages/modules (not separate network services) for now. The folder separation above still applies — it keeps code organized and would allow splitting into real microservices later without a rewrite, but Phase 1–3 should NOT deploy them separately. Heavy/slow jobs (training, scraping, notification checks) go through Celery background workers, not the request/response cycle.
 
 ## 7. Database Schema (initial draft)
@@ -259,14 +265,14 @@ All endpoints documented automatically via FastAPI's built-in OpenAPI/Swagger �
 
 ## 9. Background Jobs (Celery + Redis)
 
-| Job | Trigger | Purpose |
-|---|---|---|
-| `refresh_stock_prices` | Scheduled (e.g., every 15 min during market hours) | Pull latest PSX prices into `price_points` |
-| `scrape_news_sentiment` | Scheduled (e.g., every few hours) | Pull news, run FinBERT/VADER, write `sentiment_scores` |
-| `run_predictions` | Scheduled (e.g., daily) or on-demand | Run LSTM/SVM/RF inference, write `predictions` |
-| `retrain_models` | Scheduled (e.g., weekly) or admin-triggered | Retrain LSTM/SVM/RF on latest data |
-| `monitor_portfolios` | Scheduled (e.g., every few min) | Check active portfolios against fresh predictions, trigger notifications |
-| `send_notification` | Triggered by `monitor_portfolios` | Dispatch via FCM, target latency < 5s |
+| Job                     | Trigger                                            | Purpose                                                                  |
+| ----------------------- | -------------------------------------------------- | ------------------------------------------------------------------------ |
+| `refresh_stock_prices`  | Scheduled (e.g., every 15 min during market hours) | Pull latest PSX prices into `price_points`                               |
+| `scrape_news_sentiment` | Scheduled (e.g., every few hours)                  | Pull news, run FinBERT/VADER, write `sentiment_scores`                   |
+| `run_predictions`       | Scheduled (e.g., daily) or on-demand               | Run LSTM/SVM/RF inference, write `predictions`                           |
+| `retrain_models`        | Scheduled (e.g., weekly) or admin-triggered        | Retrain LSTM/SVM/RF on latest data                                       |
+| `monitor_portfolios`    | Scheduled (e.g., every few min)                    | Check active portfolios against fresh predictions, trigger notifications |
+| `send_notification`     | Triggered by `monitor_portfolios`                  | Dispatch via FCM, target latency < 5s                                    |
 
 ## 10. Caching Strategy (Redis)
 
@@ -297,14 +303,14 @@ No portfolio or price figures are ever generated freeform by the LLM — they're
 
 ## 13. Deployment Architecture
 
-| Component | Platform |
-|---|---|
-| Web app | Vercel |
-| Backend API + Celery workers | Railway (or AWS/GCP if free-tier/student credits available) |
-| Database | Railway Postgres, or managed Postgres/MySQL |
-| Redis | Railway Redis add-on |
-| Mobile app | Expo EAS Build → APK for Android testing/demo; TestFlight only if iOS is pursued |
-| ML model artifacts | Stored alongside backend (or object storage — S3/GCS — if size becomes an issue) |
+| Component                    | Platform                                                                         |
+| ---------------------------- | -------------------------------------------------------------------------------- |
+| Web app                      | Vercel                                                                           |
+| Backend API + Celery workers | Railway (or AWS/GCP if free-tier/student credits available)                      |
+| Database                     | Railway Postgres, or managed Postgres/MySQL                                      |
+| Redis                        | Railway Redis add-on                                                             |
+| Mobile app                   | Expo EAS Build → APK for Android testing/demo; TestFlight only if iOS is pursued |
+| ML model artifacts           | Stored alongside backend (or object storage — S3/GCS — if size becomes an issue) |
 
 ## 14. Scalability Notes (for defense credibility, not required at FYP scale)
 
@@ -316,6 +322,7 @@ No portfolio or price figures are ever generated freeform by the LLM — they're
 ## 15. ML Model Architecture (detail)
 
 ### 15.1 LSTM/BiLSTM Prediction Model
+
 - **Input:** sequence window of past N days (e.g., 60 trading days) of OHLCV data + technical indicators (RSI, MACD, Bollinger Bands, Moving Averages) + sentiment score for that day
 - **Architecture (starting point):** 2 stacked LSTM/BiLSTM layers (e.g., 64 → 32 units) → Dropout (0.2) → Dense output layer predicting next N-day price/return
 - **Loss/metric:** MSE for training; RMSE and directional accuracy reported for evaluation (per PRD targets: RMSE < 5%, directional accuracy > 80%)
@@ -323,17 +330,20 @@ No portfolio or price figures are ever generated freeform by the LLM — they're
 - **Training data split:** chronological train/validation/test split (never randomly shuffled — this is time-series data, shuffling would leak future information into training)
 
 ### 15.2 SVM / Random Forest (buy/sell/hold classifier)
+
 - Same engineered feature set as LSTM, framed as classification instead of regression
 - Output: buy / sell / hold label + probability, used as a secondary signal alongside the LSTM forecast
 - Random Forest additionally provides feature importance — useful in the chatbot's "what's driving this" explanations and in the FYP defense
 
 ### 15.3 FinBERT Sentiment Pipeline
+
 - Pre-trained FinBERT (HuggingFace `ProsusAI/finbert` or equivalent) run on scraped headlines/article text
 - Output: positive/negative/neutral label + confidence
 - VADER fallback triggers when FinBERT confidence < defined threshold or input text is very short (e.g., tweet-length)
 - Sentiment scores aggregated (e.g., time-decayed average) per stock per day, merged as an LSTM input feature
 
 ### 15.4 Model Versioning
+
 - Every trained model artifact tagged with a `model_version` (timestamp or semantic version)
 - `predictions` table stores which `model_version` generated each forecast — enables comparing model performance over time and rolling back if a retrain underperforms
 
@@ -373,13 +383,13 @@ Separate `.env` files (or platform secret managers — Railway/Vercel env vars) 
 
 ## 19. Testing Strategy (high-level)
 
-| Layer | Approach |
-|---|---|
-| Backend (FastAPI) | Pytest — unit tests for portfolio/fee-tax calculation logic (these must be exact, not approximate), integration tests for key endpoints |
-| ML models | Offline evaluation notebooks/scripts reporting RMSE, directional accuracy, Sharpe ratio against held-out test data before any model is promoted to "active" |
-| Frontend (web) | Component tests for critical flows (onboarding, portfolio display) — Vitest/React Testing Library |
-| Mobile | Manual QA on Android emulator/device each phase; automated testing is a stretch goal given FYP time constraints |
-| End-to-end | At minimum one manual full-flow walkthrough (register → prediction → portfolio → backtest → chat → notification) before each phase demo |
+| Layer             | Approach                                                                                                                                                    |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend (FastAPI) | Pytest — unit tests for portfolio/fee-tax calculation logic (these must be exact, not approximate), integration tests for key endpoints                     |
+| ML models         | Offline evaluation notebooks/scripts reporting RMSE, directional accuracy, Sharpe ratio against held-out test data before any model is promoted to "active" |
+| Frontend (web)    | Component tests for critical flows (onboarding, portfolio display) — Vitest/React Testing Library                                                           |
+| Mobile            | Manual QA on Android emulator/device each phase; automated testing is a stretch goal given FYP time constraints                                             |
+| End-to-end        | At minimum one manual full-flow walkthrough (register → prediction → portfolio → backtest → chat → notification) before each phase demo                     |
 
 ## 20. CI/CD (lightweight, FYP-appropriate)
 
