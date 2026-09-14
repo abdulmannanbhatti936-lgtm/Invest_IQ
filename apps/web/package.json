@@ -10,14 +10,20 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.9.1",
+    "@investiq/api-client": "*",
+    "@investiq/design-tokens": "*",
+    "@investiq/i18n": "*",
+    "@investiq/shared-types": "*",
     "@tanstack/react-query": "^5.101.4",
+    "i18next": "^26.4.2",
+    "lucide-react": "^1.46.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-hook-form": "^7.88.0",
+    "react-i18next": "^17.0.14",
     "react-router-dom": "^7.18.2",
-    "@investiq/shared-types": "*",
-    "@investiq/api-client": "*",
-    "@investiq/i18n": "*",
-    "@investiq/design-tokens": "*"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",

@@ -17,7 +17,8 @@
 ## 2. Current Status (update this section every session)
 
 ### **Phase 1: Auth, Onboarding & Risk Profiling (In Progress)**
-- **Completed:** Step 1.1 (Database Models), Step 1.2 (Auth API Endpoints)
+
+- **Completed:** Step 1.1 (Database Models), Step 1.2 (Auth API Endpoints), Step 1.3 (Risk Profile Backend), Step 1.4 (Auth Unit/Integration Tests), Step 1.5 (Web: Auth Screens), Step 1.6 (Web: Onboarding Questionnaire), Step 1.7 (Dashboard Structure), Step 1.8 (Language Toggle & RTL)
 
 > _Update instructions: replace this section's content each session with (a) which phase is active, (b) what was completed since the last update, (c) what's in progress, (d) what's blocked/waiting on a decision._
 
@@ -95,11 +96,25 @@ Completed: Step 0.7 (Linting, Formatting, CI - ESLint, Prettier, Ruff, Black, Py
 Completed: Step 0.8 (Documentation Sync - README.md updated, Phase 0 complete).
 Blocked: None.
 Decisions made:
+
 - Added `CORSMiddleware` directly to the FastAPI skeleton to ensure smooth frontend-backend connection in local dev.
-[2026-08-16] — Phase 1, Step 1.2 Complete
-Completed: Step 1.2 (Auth API Endpoints) - Implemented FastAPI endpoints for register, login, and `/users/me`. Verified via tests.
+  [2026-08-16] — Phase 1, Step 1.2 Complete
+  Completed: Step 1.2 (Auth API Endpoints) - Implemented FastAPI endpoints for register, login, and `/users/me`. Verified via tests.
+  Blocked: None.
+  Next session should: Proceed to Step 1.3 (Auth Frontend Web) or Step 1.4 (Auth Mobile).
+
+[2026-09-14] — Phase 1, Steps 1.3 and 1.4 Complete
+Completed: Step 1.3 (Risk Profile Backend) - Implemented risk scoring logic and API endpoints. Completed: Step 1.4 (Auth Unit/Integration Tests) - Implemented exhaustive pytest coverage for auth endpoints including refresh tokens.
+Blocked: None. (Previously blocked by Docker, but resolved by switching to native Postgres on port 5435).
+Next session should: Proceed to Step 1.5 (Web: Auth Screens).
+
+[2026-09-15] — Phase 1 Complete
+Completed: Step 1.5 (Web: Auth Screens) - Built React login and register UI using Tailwind, React Hook Form, and Zod. Wired it up to the FastAPI backend using `api-client`.
+Completed: Step 1.6 (Web: Onboarding Questionnaire) - Built the single-question-per-screen wizard per Design.md §7.1. Integrated with backend risk profiling API.
+Completed: Step 1.7 (Dashboard Structure) - Built the main authenticated layout shell (sidebar/topbar) and the empty state for the Dashboard per Design.md §12.2.
+Completed: Step 1.8 (Language Toggle & RTL - Urdu) - Implemented global language toggle in the topbar. Updating language dynamically sets `dir="rtl"` on the document, shifting the sidebar to the right and translating navigation items correctly.
 Blocked: None.
-Next session should: Proceed to Step 1.3 (Auth Frontend Web) or Step 1.4 (Auth Mobile).
+Next session should: Begin Phase 2 (Data Pipeline & Sentiment), starting with Step 2.1 (PSX Data Ingestion).
 
 ## 8. Team & Responsibilities
 

@@ -1,3 +1,8 @@
 {
-  "test_key": "ہیلو InvestIQ"
+  "test_key": "ہیلو InvestIQ",
+  "nav_dashboard": "ڈیش بورڈ",
+  "nav_stocks": "اسٹاکس",
+  "nav_portfolio": "پورٹ فولیو",
+  "nav_backtest": "بیک ٹیسٹ",
+  "nav_chat": "چیٹ"
 }

@@ -1,16 +1,22 @@
 from datetime import timedelta
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from jose import jwt, JWTError
 
 from core.config import settings
 from core.database import get_db
-from core.security import create_access_token, verify_password
+from core.security import create_access_token, create_refresh_token, verify_password
 from crud.user import create_user, get_user_by_email
 from schemas.auth import Token
 from schemas.user import User as UserSchema
 from schemas.user import UserCreate
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -39,4 +45,42 @@ def login(db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = 
     access_token = create_access_token(
         subject=user.email, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    refresh_token = create_refresh_token(subject=user.email)
+    
+    return {
+        "access_token": access_token, 
+        "refresh_token": refresh_token,
+        "token_type": "bearer"
+    }
+
+@router.post("/refresh", response_model=Token)
+def refresh_token(request: RefreshTokenRequest, db: Session = Depends(get_db)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(request.refresh_token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        email: str = payload.get("sub")
+        token_type: str = payload.get("type")
+        if email is None or token_type != "refresh":
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+        
+    user = get_user_by_email(db, email=email)
+    if user is None:
+        raise credentials_exception
+        
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        subject=user.email, expires_delta=access_token_expires
+    )
+    new_refresh_token = create_refresh_token(subject=user.email)
+    
+    return {
+        "access_token": access_token, 
+        "refresh_token": new_refresh_token,
+        "token_type": "bearer"
+    }

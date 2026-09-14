@@ -290,9 +290,7 @@
           { "node": "Log Alert to Backend (MySQL)", "type": "main", "index": 0 },
           { "node": "Send Push Notification (FCM)", "type": "main", "index": 0 }
         ],
-        [
-          { "node": "Loop Back / Next Symbol", "type": "main", "index": 0 }
-        ]
+        [{ "node": "Loop Back / Next Symbol", "type": "main", "index": 0 }]
       ]
     },
     "Log Alert to Backend (MySQL)": {

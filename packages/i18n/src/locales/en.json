@@ -1,3 +1,8 @@
 {
-  "test_key": "Hello InvestIQ"
+  "test_key": "Hello InvestIQ",
+  "nav_dashboard": "Dashboard",
+  "nav_stocks": "Stocks",
+  "nav_portfolio": "Portfolio",
+  "nav_backtest": "Backtest",
+  "nav_chat": "Chat"
 }
