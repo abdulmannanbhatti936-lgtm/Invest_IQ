@@ -81,6 +81,9 @@ def test_register_and_login():
     )
     assert me_invalid.status_code == 401
     
+    import time
+    time.sleep(1) # Ensure token timestamp changes
+    
     # Test refresh token
     refresh_response = client.post(
         "/auth/refresh",

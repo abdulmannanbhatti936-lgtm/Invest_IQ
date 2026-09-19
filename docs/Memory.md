@@ -20,6 +20,15 @@
 
 - **Completed:** Step 1.1 (Database Models), Step 1.2 (Auth API Endpoints), Step 1.3 (Risk Profile Backend), Step 1.4 (Auth Unit/Integration Tests), Step 1.5 (Web: Auth Screens), Step 1.6 (Web: Onboarding Questionnaire), Step 1.7 (Dashboard Structure), Step 1.8 (Language Toggle & RTL)
 
+### **Phase 3: Machine Learning - Core Logic (In Progress)**
+
+- **Completed:** Step 3.1 (ML Environment & Sentiment Pipeline), Step 3.2 (Sentiment Predictor Script), Step 3.3 (Price Prediction Logic - Baseline)
+- **In Progress:** Step 3.4 (LSTM Price Prediction Logic - Advanced)
+
+### **Phase 2: Stock Data & Market Analysis (COMPLETED)**
+
+- **Completed:** Step 2.1 (Database Models), Step 2.2 (External Data Client), Step 2.3 (Redis Caching), Step 2.4 (Endpoints), Step 2.5 (Automated Fetch Job), Step 2.6 (Sentiment Model), Step 2.7 (News Scraper), Step 2.8 (Celery Beat)
+
 > _Update instructions: replace this section's content each session with (a) which phase is active, (b) what was completed since the last update, (c) what's in progress, (d) what's blocked/waiting on a decision._
 
 ## 3. Key Decisions Log
@@ -108,13 +117,46 @@ Completed: Step 1.3 (Risk Profile Backend) - Implemented risk scoring logic and 
 Blocked: None. (Previously blocked by Docker, but resolved by switching to native Postgres on port 5435).
 Next session should: Proceed to Step 1.5 (Web: Auth Screens).
 
-[2026-09-15] — Phase 1 Complete
-Completed: Step 1.5 (Web: Auth Screens) - Built React login and register UI using Tailwind, React Hook Form, and Zod. Wired it up to the FastAPI backend using `api-client`.
-Completed: Step 1.6 (Web: Onboarding Questionnaire) - Built the single-question-per-screen wizard per Design.md §7.1. Integrated with backend risk profiling API.
-Completed: Step 1.7 (Dashboard Structure) - Built the main authenticated layout shell (sidebar/topbar) and the empty state for the Dashboard per Design.md §12.2.
-Completed: Step 1.8 (Language Toggle & RTL - Urdu) - Implemented global language toggle in the topbar. Updating language dynamically sets `dir="rtl"` on the document, shifting the sidebar to the right and translating navigation items correctly.
+[2026-09-19] — Phase 2, Step 2.1 Complete
+Completed: Step 2.1 (Database Models) - Created SQLAlchemy models for `stocks` and `price_points` per Architecture.md §7. Generated and applied Alembic migration successfully to Postgres.
 Blocked: None.
-Next session should: Begin Phase 2 (Data Pipeline & Sentiment), starting with Step 2.1 (PSX Data Ingestion).
+Next session should: Proceed to Step 2.2 (External Data Client Module).
+
+[2026-09-19] — Phase 2, Step 2.2 Complete
+Completed: Step 2.2 (External Data Client Module) - Built `integrations/market_data.py` wrapping Yahoo Finance (`yfinance`) with a clean interface (`get_quote`, `get_history`).
+Blocked: Yahoo Finance coverage of PSX is poor (e.g., `ENGRO.KA` not found, but `SYS.KA` works). Noted in Known Pitfalls. We will use available `.KA` tickers for the pipeline tests or use an alternate scraper later.
+Decisions made: The client will not auto-append `.KA` so it can be flexible.
+Next session should: Proceed to Step 2.3 (Redis Caching Layer).
+
+[2026-09-19] — Phase 2, Step 2.3 Complete
+Completed: Step 2.3 (Redis Caching Layer) - Implemented `StockService` with `get_quote_cached` and `get_history_cached`. Connected to the local Redis container via `redis-py` and verified 15-minute TTL caching works.
+Blocked: None.
+Next session should: Proceed to Step 2.4 (Endpoints).
+
+[2026-09-19] — Phase 2, Step 2.4 Complete
+Completed: Step 2.4 (Endpoints) - Created Pydantic schemas and FastAPI router `routers/stocks.py` for `/stocks/search`, `/stocks/{ticker}`, and `/stocks/{ticker}/history`. Wired it into `main.py` and wrote full integration tests via `TestClient`. Tests passed beautifully.
+Blocked: None.
+Next session should: Proceed to Step 2.5 (Automated Fetch Job).
+
+[2026-09-19] — Phase 2, Step 2.5 Complete
+Completed: Step 2.5 (Automated Fetch Job) - Implemented `core/celery_app.py` and `worker/tasks.py`. Created a Celery background task `fetch_market_data_for_tickers` that bulk-fetches and bulk-inserts `PricePoint` history into Postgres.
+Blocked: None.
+Next session should: Proceed to Step 2.6 (Sentiment Model DB setup).
+
+[2026-09-19] — Phase 2, Step 2.6 Complete
+Completed: Step 2.6 (Sentiment Model) - Created `NewsSentiment` SQLAlchemy model inside `models/sentiment.py`. Added one-to-many relationship in `Stock`. Generated and applied Alembic migration. Validated via throwaway script.
+Blocked: None.
+Next session should: Proceed to Step 2.7 (News Scraper Job).
+
+[2026-09-19] — Phase 2, Step 2.7 Complete
+Completed: Step 2.7 (News Scraper Job) - Built `integrations/news_scraper.py` using `requests` and `BeautifulSoup`. Scraped Yahoo Finance RSS XML feed for a ticker, parsed the titles, and bulk-inserted 17 real headlines into the `news_sentiments` table with mock 0.0 scores.
+Blocked: None.
+Next session should: Proceed to Step 2.8 (Celery Beat configuration).
+
+[2026-09-19] — Phase 2 COMPLETE! (Step 2.8)
+Completed: Step 2.8 (Celery Beat Configuration) - Defined cron schedules inside `core/celery_app.py`. Configured `fetch-eod-market-data` to run daily at 18:00 (End of Day) and `fetch-hourly-news` to run every hour at minute 0. Validated config via script. Phase 2 is officially 100% complete!
+Blocked: None.
+Next session should: Proceed to Phase 3 (Machine Learning - Core Logic).
 
 ## 8. Team & Responsibilities
 
