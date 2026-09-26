@@ -1,11 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from models.user import User
-from schemas.user import User as UserSchema
-from schemas.risk_profile import RiskProfile as RiskProfileSchema, RiskProfileCreate, RiskProfileUpdate
-from core.deps import get_current_user
+
 from core.database import get_db
-from crud.risk_profile import get_risk_profile_by_user, create_risk_profile, update_risk_profile
+from core.deps import get_current_user
+from crud.risk_profile import (
+    create_risk_profile,
+    get_risk_profile_by_user,
+    update_risk_profile,
+)
+from models.user import User
+from schemas.risk_profile import RiskProfile as RiskProfileSchema
+from schemas.risk_profile import RiskProfileCreate, RiskProfileUpdate
+from schemas.user import User as UserSchema
 
 router = APIRouter(prefix="/users", tags=["users"])
 

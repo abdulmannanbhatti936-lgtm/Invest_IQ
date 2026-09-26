@@ -1,5 +1,6 @@
 from models.risk_profile import RiskCategory
 
+
 def calculate_risk_category(answers: dict) -> RiskCategory:
     """
     Pure function to calculate risk category based on answers.

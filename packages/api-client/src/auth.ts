@@ -41,7 +41,7 @@ export const auth = {
     const formData = new URLSearchParams();
     formData.append('username', data.username);
     formData.append('password', data.password);
-    
+
     const response = await apiClient.post('/auth/login', formData, {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',

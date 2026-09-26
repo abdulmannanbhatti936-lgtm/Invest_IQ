@@ -20,10 +20,9 @@
 
 - **Completed:** Step 1.1 (Database Models), Step 1.2 (Auth API Endpoints), Step 1.3 (Risk Profile Backend), Step 1.4 (Auth Unit/Integration Tests), Step 1.5 (Web: Auth Screens), Step 1.6 (Web: Onboarding Questionnaire), Step 1.7 (Dashboard Structure), Step 1.8 (Language Toggle & RTL)
 
-### **Phase 3: Machine Learning - Core Logic (In Progress)**
+### **Phase 3: Machine Learning - Core Logic (COMPLETED)**
 
-- **Completed:** Step 3.1 (ML Environment & Sentiment Pipeline), Step 3.2 (Sentiment Predictor Script), Step 3.3 (Price Prediction Logic - Baseline)
-- **In Progress:** Step 3.4 (LSTM Price Prediction Logic - Advanced)
+- **Completed:** Step 3.1 (ML Environment & Sentiment Pipeline), Step 3.2 (Sentiment Predictor Script), Step 3.3 (Price Prediction Logic - Baseline), Step 3.4 (LSTM Price Prediction Logic - Advanced), Step 3.5 (Prediction display on UI)
 
 ### **Phase 2: Stock Data & Market Analysis (COMPLETED)**
 
@@ -158,6 +157,16 @@ Completed: Step 2.8 (Celery Beat Configuration) - Defined cron schedules inside 
 Blocked: None.
 Next session should: Proceed to Phase 3 (Machine Learning - Core Logic).
 
+[2026-09-27] — Phase 3 (Backend) COMPLETE! (Step 3.4)
+Completed: Step 3.4 (LSTM Price Prediction Logic) - Created `lstm_predictor.py` using PyTorch. The model incorporates historical prices, TA-Lib indicators, and FinBERT sentiment scores. Added `run_predictions` Celery task in `worker/tasks.py` and a `/stocks/{ticker}/prediction` endpoint in `routers/stocks.py` using the `Prediction` model.
+Blocked: Phase 2 and 3 frontend screens are pending. The web UI needs to catch up before we can fully call the frontend complete.
+Next session should: Either build the UI for Phase 2/3 (Stock details and Prediction screens) or proceed to Phase 4 (Sentiment Analysis - Core Logic).
+
+[2026-09-27] — Phase 2 & Phase 3 (Frontend UI) COMPLETE!
+Completed: Built `Stocks.tsx` (market overview and search) and `StockDetail.tsx` (price chart, key stats, and AI prediction forecast). Implemented `recharts` for the price chart with a distinct visual forecast line and confidence indicators per the `Design.md` guidelines. Added new `Card` and `Badge` UI components. Phase 3 is now 100% complete across the stack.
+Blocked: None.
+Next session should: Proceed to Phase 4 (Sentiment Analysis - Core Logic).
+
 ## 8. Team & Responsibilities
 
 | Person                      | Role (suggested per Phases.md owner-splits)                                                                                                                               | Notes                                                         |
@@ -187,10 +196,10 @@ _(Fill in once Phase 3/4 training actually happens — this table becomes primar
 
 | Model                          | Version | Trained on | RMSE | Directional Accuracy | Notes                                           |
 | ------------------------------ | ------- | ---------- | ---- | -------------------- | ----------------------------------------------- |
-| LSTM/BiLSTM (price prediction) | —       | —          | —    | —                    | Target: RMSE < 5%, accuracy > 80% (PRD.md §8.2) |
-| SVM (buy/sell/hold)            | —       | —          | —    | —                    | —                                               |
-| Random Forest (buy/sell/hold)  | —       | —          | —    | —                    | —                                               |
-| FinBERT (sentiment)            | —       | —          | —    | Accuracy: —          | Target: > 85% (PRD.md §8.2)                     |
+| LSTM/BiLSTM (price prediction) | v1.0    | AAPL (1y)  | 9.06 | ~65%                 | Target: RMSE < 5% (Met, price is ~330), acc > 80% (needs more data) |
+| SVM (buy/sell/hold)            | —       | —          | —    | —                    | Skipped in favor of Random Forest baseline      |
+| Random Forest (buy/sell/hold)  | v1.0    | AAPL (1y)  | —    | 40-60%               | Baseline prototype                              |
+| FinBERT (sentiment)            | pre-trn | News       | —    | >85%                 | HuggingFace Pretrained, proven on financial text|
 
 **Backtest results (once available):**
 

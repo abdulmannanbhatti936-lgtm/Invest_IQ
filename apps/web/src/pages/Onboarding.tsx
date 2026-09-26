@@ -93,9 +93,12 @@ export const Onboarding = () => {
             You are a {resultCategory.charAt(0).toUpperCase() + resultCategory.slice(1)} Investor
           </h2>
           <p className="text-gray-600 leading-relaxed">
-            {resultCategory === 'aggressive' && "You're comfortable with market ups and downs to chase higher long-term returns. We'll suggest a portfolio heavily focused on high-growth PSX stocks."}
-            {resultCategory === 'moderate' && "You prefer a balanced approach. You want growth, but not at the cost of losing sleep. We'll suggest a mix of stable dividend payers and moderate-growth stocks."}
-            {resultCategory === 'conservative' && "Protecting your money is your top priority. You prefer slow, steady gains over risky bets. We'll focus on highly stable, low-volatility blue-chip stocks."}
+            {resultCategory === 'aggressive' &&
+              "You're comfortable with market ups and downs to chase higher long-term returns. We'll suggest a portfolio heavily focused on high-growth PSX stocks."}
+            {resultCategory === 'moderate' &&
+              "You prefer a balanced approach. You want growth, but not at the cost of losing sleep. We'll suggest a mix of stable dividend payers and moderate-growth stocks."}
+            {resultCategory === 'conservative' &&
+              "Protecting your money is your top priority. You prefer slow, steady gains over risky bets. We'll focus on highly stable, low-volatility blue-chip stocks."}
           </p>
           <Button className="w-full mt-6" onClick={() => navigate('/dashboard')}>
             Go to Dashboard
@@ -114,9 +117,9 @@ export const Onboarding = () => {
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-blue-600 transition-all duration-300 ease-out" 
-              style={{ width: `${progress}%` }} 
+            <div
+              className="h-full bg-blue-600 transition-all duration-300 ease-out"
+              style={{ width: `${progress}%` }}
             />
           </div>
           <p className="mt-2 text-xs text-gray-500 font-medium text-right uppercase tracking-wider">
@@ -126,9 +129,7 @@ export const Onboarding = () => {
 
         {/* Question Area */}
         <div className="space-y-6">
-          <h2 className="text-2xl font-bold text-gray-900 leading-tight">
-            {question.title}
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-900 leading-tight">{question.title}</h2>
 
           <div className="space-y-3 mt-8">
             {question.options.map((option, idx) => (
@@ -161,7 +162,9 @@ export const Onboarding = () => {
           ) : (
             <div /> // Spacer
           )}
-          {isSubmitting && <span className="text-sm text-gray-500 animate-pulse">Saving profile...</span>}
+          {isSubmitting && (
+            <span className="text-sm text-gray-500 animate-pulse">Saving profile...</span>
+          )}
         </div>
       </div>
     </div>

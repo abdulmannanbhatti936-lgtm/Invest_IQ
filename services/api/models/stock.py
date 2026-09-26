@@ -1,9 +1,11 @@
-from sqlalchemy import Column, String, Numeric, BigInteger, DateTime, ForeignKey
+import uuid
+
+from sqlalchemy import BigInteger, Column, DateTime, ForeignKey, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-import uuid
-import datetime
+
 from core.database import Base
+
 
 class Stock(Base):
     __tablename__ = "stocks"

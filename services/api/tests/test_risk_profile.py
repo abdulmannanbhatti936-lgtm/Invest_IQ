@@ -1,6 +1,8 @@
 import pytest
-from services.risk_scoring import calculate_risk_category
+
 from models.risk_profile import RiskCategory
+from services.risk_scoring import calculate_risk_category
+
 
 def test_risk_scoring_aggressive():
     answers = {
@@ -58,7 +60,9 @@ def test_risk_scoring_missing_fields_defaults_to_conservative():
     assert category == RiskCategory.conservative
 
 import uuid
+
 from fastapi.testclient import TestClient
+
 from main import app
 
 client = TestClient(app)

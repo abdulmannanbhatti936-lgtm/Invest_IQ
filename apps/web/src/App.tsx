@@ -11,6 +11,8 @@ import { Onboarding } from './pages/Onboarding';
 import { Dashboard } from './pages/Dashboard';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { AppLayout } from './components/layout/AppLayout';
+import { Stocks } from './pages/Stocks';
+import { StockDetail } from './pages/StockDetail';
 
 const NavItem = ({ to, label }: { to: string; label: string }) => (
   <Link to={to} className="mx-2 hover:underline">
@@ -54,63 +56,97 @@ function App() {
           <Route path="/" element={<PlaceholderScreen title="Home" />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          
+
           {/* Protected Routes */}
-          <Route path="/onboarding" element={
-            <ProtectedRoute>
-              <Onboarding />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <AppLayout>
-                <Dashboard />
-              </AppLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/stocks" element={
-            <ProtectedRoute>
-              <AppLayout>
-                <PlaceholderScreen title="Stocks" />
-              </AppLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/portfolio" element={
-            <ProtectedRoute>
-              <AppLayout>
-                <PlaceholderScreen title="Portfolio" />
-              </AppLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/backtest" element={
-            <ProtectedRoute>
-              <AppLayout>
-                <PlaceholderScreen title="Backtest" />
-              </AppLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/chat" element={
-            <ProtectedRoute>
-              <AppLayout>
-                <PlaceholderScreen title="Chat" />
-              </AppLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/notifications" element={
-            <ProtectedRoute>
-              <AppLayout>
-                <PlaceholderScreen title="Notifications" />
-              </AppLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/admin" element={
-            <ProtectedRoute>
-              <AppLayout>
-                <PlaceholderScreen title="Admin" />
-              </AppLayout>
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/onboarding"
+            element={
+              <ProtectedRoute>
+                <Onboarding />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <Dashboard />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/stocks"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <Stocks />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/stocks/:ticker"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <StockDetail />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/portfolio"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <PlaceholderScreen title="Portfolio" />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/backtest"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <PlaceholderScreen title="Backtest" />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/chat"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <PlaceholderScreen title="Chat" />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <PlaceholderScreen title="Notifications" />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <PlaceholderScreen title="Admin" />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

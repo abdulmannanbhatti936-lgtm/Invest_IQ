@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+
 from core.database import get_db
-from models.stock import Stock
-from models.prediction import Prediction
 from ml.features import FeatureEngineer
 from ml.predictor import predictor
+from models.prediction import Prediction
+from models.stock import Stock
 from routers.users import get_current_user
 
 router = APIRouter(prefix="/stocks", tags=["Predictions"])

@@ -1,9 +1,16 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
-from typing import List, Optional
 import datetime
-from schemas.stock import StockQuote, PricePointResponse, StockSearchResponse
-from services.stock_service import StockService
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+
 from core.deps import get_current_user
+from schemas.stock import PricePointResponse, StockQuote, StockSearchResponse
+from schemas.prediction import PredictionResponse
+from services.stock_service import StockService
+from core.database import get_db
+from sqlalchemy.orm import Session
+from models.prediction import Prediction
+from models.stock import Stock
 
 router = APIRouter()
 
@@ -43,3 +50,22 @@ def get_stock_history(
     if not history:
         raise HTTPException(status_code=404, detail="Stock history not found or data unavailable")
     return history
+
+@router.get("/{ticker}/prediction", response_model=PredictionResponse)
+def get_stock_prediction(
+    ticker: str,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get the latest prediction (LSTM + Base models) for a specific ticker.
+    """
+    stock = db.query(Stock).filter(Stock.ticker == ticker).first()
+    if not stock:
+        raise HTTPException(status_code=404, detail="Stock not found")
+        
+    prediction = db.query(Prediction).filter(Prediction.stock_id == stock.id).order_by(Prediction.timestamp.desc()).first()
+    if not prediction:
+        raise HTTPException(status_code=404, detail="No prediction available for this stock yet")
+        
+    return prediction

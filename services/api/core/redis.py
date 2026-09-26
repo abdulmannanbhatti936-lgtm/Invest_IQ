@@ -1,4 +1,5 @@
 import redis
+
 from core.config import settings
 
 # Create a connection pool for Redis

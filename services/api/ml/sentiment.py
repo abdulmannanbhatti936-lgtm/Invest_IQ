@@ -1,4 +1,5 @@
 import logging
+
 from transformers import pipeline
 
 logger = logging.getLogger(__name__)

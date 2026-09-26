@@ -1,5 +1,11 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { auth, setAuthToken, type UserResponse, type LoginData, type RegisterData } from '@investiq/api-client';
+import {
+  auth,
+  setAuthToken,
+  type UserResponse,
+  type LoginData,
+  type RegisterData,
+} from '@investiq/api-client';
 
 interface AuthContextType {
   user: UserResponse | null;
@@ -39,7 +45,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('access_token', response.access_token);
     localStorage.setItem('refresh_token', response.refresh_token);
     setAuthToken(response.access_token);
-    
+
     const userData = await auth.getMe();
     setUser(userData);
   };

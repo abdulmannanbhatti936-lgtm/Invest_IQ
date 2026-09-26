@@ -1,8 +1,11 @@
+from uuid import UUID
+
 from sqlalchemy.orm import Session
+
 from models.risk_profile import RiskProfile
 from schemas.risk_profile import RiskProfileCreate, RiskProfileUpdate
 from services.risk_scoring import calculate_risk_category
-from uuid import UUID
+
 
 def get_risk_profile_by_user(db: Session, user_id: UUID) -> RiskProfile | None:
     return db.query(RiskProfile).filter(RiskProfile.user_id == user_id).first()

@@ -1,6 +1,8 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional
 import datetime
+from typing import List
+
+from pydantic import BaseModel
+
 
 class StockQuote(BaseModel):
     ticker: str

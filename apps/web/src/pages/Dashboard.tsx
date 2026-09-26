@@ -9,7 +9,7 @@ export const Dashboard = () => {
 
   // In a real app, we'd check if they have a generated portfolio or not.
   // For Step 1.7, we are specifically building the empty state.
-  const hasPortfolio = false; 
+  const hasPortfolio = false;
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -28,11 +28,10 @@ export const Dashboard = () => {
           <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
             <Briefcase className="w-8 h-8 text-blue-600" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            No Portfolio Generated Yet
-          </h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Portfolio Generated Yet</h3>
           <p className="text-gray-500 max-w-md mx-auto mb-6 text-sm leading-relaxed">
-            You haven't generated your AI-driven portfolio. We'll use your risk profile and our market predictions to recommend the best PSX stocks for you.
+            You haven't generated your AI-driven portfolio. We'll use your risk profile and our
+            market predictions to recommend the best PSX stocks for you.
           </p>
           <Button onClick={() => navigate('/portfolio')} className="px-6">
             Generate Portfolio

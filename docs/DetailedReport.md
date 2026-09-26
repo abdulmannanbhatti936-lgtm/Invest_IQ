@@ -91,7 +91,7 @@
 
   - Wrote SQLAlchemy CRUD operations (`crud/risk_profile.py`) to create and update a user's risk profile in the Postgres database.
   - Added `GET` and `PATCH` endpoints to `routers/users.py` allowing a logged-in user to fetch or update their profile.
-- **Rules & Regulations:** Separated pure logic (scoring) from database operations to make the algorithm easily testable in isolation. 
+- **Rules & Regulations:** Separated pure logic (scoring) from database operations to make the algorithm easily testable in isolation.
 - **Purpose:** This feature is crucial for portfolio generation. The AI must know how much risk a user is willing to take (e.g. Aggressive) in order to recommend the correct mix of high/low volatility stocks.
 
 ### Step 1.4 — Auth Unit/Integration Tests
@@ -183,7 +183,7 @@
 
 - **What was done:** Created a background task to automatically fetch and save bulk historical data into our own PostgreSQL database.
 - **How & Libraries:** Configured Celery (`core/celery_app.py`) to connect to our Redis broker. Created `worker/tasks.py` which contains the `fetch_market_data_for_tickers` background job. This job grabs historical data using the `MarketDataClient`, iterates through it, and bulk-inserts all records straight into the `price_points` database table via `db.bulk_save_objects()`.
-- **Rules & Regulations:** Enforced graceful error handling. If a stock doesn't exist in our DB, the task auto-creates the `Stock` parent record before associating the historical `PricePoint` entries to it. 
+- **Rules & Regulations:** Enforced graceful error handling. If a stock doesn't exist in our DB, the task auto-creates the `Stock` parent record before associating the historical `PricePoint` entries to it.
 - **Purpose:** Ensures the AI pipeline (Phase 4) and users always have instant access to historical charts directly from our DB without querying Yahoo/PSX for historical graphing, which would be too slow and easily blocked.
 
 ### Step 2.6 — Sentiment Model (Database)
@@ -197,7 +197,7 @@
 
 - **What was done:** Created an automated scraper to crawl the web for the latest financial news about specific companies.
 - **How & Libraries:** Built `integrations/news_scraper.py` using Python's `requests` and the `BeautifulSoup` (`bs4`) library. The scraper connects to Yahoo Finance's RSS feed (`lxml-xml` parser), rapidly extracts the real headlines for any given stock, and then bulk-inserts them into the `news_sentiments` database table with a default baseline sentiment score of 0.0 (which will be overwritten by AI in Phase 4).
-- **Rules & Regulations:** To ensure a clean database, I added logic to check the database before inserting to avoid saving duplicate headlines for the same stock. 
+- **Rules & Regulations:** To ensure a clean database, I added logic to check the database before inserting to avoid saving duplicate headlines for the same stock.
 - **Purpose:** Feeds our database with raw news data in real-time, which is the exact fuel needed for the AI sentiment analysis to predict whether the market mood is shifting towards bullish or bearish.
 
 ### Step 2.8 — Celery Beat Configuration
@@ -212,7 +212,7 @@
 ### Step 3.1 — ML Environment & Dependencies Setup
 
 - **What was done:** Initialized the AI pipeline by installing necessary machine learning dependencies (`torch`, `transformers`, `scikit-learn`) and wrapped the `ProsusAI/finbert` HuggingFace sentiment analysis model.
-- **How & Libraries:** 
+- **How & Libraries:**
   - Added PyTorch and Transformers to `requirements.txt` and installed them.
   - Created `ml/sentiment.py` exposing a `FinBERTSentimentModel` class.
   - The model uses `pipeline("sentiment-analysis", model="ProsusAI/finbert")` and normalizes the output confidence scores into a custom `[-1.0, 1.0]` scalar score where negative represents bearish sentiment and positive represents bullish sentiment.
@@ -223,7 +223,7 @@
 ### Step 3.2 — AI Predictor Background Job
 
 - **What was done:** Created a background Celery task that automatically pipes unscored news headlines into the FinBERT neural network and saves the sentiment scores back to the database.
-- **How & Libraries:** 
+- **How & Libraries:**
   - Wrote `analyze_news_sentiment()` inside `worker/tasks.py`. It queries the `news_sentiments` table for any row with `sentiment_score == 0.0` (un-analyzed), runs `sentiment_model.analyze_headline()`, and commits the new score.
   - Added this task to `core/celery_app.py`'s beat schedule as `analyze-hourly-news`, set to run at 5 minutes past the hour (allowing the scraper at minute 0 to finish first).
   - Executed a throwaway script to manually run the task. It successfully analyzed all 17 scraped headlines in the DB.
@@ -233,7 +233,7 @@
 ### Step 3.3 — Price Prediction Baseline (Random Forest)
 
 - **What was done:** Created a baseline Machine Learning pipeline using `pandas-ta` for technical indicator generation, and `scikit-learn`'s Random Forest for prediction classification.
-- **How & Libraries:** 
+- **How & Libraries:**
   - Installed `pandas-ta` to compute RSI, MACD, Simple Moving Averages, and Bollinger Bands cleanly without C++ compiler errors.
   - Created `services/api/ml/features.py` which aggregates historical `PricePoint` data, generates the technical indicators, and merges the latest AI sentiment score into a structured Pandas DataFrame.
   - Created `services/api/ml/predictor.py` which uses `RandomForestClassifier` to train on the historical data and predict a BUY, SELL, or HOLD signal for the next day, along with a confidence score.
@@ -242,4 +242,5 @@
 - **Purpose:** This is the core "IQ" of InvestIQ. It takes raw market numbers, applies technical trading formulas, combines them with news sentiment, and gives the user a clear, jargon-free recommendation (Buy/Sell/Hold) with an exact confidence percentage.
 
 ---
+
 **Phase 2 is officially 100% Complete.**

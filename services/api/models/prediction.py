@@ -1,8 +1,11 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
+import datetime
+
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-import datetime
+
 from core.database import Base
+
 
 class Prediction(Base):
     __tablename__ = "predictions"

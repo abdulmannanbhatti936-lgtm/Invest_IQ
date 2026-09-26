@@ -1,7 +1,8 @@
+import datetime
 import json
 import logging
-from typing import Dict, Any, List, Optional
-import datetime
+from typing import Any, Dict, List, Optional
+
 from core.redis import get_redis_client
 from integrations.market_data import MarketDataClient
 

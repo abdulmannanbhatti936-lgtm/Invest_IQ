@@ -1,10 +1,12 @@
 import pytest
 from fastapi.testclient import TestClient
+
 from main import app
 
 client = TestClient(app)
 
 from core.deps import get_current_user
+
 
 def override_get_current_user():
     return {"id": 1, "email": "test@example.com"}

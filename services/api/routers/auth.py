@@ -1,11 +1,10 @@
 from datetime import timedelta
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
+from jose import JWTError, jwt
 from pydantic import BaseModel
-from jose import jwt, JWTError
+from sqlalchemy.orm import Session
 
 from core.config import settings
 from core.database import get_db
@@ -14,6 +13,7 @@ from crud.user import create_user, get_user_by_email
 from schemas.auth import Token
 from schemas.user import User as UserSchema
 from schemas.user import UserCreate
+
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str

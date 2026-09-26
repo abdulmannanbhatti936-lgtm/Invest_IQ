@@ -1,8 +1,9 @@
+import datetime
 import logging
+from typing import List
+
 import requests
 from bs4 import BeautifulSoup
-import datetime
-from typing import List, Dict
 
 from core.database import SessionLocal
 from models.sentiment import NewsSentiment

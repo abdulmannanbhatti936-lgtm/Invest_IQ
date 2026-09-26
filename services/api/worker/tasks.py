@@ -1,12 +1,15 @@
+import datetime
 import logging
+
 from core.celery_app import celery_app
 from core.database import SessionLocal
-from models.stock import Stock, PricePoint
-from models.sentiment import NewsSentiment
 from integrations.market_data import MarketDataClient
 from ml.sentiment import sentiment_model
-from sqlalchemy.exc import IntegrityError
-import datetime
+from ml.lstm_predictor import lstm_predictor
+from ml.features import FeatureEngineer
+from models.sentiment import NewsSentiment
+from models.stock import PricePoint, Stock
+from models.prediction import Prediction
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +134,63 @@ def analyze_news_sentiment():
     except Exception as e:
         db.rollback()
         logger.error(f"Error analyzing news sentiment: {e}")
+        raise e
+    finally:
+        db.close()
+
+@celery_app.task(name="worker.tasks.run_predictions")
+def run_predictions(tickers: list = None):
+    """
+    Background task to run LSTM predictions for stocks and save to DB.
+    """
+    if not tickers:
+        tickers = DEFAULT_TICKERS
+        
+    db = SessionLocal()
+    try:
+        predictions_made = 0
+        for ticker_symbol in tickers:
+            logger.info(f"Running predictions for {ticker_symbol}")
+            stock = db.query(Stock).filter(Stock.ticker == ticker_symbol).first()
+            if not stock:
+                continue
+                
+            # Get historical prices and sentiment
+            price_points = db.query(PricePoint).filter(PricePoint.stock_id == stock.id).order_by(PricePoint.timestamp.asc()).all()
+            sentiments = db.query(NewsSentiment).filter(NewsSentiment.stock_id == stock.id).all()
+            
+            # Prepare feature data
+            df = FeatureEngineer.prepare_training_data(price_points, sentiments)
+            if df.empty:
+                logger.warning(f"Not enough data to run predictions for {ticker_symbol}")
+                continue
+                
+            # For demonstration in FYP, we train the model on the fly if not trained
+            # In a real app, training is a separate heavy job.
+            if lstm_predictor.model is None:
+                success, rmse = lstm_predictor.train(df)
+                if not success:
+                    continue
+                    
+            predicted_price, confidence, direction = lstm_predictor.predict_latest(df)
+            
+            if predicted_price > 0:
+                prediction_record = Prediction(
+                    stock_id=stock.id,
+                    predicted_price=predicted_price,
+                    signal=direction,
+                    confidence_score=confidence,
+                    model_version="v1.0-lstm-advanced"
+                )
+                db.add(prediction_record)
+                db.commit()
+                predictions_made += 1
+                logger.info(f"Saved prediction for {ticker_symbol}: {direction} (Confidence: {confidence:.2f})")
+                
+        return {"status": "completed", "predictions_made": predictions_made}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error in run_predictions: {e}")
         raise e
     finally:
         db.close()

@@ -8,8 +8,8 @@ import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 
 const loginSchema = z.object({
-  email: z.string().email({ message: "Invalid email address" }),
-  password: z.string().min(1, { message: "Password is required" }),
+  email: z.string().email({ message: 'Invalid email address' }),
+  password: z.string().min(1, { message: 'Password is required' }),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -18,8 +18,12 @@ export const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [serverError, setServerError] = useState<string | null>(null);
-  
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormValues>({
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
   });
 
@@ -29,7 +33,7 @@ export const Login = () => {
       await login({ username: data.email, password: data.password });
       navigate('/dashboard'); // Navigate to protected route
     } catch (error: any) {
-      setServerError(error.response?.data?.detail || "An unexpected error occurred during login.");
+      setServerError(error.response?.data?.detail || 'An unexpected error occurred during login.');
     }
   };
 
@@ -40,11 +44,9 @@ export const Login = () => {
           <h2 className="mt-2 text-center text-3xl font-bold tracking-tight text-gray-900">
             Welcome back
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Log in to manage your portfolio
-          </p>
+          <p className="mt-2 text-center text-sm text-gray-600">Log in to manage your portfolio</p>
         </div>
-        
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">
             <Input
@@ -54,7 +56,7 @@ export const Login = () => {
               {...register('email')}
               error={errors.email?.message}
             />
-            
+
             <Input
               label="Password"
               type="password"
@@ -65,15 +67,13 @@ export const Login = () => {
           </div>
 
           {serverError && (
-            <div className="text-sm text-red-500 bg-red-50 p-3 rounded-md">
-              {serverError}
-            </div>
+            <div className="text-sm text-red-500 bg-red-50 p-3 rounded-md">{serverError}</div>
           )}
 
           <Button type="submit" className="w-full" isLoading={isSubmitting}>
             Log In
           </Button>
-          
+
           <div className="text-center text-sm">
             <span className="text-gray-600">Don't have an account? </span>
             <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">

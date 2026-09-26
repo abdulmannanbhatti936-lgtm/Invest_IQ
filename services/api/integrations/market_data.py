@@ -1,7 +1,8 @@
-import yfinance as yf
-from typing import List, Dict, Any, Optional
 import datetime
 import logging
+from typing import Any, Dict, List, Optional
+
+import yfinance as yf
 
 logger = logging.getLogger(__name__)
 
