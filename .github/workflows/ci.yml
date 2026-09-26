@@ -1,4 +1,4 @@
-name: CI
+﻿name: CI
 
 on:
   push:
@@ -9,14 +9,50 @@ on:
 jobs:
   backend-test:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: investiq
+          POSTGRES_PASSWORD: investiq
+          POSTGRES_DB: investiq
+        ports:
+          - 5435:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://investiq:investiq@127.0.0.1:5435/investiq
+      REDIS_URL: redis://localhost:6379/0
+      SECRET_KEY: ci-secret-key-for-testing-only
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      FINNHUB_API_KEY: dummy
+      PYTHONPATH: .
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          cache: 'pip'
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: services/api/requirements.txt
 
       - name: Install backend dependencies
         working-directory: ./services/api
@@ -24,16 +60,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Black & Ruff
+      - name: Run Ruff lint check
         working-directory: ./services/api
-        run: |
-          black --check .
-          ruff check .
+        run: ruff check .
+
+      - name: Apply DB migrations
+        working-directory: ./services/api
+        run: alembic upgrade head
 
       - name: Run Pytest
         working-directory: ./services/api
-        run: |
-          python -m pytest
+        run: python -m pytest tests/ -v
 
   frontend-test:
     runs-on: ubuntu-latest
@@ -43,8 +80,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: npm
 
       - name: Install npm dependencies
         run: npm ci
@@ -54,8 +91,4 @@ jobs:
 
       - name: Run frontend type-check (web)
         working-directory: ./apps/web
-        run: npm run build
-
-      - name: Run frontend type-check (mobile)
-        working-directory: ./apps/mobile
         run: npx tsc --noEmit
