@@ -159,3 +159,46 @@ InvestIQ is an academic Final Year Project and is **not a licensed financial adv
 ## 📜 License
 
 TBD
+
+_________________________________________________
+Steps to run this project completly:
+Terminal 1 — Docker + Backend
+Ek ek line alag alag run karo:
+_________________________________________________
+powershell
+
+cd "C:\Users\Abdul Mannan\Desktop\Invest_IQ\infra"
+_________________________________________________
+powershell
+
+docker-compose up -d
+_________________________________________________
+powershell
+
+cd "C:\Users\Abdul Mannan\Desktop\Invest_IQ\services\api"
+_________________________________________________
+powershell
+
+.\venv\Scripts\activate
+_________________________________________________
+powershell
+
+alembic upgrade head
+_________________________________________________
+powershell
+
+uvicorn main:app --reload
+_________________________________________________
+_________________________________________________
+_________________________________________________
+Terminal 2 — Frontend (naya PowerShell window kholo)
+
+powershell
+
+cd "C:\Users\Abdul Mannan\Desktop\Invest_IQ\apps\web"
+_________________________________________________
+powershell
+
+npx vite --force
+_________________________________________________
+⚠️ Important: Multiple commands ek saath paste mat karo — har line alag alag Enter karo. Space wale paths hamesha "quotes" mein likhna zaroori hai PowerShell mein.
