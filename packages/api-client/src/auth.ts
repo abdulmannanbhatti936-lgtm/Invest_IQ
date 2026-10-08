@@ -35,7 +35,17 @@ export const auth = {
     return response.data;
   },
 
-  logout: () => tokens.clear(),
+  /** Ends the session locally at once, then revokes the refresh token on the server. */
+  logout: async (): Promise<void> => {
+    const refreshToken = tokens.refreshToken();
+    tokens.clear();
+    if (!refreshToken) return;
+    try {
+      await apiClient.post('/auth/logout', { refresh_token: refreshToken }, { timeout: 5000 });
+    } catch {
+      // Offline or API down: the user is still logged out here, and the token expires on its own
+    }
+  },
 
   getMe: async (): Promise<User> => {
     const response = await apiClient.get<User>('/users/me');

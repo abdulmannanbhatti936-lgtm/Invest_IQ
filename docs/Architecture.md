@@ -151,6 +151,12 @@ risk_profiles
   answers JSONB
   updated_at TIMESTAMP
 
+refresh_tokens                               -- one row per issued refresh token (rotation + revocation)
+  jti UUID PK                                -- the JWT's jti claim
+  user_id UUID FK -> users.id ON DELETE CASCADE
+  expires_at TIMESTAMPTZ
+  revoked_at TIMESTAMPTZ NULL                -- set on use (rotation), logout, or reuse detection
+
 stocks
   id UUID PK
   ticker VARCHAR UNIQUE
@@ -235,7 +241,8 @@ admin_action_logs
 ```
 POST   /auth/register
 POST   /auth/login
-POST   /auth/refresh
+POST   /auth/refresh                    # rotates: the old refresh token is revoked, a new pair is returned
+POST   /auth/logout                     # revokes the given refresh token (always 204)
 
 GET    /users/me
 GET    /users/risk-questionnaire        # public: question ids + option values only (scoring stays server-side)
@@ -295,6 +302,8 @@ All endpoints documented automatically via FastAPI's built-in OpenAPI/Swagger â€
 ## 11. Security Architecture
 
 - JWT access tokens (short-lived) + refresh tokens (longer-lived, stored securely on client)
+- Refresh tokens are single-use and recorded in Postgres (`refresh_tokens`, never Redis, so revocation can't fail open): each refresh revokes the old token; presenting a revoked token again revokes all of that user's refresh tokens (reuse detection); `/auth/logout` revokes the current one
+- Outside `ENVIRONMENT=development` the API refuses to start with placeholder JWT secrets or secrets shorter than 32 characters; `/docs`, `/redoc` and `/openapi.json` are served only in development
 - Passwords hashed with bcrypt/argon2, never logged
 - Role-based access control: `user` vs `admin` roles enforced at the API layer (FastAPI dependency injection)
 - Input validation via Pydantic models on every endpoint

@@ -23,17 +23,17 @@ InvestIQ is an AI-powered investment advisory platform — web and mobile — bu
 
 ## 🧱 Tech Stack
 
-| Layer           | Technology                                                   |
-| --------------- | ------------------------------------------------------------ |
-| Web             | React.js, Vite, Tailwind CSS                                 |
-| Mobile          | React Native (Expo)                                          |
-| Backend         | Python, FastAPI                                              |
-| AI/ML           | PyTorch, Scikit-learn, HuggingFace Transformers (FinBERT)    |
-| LLM             | Claude API                                                   |
-| Database        | PostgreSQL, Redis                                            |
-| Background Jobs | Celery                                                       |
-| Notifications   | Firebase Cloud Messaging                                     |
-| Data Sources    | Yahoo Finance API, PSX Data API                              |
+| Layer           | Technology                                                |
+| --------------- | --------------------------------------------------------- |
+| Web             | React.js, Vite, Tailwind CSS                              |
+| Mobile          | React Native (Expo)                                       |
+| Backend         | Python, FastAPI                                           |
+| AI/ML           | PyTorch, Scikit-learn, HuggingFace Transformers (FinBERT) |
+| LLM             | Claude API                                                |
+| Database        | PostgreSQL, Redis                                         |
+| Background Jobs | Celery                                                    |
+| Notifications   | Firebase Cloud Messaging                                  |
+| Data Sources    | Yahoo Finance API, PSX Data API                           |
 
 ## 📁 Project Structure
 
@@ -98,7 +98,7 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
-Create `services/api/.env` from the example. Then set `JWT_SECRET` and `JWT_REFRESH_SECRET` to two **different** long random strings, or the API refuses to start.
+Create `services/api/.env` from the example. Then set `JWT_SECRET` and `JWT_REFRESH_SECRET` to two **different** long random strings (at least 32 characters). Outside `ENVIRONMENT=development` the API refuses to start with placeholder or short secrets; in development it starts but logs a loud warning.
 
 ```bash
 cp .env.example .env
@@ -126,12 +126,12 @@ celery -A core.celery_app beat --loglevel=info
 
 Beat runs on Asia/Karachi time. It schedules:
 
-| Job | When |
-| --- | --- |
-| Price refresh | Every 15 min during market hours, plus an end-of-day pull at 18:00 |
-| News fetch and sentiment | Hourly |
-| Predictions | 18:30 |
-| Model retraining | Saturdays at 22:00 |
+| Job                      | When                                                               |
+| ------------------------ | ------------------------------------------------------------------ |
+| Price refresh            | Every 15 min during market hours, plus an end-of-day pull at 18:00 |
+| News fetch and sentiment | Hourly                                                             |
+| Predictions              | 18:30                                                              |
+| Model retraining         | Saturdays at 22:00                                                 |
 
 ### 4. ML models (first run only)
 
@@ -206,55 +206,70 @@ InvestIQ is an academic Final Year Project and is **not a licensed financial adv
 
 TBD
 
-_________________________________________________
+---
+
 Steps to run this project completly:
 Terminal 1 — Docker + Backend
 Ek ek line alag alag run karo:
-_________________________________________________
+
+---
+
 powershell
 
 cd "C:\Users\Abdul Mannan\Desktop\Invest_IQ\infra"
-_________________________________________________
+
+---
+
 powershell
 
 docker-compose up -d
-_________________________________________________
+
+---
+
 powershell
 
 cd "C:\Users\Abdul Mannan\Desktop\Invest_IQ\services\api"
-_________________________________________________
+
+---
+
 powershell
 
 .\venv\Scripts\activate
-_________________________________________________
+
+---
+
 powershell
 
 alembic upgrade head
-_________________________________________________
+
+---
+
 powershell
 
 uvicorn main:app --reload
-_________________________________________________
-_________________________________________________
-_________________________________________________
+
+---
+
+---
+
+---
+
 Terminal 2 — Frontend (naya PowerShell window kholo)
 
 powershell
 
 cd "C:\Users\Abdul Mannan\Desktop\Invest_IQ\apps\web"
-_________________________________________________
+
+---
+
 powershell
 
 npx vite --force
-_________________________________________________
+
+---
+
 ⚠️ Important: Multiple commands ek saath paste mat karo — har line alag alag Enter karo. Space wale paths hamesha "quotes" mein likhna zaroori hai PowerShell mein.
 
+for n8n
 
-
-
-
-
-for n8n 
-
-n8n start 
-
+n8n start

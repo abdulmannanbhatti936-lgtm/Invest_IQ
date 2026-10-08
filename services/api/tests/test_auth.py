@@ -100,7 +100,7 @@ def test_expired_access_token_rejected(client, auth_headers):
 def test_refresh_token_signed_with_separate_secret():
     from jose import jwt
 
-    token = create_refresh_token("someone@example.com")
+    token = create_refresh_token("someone@example.com", jti=uuid.uuid4())
     payload = jwt.decode(token, settings.JWT_REFRESH_SECRET, algorithms=[settings.JWT_ALGORITHM])
     assert payload["type"] == "refresh"
     try:
@@ -110,17 +110,29 @@ def test_refresh_token_signed_with_separate_secret():
     raise AssertionError("refresh token must not verify with the access-token secret")
 
 
-def _signed(email: str, token_type: str, secret: str) -> str:
+def _signed(email: str, token_type: str, secret: str, jti=None) -> str:
     from datetime import datetime, timezone
 
     from jose import jwt
 
     now = datetime.now(timezone.utc)
     claims = {"sub": email, "type": token_type, "iat": now, "exp": now + timedelta(minutes=5)}
+    if jti is not None:
+        claims["jti"] = str(jti)
     return jwt.encode(claims, secret, algorithm=settings.JWT_ALGORITHM)
 
 
-def test_access_and_refresh_tokens_are_not_interchangeable(client):
+def _recorded_jti(client, db, access_token: str):
+    """A server-side refresh-token record for the user, so only the claim under test differs."""
+    from crud.refresh_token import create_refresh_token_record
+
+    user_id = _me(client, access_token).json()["id"]
+    record = create_refresh_token_record(db, user_id=uuid.UUID(user_id))
+    db.commit()
+    return record.jti
+
+
+def test_access_and_refresh_tokens_are_not_interchangeable(client, db):
     email = f"swap_{uuid.uuid4()}@example.com"
     password = "password123"
     client.post("/auth/register", json={"email": email, "full_name": "Swap", "password": password})
@@ -138,16 +150,21 @@ def test_access_and_refresh_tokens_are_not_interchangeable(client):
     assert me(pair["refresh_token"]) == 401
     assert refresh(pair["access_token"]) == 401
 
-    # The type claim is enforced independently of the signing secret:
+    # The type claim is enforced independently of the signing secret (refresh tokens below
+    # carry a real, active jti, so only the claim under test is wrong):
+    jti = _recorded_jti(client, db, pair["access_token"])
     # right secret + wrong type is rejected...
     assert me(_signed(email, "refresh", settings.JWT_SECRET)) == 401
-    assert refresh(_signed(email, "access", settings.JWT_REFRESH_SECRET)) == 401
+    assert refresh(_signed(email, "access", settings.JWT_REFRESH_SECRET, jti)) == 401
     # ...and right type + wrong secret is rejected too
     assert me(_signed(email, "access", settings.JWT_REFRESH_SECRET)) == 401
-    assert refresh(_signed(email, "refresh", settings.JWT_SECRET)) == 401
-    # Sanity check: the helper produces tokens the API does accept when both match
+    assert refresh(_signed(email, "refresh", settings.JWT_SECRET, jti)) == 401
+    # A correct signature alone is not enough: the jti must exist server-side
+    assert refresh(_signed(email, "refresh", settings.JWT_REFRESH_SECRET)) == 401
+    assert refresh(_signed(email, "refresh", settings.JWT_REFRESH_SECRET, uuid.uuid4())) == 401
+    # Sanity check: the helper produces tokens the API does accept when everything matches
     assert me(_signed(email, "access", settings.JWT_SECRET)) == 200
-    assert refresh(_signed(email, "refresh", settings.JWT_REFRESH_SECRET)) == 200
+    assert refresh(_signed(email, "refresh", settings.JWT_REFRESH_SECRET, jti)) == 200
 
 
 def test_passwords_and_tokens_never_logged(client, caplog):
@@ -269,9 +286,11 @@ def _refresh(client, token):
     return client.post("/auth/refresh", json={"refresh_token": token})
 
 
-def test_expired_refresh_token_rejected(client):
-    email, _ = _new_user(client)
-    expired = create_refresh_token(email, expires_delta=timedelta(seconds=-1))
+def test_expired_refresh_token_rejected(client, db):
+    email, pair = _new_user(client)
+    # Real, active jti: only the expiry is wrong
+    jti = _recorded_jti(client, db, pair["access_token"])
+    expired = create_refresh_token(email, jti=jti, expires_delta=timedelta(seconds=-1))
     response = _refresh(client, expired)
     assert response.status_code == 401
     assert response.json()["detail"] == "Could not validate credentials"
@@ -427,3 +446,117 @@ def test_database_rejects_emails_differing_only_by_case(db):
     with pytest.raises(IntegrityError):
         db.commit()
     db.rollback()
+
+
+# ---- Refresh-token rotation, reuse detection and logout (audit finding 3)
+
+
+def _active_tokens(db, email: str) -> int:
+    from models.refresh_token import RefreshToken
+    from models.user import User
+
+    user = db.query(User).filter(User.email == email).one()
+    return (
+        db.query(RefreshToken)
+        .filter(RefreshToken.user_id == user.id, RefreshToken.revoked_at.is_(None))
+        .count()
+    )
+
+
+def test_login_records_refresh_token_with_its_expiry(client, db):
+    from datetime import datetime, timezone
+
+    from core.security import decode_refresh_token
+    from models.refresh_token import RefreshToken
+
+    email, pair = _new_user(client)
+    _, jti = decode_refresh_token(pair["refresh_token"])
+    record = db.get(RefreshToken, jti)
+    assert record is not None and record.revoked_at is None
+    lifetime = record.expires_at - datetime.now(timezone.utc)
+    assert timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS) - lifetime < timedelta(minutes=1)
+
+
+def test_refresh_rotates_the_token(client, db):
+    email, first = _new_user(client)
+    second = _refresh(client, first["refresh_token"])
+    assert second.status_code == 200
+    second = second.json()
+    assert second["refresh_token"] != first["refresh_token"]
+    assert _me(client, second["access_token"]).status_code == 200
+    # The new refresh token works (once) and the chain continues
+    third = _refresh(client, second["refresh_token"])
+    assert third.status_code == 200
+    assert _active_tokens(db, email) == 1
+
+
+def test_reusing_a_rotated_token_revokes_every_session(client, db):
+    email, first = _new_user(client)
+    # A second device/session for the same user
+    other = client.post("/auth/login", data={"username": email, "password": "password123"}).json()
+    rotated = _refresh(client, first["refresh_token"]).json()
+    assert _active_tokens(db, email) == 2
+
+    # Replaying the already-used token (e.g. a stolen copy) is refused...
+    replay = _refresh(client, first["refresh_token"])
+    assert replay.status_code == 401
+    # ...and every refresh token of that user is revoked, including the legitimate ones
+    assert _active_tokens(db, email) == 0
+    assert _refresh(client, rotated["refresh_token"]).status_code == 401
+    assert _refresh(client, other["refresh_token"]).status_code == 401
+    # Logging in again starts a fresh, working session
+    fresh = client.post("/auth/login", data={"username": email, "password": "password123"}).json()
+    assert _refresh(client, fresh["refresh_token"]).status_code == 200
+
+
+def test_reuse_detection_is_logged_without_the_token(client, caplog):
+    import logging
+
+    _, pair = _new_user(client)
+    _refresh(client, pair["refresh_token"])
+    with caplog.at_level(logging.WARNING, logger="routers.auth"):
+        _refresh(client, pair["refresh_token"])
+    messages = [r.getMessage() for r in caplog.records if "reuse detected" in r.getMessage()]
+    assert len(messages) == 1
+    assert pair["refresh_token"] not in messages[0]
+
+
+def test_logout_revokes_the_refresh_token(client, db):
+    from core.security import decode_refresh_token
+    from models.refresh_token import RefreshToken
+
+    email, pair = _new_user(client)
+    other = client.post("/auth/login", data={"username": email, "password": "password123"}).json()
+
+    response = client.post("/auth/logout", json={"refresh_token": pair["refresh_token"]})
+    assert response.status_code == 204
+    _, jti = decode_refresh_token(pair["refresh_token"])
+    assert db.get(RefreshToken, jti).revoked_at is not None
+    # Only that session ends; the user's other session keeps working
+    assert _active_tokens(db, email) == 1
+    assert _refresh(client, other["refresh_token"]).status_code == 200
+    # Logging out twice is harmless
+    again = client.post("/auth/logout", json={"refresh_token": pair["refresh_token"]})
+    assert again.status_code == 204
+
+    # A logged-out token is a revoked token: presenting it again counts as reuse
+    assert _refresh(client, pair["refresh_token"]).status_code == 401
+    assert _active_tokens(db, email) == 0
+
+
+def test_logout_never_fails_and_reveals_nothing(client):
+    for token in ("garbage", _signed("x@example.com", "refresh", "wrong-secret", uuid.uuid4())):
+        assert client.post("/auth/logout", json={"refresh_token": token}).status_code == 204
+    assert client.post("/auth/logout", json={}).status_code == 422
+
+
+def test_deleting_a_user_deletes_their_refresh_tokens(client, db):
+    from core.security import decode_refresh_token
+    from models.refresh_token import RefreshToken
+    from models.user import User
+
+    email, pair = _new_user(client)
+    _, jti = decode_refresh_token(pair["refresh_token"])
+    db.query(User).filter(User.email == email).delete()
+    db.commit()
+    assert db.get(RefreshToken, jti) is None  # ON DELETE CASCADE

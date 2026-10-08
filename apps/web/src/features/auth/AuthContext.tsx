@@ -83,7 +83,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         sessionExpired,
         login,
         register,
-        logout: endSession,
+        logout: () => {
+          void auth.logout(); // revokes the refresh token server-side (best effort)
+          endSession();
+        },
         refreshUser,
         retry: () => void me.refetch(),
       }}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Check } from 'lucide-react';
+import { ArrowLeft, Check, LogOut } from 'lucide-react';
 import { riskProfileApi } from '@investiq/api-client';
 import { useTranslation } from '@investiq/i18n';
 import {
@@ -266,13 +266,30 @@ export const OnboardingPage = () => {
 
 const Shell = ({ children }: { children: React.ReactNode }) => {
   const { t } = useTranslation();
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+  // Answers given so far are already saved as a draft, so leaving here loses nothing (FR6)
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
       <header className="flex items-center justify-between px-6 py-4">
         <span className="text-xl font-bold tracking-tight text-blue-700">
           {t('common.appName')}
         </span>
-        <LanguageToggle />
+        <div className="flex items-center gap-2">
+          <LanguageToggle />
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
+          >
+            <LogOut className="h-4 w-4 rtl:rotate-180" />
+            {t('common.logout')}
+          </button>
+        </div>
       </header>
       <main className="mx-auto w-full max-w-lg flex-1 px-4 pt-8 pb-12">
         <p className="mb-6 text-sm font-semibold text-blue-700">{t('onboarding.title')}</p>

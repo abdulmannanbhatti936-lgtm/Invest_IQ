@@ -1,9 +1,14 @@
+import logging
 from pathlib import Path
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 API_ROOT = Path(__file__).resolve().parent.parent
+
+MIN_JWT_SECRET_LENGTH = 32
+# Markers of the placeholder values in .env.example and of other obviously unset secrets
+_PLACEHOLDER_MARKERS = ("placeholder", "changeme", "change-me", "change_me", "your_", "your-")
 
 
 class Settings(BaseSettings):
@@ -39,7 +44,8 @@ class Settings(BaseSettings):
 
     ENVIRONMENT: str = "development"
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # hide_input_in_errors: a validation error must never print the settings (they hold secrets)
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", hide_input_in_errors=True)
 
     @field_validator("JWT_REFRESH_SECRET")
     @classmethod
@@ -47,6 +53,32 @@ class Settings(BaseSettings):
         if v and v == info.data.get("JWT_SECRET"):
             raise ValueError("JWT_REFRESH_SECRET must differ from JWT_SECRET")
         return v
+
+    @property
+    def is_development(self) -> bool:
+        return self.ENVIRONMENT == "development"
+
+    def jwt_secret_problems(self) -> list[str]:
+        """Names + reasons for JWT secrets that are placeholders or too short (never the values)."""
+        problems = []
+        for name in ("JWT_SECRET", "JWT_REFRESH_SECRET"):
+            value = getattr(self, name)
+            if any(marker in value.lower() for marker in _PLACEHOLDER_MARKERS):
+                problems.append(f"{name} is a placeholder")
+            elif len(value) < MIN_JWT_SECRET_LENGTH:
+                problems.append(f"{name} is shorter than {MIN_JWT_SECRET_LENGTH} characters")
+        return problems
+
+    @model_validator(mode="after")
+    def strong_secrets_outside_development(self) -> "Settings":
+        # Refuse to start (API, Celery, Alembic) with forgeable tokens anywhere but local dev
+        problems = self.jwt_secret_problems()
+        if problems and not self.is_development:
+            raise ValueError(
+                f"Refusing to start with ENVIRONMENT={self.ENVIRONMENT}: {'; '.join(problems)}. "
+                "Set strong random secrets (see README)."
+            )
+        return self
 
     @property
     def cors_origins(self) -> list[str]:
@@ -58,3 +90,13 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def warn_if_weak_jwt_secrets(config: Settings = settings) -> None:
+    """Development only (elsewhere startup is refused): make weak secrets impossible to miss."""
+    for problem in config.jwt_secret_problems():
+        logging.getLogger("core.config").warning(
+            "INSECURE JWT SECRET: %s. Anyone can forge login tokens for this instance. "
+            "Allowed only because ENVIRONMENT=development.",
+            problem,
+        )

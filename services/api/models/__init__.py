@@ -1,6 +1,7 @@
 from core.database import Base
 
 from .prediction import Prediction
+from .refresh_token import RefreshToken
 from .risk_profile import RiskCategory, RiskProfile
 from .sentiment import NewsSentiment
 from .stock import PricePoint, Stock
@@ -11,6 +12,7 @@ __all__ = [
     "Base",
     "User",
     "UserRole",
+    "RefreshToken",
     "RiskCategory",
     "RiskProfile",
     "Stock",
