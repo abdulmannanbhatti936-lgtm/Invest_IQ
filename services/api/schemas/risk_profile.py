@@ -1,10 +1,10 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from models.risk_profile import RiskCategory
-from services.risk_scoring import validate_answers
+from services.risk_scoring import assess_risk, validate_answers
 
 
 class RiskProfileUpdate(BaseModel):
@@ -30,6 +30,17 @@ class RiskProfile(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    # Derived from the stored answers so the result screen can explain the category
+    @computed_field
+    @property
+    def score(self) -> int:
+        return assess_risk(self.answers).score
+
+    @computed_field
+    @property
+    def caps_applied(self) -> list[str]:
+        return assess_risk(self.answers).caps_applied
 
 
 class OnboardingProgress(BaseModel):

@@ -130,7 +130,12 @@
     "result": {
       "title": "You are a {{category}} investor",
       "cta": "Go to dashboard",
-      "retake": "Retake questionnaire"
+      "retake": "Retake questionnaire",
+      "caps": {
+        "short_horizon": "Because you need this money back within a year, we have kept your profile Conservative. Share prices can fall sharply in the short term, and there may not be time to recover.",
+        "sells_on_loss": "Because you said you would sell if your investment dropped, we have kept your profile no higher than Moderate. Bigger swings could push you to sell at a loss.",
+        "low_emergency_savings": "Because your savings would cover less than 3 months of expenses, we have kept your profile no higher than Moderate. Your safety cushion comes before higher-risk investing."
+      }
     }
   },
   "risk": {

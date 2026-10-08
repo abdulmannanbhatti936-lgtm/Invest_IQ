@@ -3,6 +3,7 @@ from services.risk_scoring import (
     MAX_SCORE,
     MIN_SCORE,
     QUESTION_IDS,
+    assess_risk,
     calculate_risk_category,
     calculate_risk_score,
     validate_answers,
@@ -65,6 +66,73 @@ def test_risk_scoring_boundaries():
     assert calculate_risk_category(eleven) == RiskCategory.conservative
 
 
+MAXIMUM = {**AGGRESSIVE, "market_experience": "experienced"}  # 21, every top answer
+
+
+def test_assess_uncapped_categories():
+    for answers, score, category in [
+        (MAXIMUM, 21, RiskCategory.aggressive),
+        (MODERATE, 14, RiskCategory.moderate),
+        (CONSERVATIVE, 7, RiskCategory.conservative),
+    ]:
+        result = assess_risk(answers)
+        assert (result.score, result.score_category, result.category) == (score, category, category)
+        assert result.caps_applied == []  # CONSERVATIVE trips every cap but none lowers it
+
+
+def test_short_horizon_caps_aggressive_scorer_at_conservative():
+    result = assess_risk({**MAXIMUM, "investment_horizon": "short"})
+    assert result.score == 19
+    assert result.score_category == RiskCategory.aggressive
+    assert result.category == RiskCategory.conservative
+    assert result.caps_applied == ["short_horizon"]
+
+
+def test_short_horizon_caps_moderate_scorer_at_conservative():
+    result = assess_risk({**MODERATE, "investment_horizon": "short"})
+    assert (result.score, result.score_category) == (13, RiskCategory.moderate)
+    assert result.category == RiskCategory.conservative
+    assert result.caps_applied == ["short_horizon"]
+
+
+def test_sell_on_loss_caps_aggressive_scorer_at_moderate():
+    result = assess_risk({**MAXIMUM, "loss_tolerance": "sell"})
+    assert (result.score, result.score_category) == (19, RiskCategory.aggressive)
+    assert result.category == RiskCategory.moderate
+    assert result.caps_applied == ["sells_on_loss"]
+
+
+def test_low_emergency_savings_caps_aggressive_scorer_at_moderate():
+    result = assess_risk({**MAXIMUM, "emergency_savings": "under_3_months"})
+    assert (result.score, result.score_category) == (19, RiskCategory.aggressive)
+    assert result.category == RiskCategory.moderate
+    assert result.caps_applied == ["low_emergency_savings"]
+
+
+def test_both_moderate_caps_listed_together():
+    result = assess_risk(
+        {**MAXIMUM, "loss_tolerance": "sell", "emergency_savings": "under_3_months"}
+    )
+    assert (result.score, result.score_category) == (17, RiskCategory.aggressive)
+    assert result.category == RiskCategory.moderate
+    assert result.caps_applied == ["sells_on_loss", "low_emergency_savings"]
+
+
+def test_conservative_cap_wins_over_moderate_cap():
+    result = assess_risk({**MAXIMUM, "investment_horizon": "short", "loss_tolerance": "sell"})
+    assert (result.score, result.score_category) == (17, RiskCategory.aggressive)
+    assert result.category == RiskCategory.conservative
+    assert result.caps_applied == ["short_horizon", "sells_on_loss"]
+
+
+def test_moderate_cap_never_raises_or_changes_a_lower_category():
+    moderate = {**MODERATE, "loss_tolerance": "sell"}  # 13 -> moderate already
+    result = assess_risk(moderate)
+    assert result.category == RiskCategory.moderate
+    assert result.caps_applied == []
+    assert calculate_risk_category(moderate) == RiskCategory.moderate
+
+
 def test_scoring_tolerates_bad_input():
     assert calculate_risk_score({"age_band": None, "loss_tolerance": 5}) == 0
     assert calculate_risk_category({}) == RiskCategory.conservative
@@ -106,6 +174,22 @@ def test_create_read_and_update_risk_profile(client, auth_headers):
     )
     assert response.status_code == 200
     assert response.json()["category"] == "conservative"
+
+
+def test_capped_profile_explains_cap_via_api(client, auth_headers):
+    response = client.patch(
+        "/users/me/risk-profile",
+        headers=auth_headers,
+        json={"answers": {**MAXIMUM, "investment_horizon": "short"}},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["category"] == "conservative"
+    assert body["score"] == 19
+    assert body["caps_applied"] == ["short_horizon"]
+
+    body = client.get("/users/me/risk-profile", headers=auth_headers).json()
+    assert body["caps_applied"] == ["short_horizon"]
 
 
 def test_incomplete_risk_profile_rejected(client, auth_headers):

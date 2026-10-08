@@ -37,12 +37,18 @@ export const RISK_QUESTIONS = [
 export type RiskQuestionId = (typeof RISK_QUESTIONS)[number]['id'];
 export type RiskAnswers = Partial<Record<RiskQuestionId, string>>;
 
+/** Safety caps that can lower the score-based category (services/api/services/risk_scoring.py). */
+export type RiskCap = 'short_horizon' | 'sells_on_loss' | 'low_emergency_savings';
+
 export interface RiskProfile {
   id: string;
   user_id: string;
   category: RiskCategory;
   answers: RiskAnswers;
   updated_at: string;
+  score: number;
+  /** Caps that lowered the category; empty when the score alone decided it. */
+  caps_applied: RiskCap[];
 }
 
 export interface OnboardingProgress {

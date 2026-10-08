@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Check } from 'lucide-react';
 import { riskProfileApi } from '@investiq/api-client';
 import { useTranslation } from '@investiq/i18n';
-import { RISK_QUESTIONS, type RiskAnswers, type RiskCategory } from '@investiq/shared-types';
+import { RISK_QUESTIONS, type RiskAnswers, type RiskProfile } from '@investiq/shared-types';
 import { useAuth } from '../auth/AuthContext';
 import { Button } from '../../components/ui/Button';
 import { DisclaimerBanner, ErrorState, Notice, Skeleton } from '../../components/ui/Feedback';
@@ -23,7 +23,7 @@ export const OnboardingPage = () => {
   const [answers, setAnswers] = useState<RiskAnswers>({});
   const [restored, setRestored] = useState(false);
   const [resumed, setResumed] = useState(false);
-  const [result, setResult] = useState<RiskCategory | null>(null);
+  const [result, setResult] = useState<RiskProfile | null>(null);
 
   // FR6: pick up where the user left off
   const progress = useQuery({
@@ -51,7 +51,7 @@ export const OnboardingPage = () => {
       queryClient.removeQueries({ queryKey: ['onboarding-progress'] });
       queryClient.setQueryData(['risk-profile'], profile);
       await refreshUser();
-      setResult(profile.category);
+      setResult(profile);
     },
   });
 
@@ -78,11 +78,21 @@ export const OnboardingPage = () => {
     return (
       <Shell>
         <div className="space-y-6 rounded-xl border border-gray-100 bg-white p-8 text-center shadow-sm">
-          <RiskBadge category={result} size="lg" />
+          <RiskBadge category={result.category} size="lg" />
           <h1 className="text-2xl font-bold text-gray-900">
-            {t('onboarding.result.title', { category: t(`risk.${result}`) })}
+            {t('onboarding.result.title', { category: t(`risk.${result.category}`) })}
           </h1>
-          <p className="leading-relaxed text-gray-600">{t(`risk.description.${result}`)}</p>
+          <p className="leading-relaxed text-gray-600">
+            {t(`risk.description.${result.category}`)}
+          </p>
+          {result.caps_applied.length > 0 && (
+            // Explain in plain language why the profile is lower than the score alone suggests
+            <div className="space-y-2 text-start">
+              {result.caps_applied.map((cap) => (
+                <Notice key={cap}>{t(`onboarding.result.caps.${cap}`)}</Notice>
+              ))}
+            </div>
+          )}
           <Button className="w-full" onClick={() => navigate('/dashboard', { replace: true })}>
             {t('onboarding.result.cta')}
           </Button>

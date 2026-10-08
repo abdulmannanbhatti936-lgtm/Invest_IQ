@@ -19,7 +19,7 @@
 **Active:** re-verification of Phases 0–3 against the docs (branch `fix/phase-0-3-completion`, uncommitted). The earlier "COMPLETED" marks for Phases 2–3 were not backed by checkpoint evidence, so each phase is being re-checked step by step.
 
 - **Phase 0 — Foundation:** all checkpoints re-run on 2026-10-09 and passing locally (Docker healthchecks, `/health`, all web routes with no console errors, mobile bundle + Metro, shared-package imports, lint/format/CI commands). **Still open:** CI has not yet run on GitHub (needs a push); the README hasn't been tested from a fresh clone by a second person.
-- **Phase 1 — Auth & Risk Profiling:** code and backend tests in place (51 pytest pass). **Open:** the risk questionnaire's option scores and the Conservative/Moderate/Aggressive thresholds (17 / 12 out of 21) were chosen by the agent, not specified in PRD FR2/FR3, and need team sign-off (§4). Browser end-to-end and Urdu RTL review are not yet done.
+- **Phase 1 — Auth & Risk Profiling:** code and backend tests in place (51 pytest pass). Risk scoring + safety caps approved by the team on 2026-10-09 (§3) and implemented with tests. **Open:** full Phase 1 step-by-step re-verification (browser end-to-end, Urdu text review by a native speaker).
 - **Phase 2 — Stock Data:** backend, web screens and Celery jobs exist; worker and beat start cleanly. Mobile screens (Step 2.9) are not built.
 - **Phase 3 — Prediction Engine:** models trained on 12 PSX tickers (5 years of Yahoo `.KA` data). Honest result: the models do **not** beat the naive baselines yet (see §10); all live predictions are flagged low-confidence.
 
@@ -40,6 +40,7 @@ Decisions made so far, with the reasoning, so they're never silently re-litigate
 | LLM chatbot always grounded in real DB data, never freeform | Prevents hallucinated financial advice — named as a top risk in PRD.md §15                                            | Architecture.md §12, Rules.md §1                                                 |
 | Color palette: **left as placeholder**                      | Manam will decide and provide later                                                                                   | Design.md §2                                                                     |
 | Financial math uses `Decimal`, never float                  | Rounding errors unacceptable when showing real prices                                                                 | Rules.md §3.4                                                                    |
+| Risk scoring (2026-10-09): 7 questions × 3/2/1 pts (7–21); 7–11 Conservative, 12–16 Moderate, 17–21 Aggressive; safety caps after scoring: need money within 1 yr → max Conservative; would sell on a drop OR emergency savings < 3 months → max Moderate | Team decision. PRD FR2/FR3 only named the topics; the caps stop a high scorer with a short horizon, panic-selling tendency or no safety cushion from being pushed into aggressive picks | `services/api/services/risk_scoring.py`, DetailedReport.md Step 1.3 |
 
 ## 4. Open Questions / Not Yet Decided
 
@@ -51,7 +52,6 @@ Carried over from PRD.md §17 and Architecture.md §21 — resolve these before/
 - [ ] OAuth (Google login) — in scope for v1 onboarding or deferred?
 - [ ] Specific financial news sources for the sentiment scraper — to be finalized before Phase 4
 - [ ] iOS support for mobile — Android is the committed target; iOS is a stretch goal only
-- [ ] Risk questionnaire scoring (PRD FR2/FR3 name the topics only). Currently implemented in `services/api/services/risk_scoring.py`: 7 questions × 1–3 points; ≥17 = Aggressive, ≥12 = Moderate, else Conservative. These options and thresholds were agent-chosen and need team sign-off.
 
 ## 5. Known Constraints
 

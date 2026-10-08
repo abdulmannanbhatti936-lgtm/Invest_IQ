@@ -304,12 +304,24 @@ resolve: {
 
 **File:** `services/api/services/risk_scoring.py`
 
-**Scoring algorithm:**
-- Each questionnaire answer has a weight (1-3)
-- Sum of weights → mapped to category:
-  - 0-8: Conservative
-  - 9-15: Moderate
-  - 16+: Aggressive
+**Scoring algorithm** (team-approved 2026-10-09; pure function `assess_risk()`):
+- 7 questions, each option scores 3 / 2 / 1 (higher = more risk capacity) → total 7–21
+
+| Question (id) | 3 points | 2 points | 1 point |
+|---|---|---|---|
+| Age (`age_band`) | Under 30 | 30 to 50 | Over 50 |
+| Income stability (`income_stability`) | Very steady | Mostly steady | Irregular |
+| When money is needed (`investment_horizon`) | More than 5 years | 1–5 years | Within 1 year |
+| Reaction to a 15% drop (`loss_tolerance`) | Buy more | Wait | Sell |
+| Share-market experience (`market_experience`) | Several years | A little / mutual fund | None |
+| Goal (`investment_goal`) | Growth | Steady income | Preserve value |
+| Emergency savings (`emergency_savings`) | More than 6 months | 3–6 months | Less than 3 months |
+
+- Score → category: **7–11 Conservative, 12–16 Moderate, 17–21 Aggressive**
+- Safety caps, applied after scoring (a cap can only lower the category, never raise it):
+  - Needs the money within 1 year → capped at **Conservative**
+  - Would sell after a drop, OR emergency savings under 3 months → capped at **Moderate**
+- The API returns `score` and `caps_applied`; the onboarding result screen explains each applied cap in plain language (EN/UR)
 
 **Endpoints:**
 
