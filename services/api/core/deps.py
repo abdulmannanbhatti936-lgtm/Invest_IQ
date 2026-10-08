@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.security import ACCESS_TOKEN_TYPE, decode_token
+from crud.user import get_user_by_email
 from models.user import User, UserRole
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
@@ -19,7 +20,7 @@ def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_
     if email is None:
         raise credentials_exception
 
-    user = db.query(User).filter(User.email == email).first()
+    user = get_user_by_email(db, email=email)
     if user is None:
         raise credentials_exception
     return user

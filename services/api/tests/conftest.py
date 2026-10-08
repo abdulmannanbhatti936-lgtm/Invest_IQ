@@ -12,11 +12,69 @@ os.environ.setdefault("JWT_SECRET", "test-access-secret")
 os.environ.setdefault("JWT_REFRESH_SECRET", "test-refresh-secret")
 os.environ["AUTH_RATE_LIMIT"] = "10000"
 
+from sqlalchemy import create_engine, text  # noqa: E402
+from sqlalchemy.engine import make_url  # noqa: E402
+
+from core.config import API_ROOT, settings  # noqa: E402
+
+# Tests never touch the dev/demo database: they run against a separate "<db>_test" database
+# (or TEST_DATABASE_URL). Must be switched before core.database creates its engine.
+_dev_url = make_url(settings.DATABASE_URL)
+TEST_DB_URL = make_url(
+    os.environ.get("TEST_DATABASE_URL") or _dev_url.set(database=f"{_dev_url.database}_test")
+)
+if not TEST_DB_URL.database.endswith("_test"):
+    raise RuntimeError(f"Refusing to run tests against '{TEST_DB_URL.database}': not a *_test DB")
+settings.DATABASE_URL = TEST_DB_URL.render_as_string(hide_password=False)
+os.environ["DATABASE_URL"] = settings.DATABASE_URL
+
 from fastapi.testclient import TestClient  # noqa: E402
 
-from core.config import settings  # noqa: E402
-from core.database import SessionLocal  # noqa: E402
+from core.database import SessionLocal, engine  # noqa: E402
 from main import app  # noqa: E402
+
+
+def _create_and_migrate_test_db() -> None:
+    admin = create_engine(TEST_DB_URL.set(database="postgres"), isolation_level="AUTOCOMMIT")
+    with admin.connect() as conn:
+        exists = conn.execute(
+            text("SELECT 1 FROM pg_database WHERE datname = :name"), {"name": TEST_DB_URL.database}
+        ).scalar()
+        if not exists:
+            conn.execute(text(f'CREATE DATABASE "{TEST_DB_URL.database}"'))
+    admin.dispose()
+
+    from alembic.config import Config
+
+    from alembic import command
+
+    # No ini file: alembic's fileConfig() would reset logging and break caplog-based tests
+    config = Config()
+    config.set_main_option("script_location", str(API_ROOT / "alembic"))
+    command.upgrade(config, "head")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _test_database():
+    _create_and_migrate_test_db()
+
+
+@pytest.fixture(autouse=True)
+def _rollback_after_each_test(_test_database):
+    """
+    Every session the app opens (SessionLocal) joins one outer transaction per test, and the
+    app's own commits become savepoints. Rolling the outer transaction back afterwards leaves
+    the test DB exactly as migrated (including the seeded PSX catalog).
+    """
+    connection = engine.connect()
+    outer = connection.begin()
+    SessionLocal.configure(bind=connection, join_transaction_mode="create_savepoint")
+    try:
+        yield
+    finally:
+        SessionLocal.configure(bind=engine, join_transaction_mode="conservative_savepoint")
+        outer.rollback()
+        connection.close()
 
 
 @pytest.fixture

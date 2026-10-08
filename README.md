@@ -188,6 +188,8 @@ black --check .
 python -m pytest
 ```
 
+Tests never touch the dev database: `pytest` creates and migrates a separate `<db>_test` database (e.g. `investiq_test`, or `TEST_DATABASE_URL`) and rolls every test back afterwards.
+
 ## 👥 Team
 
 | Name                | Role         |

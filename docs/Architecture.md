@@ -137,7 +137,7 @@ For a two-person FYP team, running 4 separate microservices in production is unn
 ```sql
 users
   id UUID PK
-  email VARCHAR UNIQUE
+  email VARCHAR UNIQUE                       -- stored trimmed + lowercase; unique index on lower(email)
   password_hash VARCHAR
   full_name VARCHAR
   role ENUM('user','admin') DEFAULT 'user'   -- added early (planned for Step 9.1): admin route guard needs it

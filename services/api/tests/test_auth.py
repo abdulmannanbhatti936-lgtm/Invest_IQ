@@ -1,6 +1,8 @@
 import uuid
 from datetime import timedelta
 
+import pytest
+
 from core.config import settings
 from core.security import create_access_token, create_refresh_token
 
@@ -386,3 +388,42 @@ def test_unknown_email_still_runs_one_password_check(client, monkeypatch):
         ).status_code
         == 401
     )
+
+
+def test_email_is_case_insensitive(client):
+    local = f"Mixed.Case_{uuid.uuid4().hex[:8]}"
+    typed = f"  {local}@Example.COM "
+    stored = f"{local}@example.com".lower()
+
+    response = client.post(
+        "/auth/register", json={"email": typed, "full_name": "Case", "password": "password123"}
+    )
+    assert response.status_code == 201
+    assert response.json()["email"] == stored
+
+    # Log in with exactly what was typed at registration, and with other casings
+    for username in (typed, stored, stored.upper()):
+        login = client.post("/auth/login", data={"username": username, "password": "password123"})
+        assert login.status_code == 200, username
+
+    # An address that differs only by letter case is the same account
+    duplicate = client.post(
+        "/auth/register",
+        json={"email": stored.upper(), "full_name": "Case 2", "password": "password456"},
+    )
+    assert duplicate.status_code == 400
+
+
+def test_database_rejects_emails_differing_only_by_case(db):
+    from sqlalchemy.exc import IntegrityError
+
+    from models.user import User
+
+    email = f"dbcase_{uuid.uuid4().hex[:8]}@example.com"
+    db.add(User(email=email, password_hash="x", full_name="A"))
+    db.commit()
+    # Bypasses the API on purpose: the unique index on lower(email) must still catch it
+    db.add(User(email=email.upper(), password_hash="x", full_name="B"))
+    with pytest.raises(IntegrityError):
+        db.commit()
+    db.rollback()

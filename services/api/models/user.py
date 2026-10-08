@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Enum, String
+from sqlalchemy import Column, DateTime, Enum, Index, String, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from core.database import Base
@@ -35,3 +35,8 @@ class User(Base):
     @property
     def has_risk_profile(self) -> bool:
         return getattr(self, "risk_profile", None) is not None
+
+
+# Emails are stored lowercase (schemas.user.normalize_email); this index also makes the
+# database itself reject two addresses that differ only by letter case.
+Index("ix_users_email_lower", func.lower(User.email), unique=True)

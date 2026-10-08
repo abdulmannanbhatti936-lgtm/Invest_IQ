@@ -6,9 +6,19 @@ from models.user import UserRole
 from schemas.types import UTCDateTime
 
 
+def normalize_email(value: str) -> str:
+    """Emails are matched case-insensitively: always store and look them up trimmed + lowercase."""
+    return value.strip().lower()
+
+
 class UserBase(BaseModel):
     email: EmailStr
     full_name: str = Field(min_length=1, max_length=120)
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def email_lowercase(cls, v: object) -> object:
+        return normalize_email(v) if isinstance(v, str) else v
 
 
 # bcrypt only uses the first 72 bytes of a password; anything longer would be silently
