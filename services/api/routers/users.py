@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+import json
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
 
 from core.database import get_db
@@ -19,6 +22,41 @@ from schemas.user import User as UserSchema
 from services.risk_scoring import QUESTIONNAIRE
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+class _DuplicateKeys(Exception):
+    def __init__(self, keys: list[str]):
+        self.keys = keys
+
+
+def _no_duplicates(pairs: list[tuple]) -> dict:
+    keys = [k for k, _ in pairs]
+    dupes = sorted({k for k in keys if keys.count(k) > 1})
+    if dupes:
+        raise _DuplicateKeys(dupes)
+    return dict(pairs)
+
+
+async def reject_duplicate_answers(request: Request) -> None:
+    """
+    A JSON object with a repeated key (e.g. two "age_band" answers) is silently
+    collapsed to the last value by normal parsing; reject it with a 422 instead.
+    """
+    try:
+        json.loads(await request.body() or b"null", object_pairs_hook=_no_duplicates)
+    except _DuplicateKeys as e:
+        raise RequestValidationError(
+            [
+                {
+                    "type": "duplicate_key",
+                    "loc": ("body",),
+                    "msg": f"Duplicate answer for: {', '.join(e.keys)}",
+                    "input": None,
+                }
+            ]
+        ) from None
+    except ValueError:
+        return  # malformed JSON: FastAPI's own body parsing returns the 422
 
 
 @router.get("/me", response_model=UserSchema)
@@ -42,7 +80,11 @@ def read_risk_profile(
     return profile
 
 
-@router.patch("/me/risk-profile", response_model=RiskProfileSchema)
+@router.patch(
+    "/me/risk-profile",
+    response_model=RiskProfileSchema,
+    dependencies=[Depends(reject_duplicate_answers)],
+)
 def update_or_create_risk_profile(
     profile_in: RiskProfileUpdate,
     current_user: User = Depends(get_current_user),
@@ -56,7 +98,11 @@ def read_onboarding_progress(current_user: User = Depends(get_current_user)):
     return current_user.onboarding_progress
 
 
-@router.put("/me/onboarding-progress", response_model=OnboardingProgress)
+@router.put(
+    "/me/onboarding-progress",
+    response_model=OnboardingProgress,
+    dependencies=[Depends(reject_duplicate_answers)],
+)
 def update_onboarding_progress(
     progress: OnboardingProgress,
     current_user: User = Depends(get_current_user),

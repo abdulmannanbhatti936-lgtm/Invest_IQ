@@ -1,3 +1,8 @@
+import json
+import uuid
+
+import pytest
+
 from models.risk_profile import RiskCategory
 from services.risk_scoring import (
     MAX_SCORE,
@@ -8,6 +13,7 @@ from services.risk_scoring import (
     calculate_risk_score,
     validate_answers,
 )
+from tests.conftest import register_and_login
 
 AGGRESSIVE = {
     "age_band": "under_30",
@@ -150,6 +156,10 @@ def test_questionnaire_endpoint(client):
     response = client.get("/users/risk-questionnaire")
     assert response.status_code == 200
     assert [q["id"] for q in response.json()] == QUESTION_IDS
+    # Public endpoint: only ids and option values. Points and thresholds stay server-side.
+    for question in response.json():
+        assert set(question) == {"id", "options"}
+        assert all(isinstance(option, str) for option in question["options"])
 
 
 def test_read_risk_profile_not_found(client, auth_headers):
@@ -215,3 +225,177 @@ def test_onboarding_progress_resume_and_clear(client, auth_headers):  # PRD.md F
 
     client.patch("/users/me/risk-profile", headers=auth_headers, json={"answers": MODERATE})
     assert client.get("/users/me/onboarding-progress", headers=auth_headers).json() is None
+
+
+# ---- Step 1.3 audit
+
+
+def test_scoring_uses_the_approved_values():  # Memory.md §3, 2026-10-09
+    from services.risk_scoring import AGGRESSIVE_MIN_SCORE, MODERATE_MIN_SCORE, QUESTIONNAIRE
+
+    assert len(QUESTIONNAIRE) == 7
+    for options in QUESTIONNAIRE.values():
+        assert sorted(options.values(), reverse=True) == [3, 2, 1]
+    assert (MODERATE_MIN_SCORE, AGGRESSIVE_MIN_SCORE) == (12, 17)
+    twelve = {**MODERATE, "age_band": "over_50", "income_stability": "unstable"}  # 14 - 2
+    assert calculate_risk_score(twelve) == 12
+    assert assess_risk(twelve).category == RiskCategory.moderate
+
+
+def test_scoring_module_is_pure():  # Rules.md §3.2: no DB/HTTP inside the scoring logic
+    import ast
+    import inspect
+
+    import services.risk_scoring as scoring
+
+    tree = ast.parse(inspect.getsource(scoring))
+    imported = {
+        node.module if isinstance(node, ast.ImportFrom) else alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+        for alias in node.names
+    }
+    assert imported == {"dataclasses", "models.risk_profile"}  # the enum only
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"answers": {**AGGRESSIVE, "shoe_size": "9"}},  # unknown question id
+        {"answers": {**AGGRESSIVE, "age_band": "teen"}},  # unknown option
+        {"answers": {k: v for k, v in AGGRESSIVE.items() if k != "age_band"}},  # missing
+        {"answers": {**AGGRESSIVE, "age_band": 3}},  # not a string
+        {"answers": {**AGGRESSIVE, "age_band": ["under_30", "over_50"]}},  # two answers
+        {"answers": None},
+        {},
+    ],
+)
+def test_invalid_answers_rejected_with_422(client, auth_headers, body):
+    response = client.patch("/users/me/risk-profile", headers=auth_headers, json=body)
+    assert response.status_code == 422
+
+
+def test_duplicate_answers_rejected_with_422(client, auth_headers):
+    headers = {**auth_headers, "Content-Type": "application/json"}
+    full = json.dumps({"answers": AGGRESSIVE})
+    duplicated = full[:-2] + ', "age_band": "over_50"}}'  # age_band appears twice
+    response = client.patch("/users/me/risk-profile", headers=headers, content=duplicated)
+    assert response.status_code == 422
+    assert "Duplicate answer for: age_band" in response.text
+
+    draft = '{"answers": {"age_band": "under_30", "age_band": "over_50"}, "current_step": 1}'
+    assert (
+        client.put("/users/me/onboarding-progress", headers=headers, content=draft).status_code
+        == 422
+    )
+    # Nothing was saved by either rejected request
+    assert client.get("/users/me/risk-profile", headers=auth_headers).status_code == 404
+    assert client.get("/users/me/onboarding-progress", headers=auth_headers).json() is None
+
+
+def test_draft_step_must_be_a_real_question(client, auth_headers):
+    for step, expected in [(0, 200), (len(QUESTION_IDS) - 1, 200), (len(QUESTION_IDS), 422)]:
+        response = client.put(
+            "/users/me/onboarding-progress",
+            headers=auth_headers,
+            json={"answers": {}, "current_step": step},
+        )
+        assert response.status_code == expected
+
+
+def test_retake_replaces_profile_and_bumps_updated_at(client, auth_headers, db):  # FR5
+    from models.risk_profile import RiskProfile
+
+    first = client.patch(
+        "/users/me/risk-profile", headers=auth_headers, json={"answers": AGGRESSIVE}
+    ).json()
+    same_again = client.patch(
+        "/users/me/risk-profile", headers=auth_headers, json={"answers": AGGRESSIVE}
+    ).json()
+    assert same_again["id"] == first["id"]
+    assert same_again["updated_at"] > first["updated_at"]  # even with identical answers
+
+    retaken = client.patch(
+        "/users/me/risk-profile", headers=auth_headers, json={"answers": CONSERVATIVE}
+    ).json()
+    assert retaken["id"] == first["id"]
+    assert retaken["category"] == "conservative"
+    assert retaken["answers"] == CONSERVATIVE
+    assert retaken["updated_at"] > same_again["updated_at"]
+    assert db.query(RiskProfile).filter(RiskProfile.user_id == first["user_id"]).count() == 1
+
+
+def test_onboarding_save_resume_complete(client):  # FR6
+    email = f"resume_{uuid.uuid4()}@example.com"
+    client.post(
+        "/auth/register", json={"email": email, "full_name": "R", "password": "password123"}
+    )
+
+    def login():
+        token = client.post(
+            "/auth/login", data={"username": email, "password": "password123"}
+        ).json()["access_token"]
+        return {"Authorization": f"Bearer {token}"}
+
+    # Session 1: answer two questions, then abandon
+    session1 = login()
+    first_two = dict(list(AGGRESSIVE.items())[:2])
+    client.put(
+        "/users/me/onboarding-progress",
+        headers=session1,
+        json={"answers": first_two, "current_step": 2},
+    )
+
+    # Session 2 (fresh login): the draft is still there and onboarding is not done
+    session2 = login()
+    assert client.get("/users/me", headers=session2).json()["has_risk_profile"] is False
+    resumed = client.get("/users/me/onboarding-progress", headers=session2).json()
+    assert resumed == {"answers": first_two, "current_step": 2}
+
+    # Continue from the saved step, then finish
+    six = dict(list(AGGRESSIVE.items())[:6])
+    client.put(
+        "/users/me/onboarding-progress", headers=session2, json={"answers": six, "current_step": 6}
+    )
+    assert client.get("/users/me/onboarding-progress", headers=session2).json()["current_step"] == 6
+    done = client.patch("/users/me/risk-profile", headers=session2, json={"answers": AGGRESSIVE})
+    assert done.status_code == 200
+
+    # Completing clears the draft and marks onboarding done
+    assert client.get("/users/me/onboarding-progress", headers=session2).json() is None
+    assert client.get("/users/me", headers=session2).json()["has_risk_profile"] is True
+
+
+def test_users_cannot_access_each_others_data(client):
+    user_a = register_and_login(client)
+    user_b = register_and_login(client)
+
+    client.patch("/users/me/risk-profile", headers=user_a, json={"answers": AGGRESSIVE})
+    a_draft = {"answers": {"age_band": "under_30"}, "current_step": 1}
+    client.put("/users/me/onboarding-progress", headers=user_a, json=a_draft)
+
+    # B sees only B's (empty) data
+    assert client.get("/users/me/risk-profile", headers=user_b).status_code == 404
+    assert client.get("/users/me/onboarding-progress", headers=user_b).json() is None
+
+    # B's writes never touch A's data
+    client.patch("/users/me/risk-profile", headers=user_b, json={"answers": CONSERVATIVE})
+    client.put(
+        "/users/me/onboarding-progress",
+        headers=user_b,
+        json={"answers": {"age_band": "over_50"}, "current_step": 1},
+    )
+    a_profile = client.get("/users/me/risk-profile", headers=user_a).json()
+    b_profile = client.get("/users/me/risk-profile", headers=user_b).json()
+    assert a_profile["category"] == "aggressive"
+    assert b_profile["category"] == "conservative"
+    assert a_profile["user_id"] != b_profile["user_id"]
+    assert client.get("/users/me/onboarding-progress", headers=user_a).json() == a_draft
+
+    # There is no way to address another user's profile: no user-id routes exist
+    assert client.get(
+        f"/users/{a_profile['user_id']}/risk-profile", headers=user_b
+    ).status_code in (
+        404,
+        405,
+    )

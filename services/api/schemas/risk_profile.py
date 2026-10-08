@@ -4,7 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from models.risk_profile import RiskCategory
-from services.risk_scoring import assess_risk, validate_answers
+from services.risk_scoring import QUESTION_IDS, assess_risk, validate_answers
 
 
 class RiskProfileUpdate(BaseModel):
@@ -47,7 +47,8 @@ class OnboardingProgress(BaseModel):
     """Partially-completed questionnaire, saved so onboarding can resume (FR6)."""
 
     answers: dict[str, str] = Field(default_factory=dict)
-    current_step: int = Field(default=0, ge=0)
+    # Index of the question to resume at; the bound follows the questionnaire's length
+    current_step: int = Field(default=0, ge=0, le=len(QUESTION_IDS) - 1)
 
     @field_validator("answers")
     @classmethod

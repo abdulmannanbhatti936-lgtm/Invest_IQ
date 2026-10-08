@@ -238,7 +238,11 @@ POST   /auth/login
 POST   /auth/refresh
 
 GET    /users/me
-PATCH  /users/me/risk-profile
+GET    /users/risk-questionnaire        # public: question ids + option values only (scoring stays server-side)
+GET    /users/me/risk-profile
+PATCH  /users/me/risk-profile           # create or retake (FR5); returns category, score, caps_applied
+GET    /users/me/onboarding-progress    # partial answers + step, for resume (FR6)
+PUT    /users/me/onboarding-progress
 
 GET    /stocks/search?q=
 GET    /stocks/{ticker}
