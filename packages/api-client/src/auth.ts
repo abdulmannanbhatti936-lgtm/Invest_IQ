@@ -1,7 +1,14 @@
-import { apiClient } from './client';
+import type {
+  OnboardingProgress,
+  RiskAnswers,
+  RiskProfile,
+  TokenPair,
+  User,
+} from '@investiq/shared-types';
+import { apiClient, tokens } from './client';
 
 export interface LoginData {
-  username: string; // email in OAuth2 format
+  username: string; // email, per the OAuth2 password form
   password: string;
 }
 
@@ -11,62 +18,54 @@ export interface RegisterData {
   password: string;
 }
 
-export interface TokenResponse {
-  access_token: string;
-  refresh_token: string;
-  token_type: string;
-}
-
-export interface UserResponse {
-  id: string;
-  email: string;
-  full_name: string;
-  is_active: boolean;
-  role: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface RiskProfileResponse {
-  id: string;
-  user_id: string;
-  category: string;
-  answers: Record<string, any>;
-  updated_at: string;
-}
-
 export const auth = {
-  login: async (data: LoginData): Promise<TokenResponse> => {
-    // OAuth2 expects form url-encoded data
-    const formData = new URLSearchParams();
-    formData.append('username', data.username);
-    formData.append('password', data.password);
-
-    const response = await apiClient.post('/auth/login', formData, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
+  login: async (data: LoginData): Promise<TokenPair> => {
+    const form = new URLSearchParams();
+    form.append('username', data.username);
+    form.append('password', data.password);
+    const response = await apiClient.post<TokenPair>('/auth/login', form, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
+    tokens.set(response.data);
     return response.data;
   },
 
-  register: async (data: RegisterData): Promise<UserResponse> => {
-    const response = await apiClient.post('/auth/register', data);
+  register: async (data: RegisterData): Promise<User> => {
+    const response = await apiClient.post<User>('/auth/register', data);
     return response.data;
   },
 
-  getMe: async (): Promise<UserResponse> => {
-    const response = await apiClient.get('/users/me');
+  logout: () => tokens.clear(),
+
+  getMe: async (): Promise<User> => {
+    const response = await apiClient.get<User>('/users/me');
+    return response.data;
+  },
+};
+
+export const riskProfileApi = {
+  get: async (): Promise<RiskProfile> => {
+    const response = await apiClient.get<RiskProfile>('/users/me/risk-profile');
     return response.data;
   },
 
-  getRiskProfile: async (): Promise<RiskProfileResponse> => {
-    const response = await apiClient.get('/users/me/risk-profile');
+  save: async (answers: RiskAnswers): Promise<RiskProfile> => {
+    const response = await apiClient.patch<RiskProfile>('/users/me/risk-profile', { answers });
     return response.data;
   },
 
-  saveRiskProfile: async (answers: Record<string, any>): Promise<RiskProfileResponse> => {
-    const response = await apiClient.patch('/users/me/risk-profile', { answers });
+  getProgress: async (): Promise<OnboardingProgress | null> => {
+    const response = await apiClient.get<OnboardingProgress | null>(
+      '/users/me/onboarding-progress',
+    );
+    return response.data;
+  },
+
+  saveProgress: async (progress: OnboardingProgress): Promise<OnboardingProgress> => {
+    const response = await apiClient.put<OnboardingProgress>(
+      '/users/me/onboarding-progress',
+      progress,
+    );
     return response.data;
   },
 };

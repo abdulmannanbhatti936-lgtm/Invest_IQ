@@ -1,139 +1,133 @@
-import pytest
-
 from models.risk_profile import RiskCategory
-from services.risk_scoring import calculate_risk_category
+from services.risk_scoring import (
+    MAX_SCORE,
+    MIN_SCORE,
+    QUESTION_IDS,
+    calculate_risk_category,
+    calculate_risk_score,
+    validate_answers,
+)
+
+AGGRESSIVE = {
+    "age_band": "under_30",
+    "income_stability": "very_stable",
+    "investment_horizon": "long",
+    "loss_tolerance": "buy_more",
+    "market_experience": "some",
+    "investment_goal": "growth",
+    "emergency_savings": "over_6_months",
+}  # 3+3+3+3+2+3+3 = 20
+
+MODERATE = {
+    "age_band": "30_to_50",
+    "income_stability": "somewhat_stable",
+    "investment_horizon": "medium",
+    "loss_tolerance": "hold",
+    "market_experience": "some",
+    "investment_goal": "income",
+    "emergency_savings": "3_to_6_months",
+}  # 14
+
+CONSERVATIVE = {
+    "age_band": "over_50",
+    "income_stability": "unstable",
+    "investment_horizon": "short",
+    "loss_tolerance": "sell",
+    "market_experience": "none",
+    "investment_goal": "preservation",
+    "emergency_savings": "under_3_months",
+}  # 7
 
 
-def test_risk_scoring_aggressive():
-    answers = {
-        "age": 25,
-        "investment_goal": "growth",
-        "risk_tolerance": "high",
-        "time_horizon": "long"
-    }
-    # 25 (<30) -> 3
-    # growth -> 3
-    # high -> 3
-    # long -> 3
-    # Total = 12 (>= 10 -> aggressive)
-    category = calculate_risk_category(answers)
-    assert category == RiskCategory.aggressive
+def test_questionnaire_has_5_to_10_questions():  # PRD.md FR2
+    assert 5 <= len(QUESTION_IDS) <= 10
+    assert (MIN_SCORE, MAX_SCORE) == (7, 21)
 
-def test_risk_scoring_moderate():
-    answers = {
-        "age": 40,
-        "investment_goal": "income",
-        "risk_tolerance": "medium",
-        "time_horizon": "medium"
-    }
-    # 40 (<50) -> 2
-    # income -> 2
-    # medium -> 2
-    # medium -> 2
-    # Total = 8 (>= 7 and < 10 -> moderate)
-    category = calculate_risk_category(answers)
-    assert category == RiskCategory.moderate
 
-def test_risk_scoring_conservative():
-    answers = {
-        "age": 60,
-        "investment_goal": "preservation",
-        "risk_tolerance": "low",
-        "time_horizon": "short"
-    }
-    # 60 (>=50) -> 1
-    # preservation -> 1
-    # low -> 1
-    # short -> 1
-    # Total = 4 (< 7 -> conservative)
-    category = calculate_risk_category(answers)
-    assert category == RiskCategory.conservative
+def test_risk_scoring_categories():
+    assert calculate_risk_score(AGGRESSIVE) == 20
+    assert calculate_risk_category(AGGRESSIVE) == RiskCategory.aggressive
+    assert calculate_risk_score(MODERATE) == 14
+    assert calculate_risk_category(MODERATE) == RiskCategory.moderate
+    assert calculate_risk_score(CONSERVATIVE) == 7
+    assert calculate_risk_category(CONSERVATIVE) == RiskCategory.conservative
 
-def test_risk_scoring_missing_fields_defaults_to_conservative():
-    answers = {}
-    # default age 35 -> 2
-    # no goal -> 0
-    # no tolerance -> 0
-    # no horizon -> 0
-    # Total = 2 (< 7 -> conservative)
-    category = calculate_risk_category(answers)
-    assert category == RiskCategory.conservative
 
-import uuid
+def test_risk_scoring_boundaries():
+    # 17 is the lowest aggressive score, 16 the highest moderate, 11 the highest conservative
+    sixteen = {**MODERATE, "age_band": "under_30", "loss_tolerance": "buy_more"}
+    assert calculate_risk_score(sixteen) == 16
+    assert calculate_risk_category(sixteen) == RiskCategory.moderate
+    seventeen = {**sixteen, "investment_horizon": "long"}
+    assert calculate_risk_category(seventeen) == RiskCategory.aggressive
+    eleven = {**CONSERVATIVE, "age_band": "under_30", "investment_goal": "growth"}
+    assert calculate_risk_score(eleven) == 11
+    assert calculate_risk_category(eleven) == RiskCategory.conservative
 
-from fastapi.testclient import TestClient
 
-from main import app
+def test_scoring_tolerates_bad_input():
+    assert calculate_risk_score({"age_band": None, "loss_tolerance": 5}) == 0
+    assert calculate_risk_category({}) == RiskCategory.conservative
 
-client = TestClient(app)
 
-@pytest.fixture
-def user_token_headers():
-    test_email = f"test_{uuid.uuid4()}@example.com"
-    test_password = "password123"
-    
-    # Register
-    client.post(
-        "/auth/register",
-        json={
-            "email": test_email,
-            "full_name": "Test User",
-            "password": test_password
-        }
+def test_validate_answers():
+    assert validate_answers(AGGRESSIVE) == []
+    assert validate_answers({"age_band": "under_30"}, partial=True) == []
+    assert any("Missing" in e for e in validate_answers({"age_band": "under_30"}))
+    assert any("Unknown" in e for e in validate_answers({"shoe_size": "9"}, partial=True))
+    assert any("Invalid" in e for e in validate_answers({"age_band": "teen"}, partial=True))
+
+
+def test_questionnaire_endpoint(client):
+    response = client.get("/users/risk-questionnaire")
+    assert response.status_code == 200
+    assert [q["id"] for q in response.json()] == QUESTION_IDS
+
+
+def test_read_risk_profile_not_found(client, auth_headers):
+    assert client.get("/users/me/risk-profile", headers=auth_headers).status_code == 404
+
+
+def test_create_read_and_update_risk_profile(client, auth_headers):
+    response = client.patch(
+        "/users/me/risk-profile", headers=auth_headers, json={"answers": AGGRESSIVE}
     )
-    
-    # Login
-    login_response = client.post(
-        "/auth/login",
-        data={
-            "username": test_email,
-            "password": test_password
-        }
+    assert response.status_code == 200
+    assert response.json()["category"] == "aggressive"
+
+    response = client.get("/users/me/risk-profile", headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json()["category"] == "aggressive"
+    assert client.get("/users/me", headers=auth_headers).json()["has_risk_profile"] is True
+
+    # FR5: retake at any time
+    response = client.patch(
+        "/users/me/risk-profile", headers=auth_headers, json={"answers": CONSERVATIVE}
     )
-    token = login_response.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
-
-def test_read_risk_profile_not_found(user_token_headers):
-    response = client.get("/users/me/risk-profile", headers=user_token_headers)
-    assert response.status_code == 404
-
-def test_create_and_read_risk_profile(user_token_headers):
-    data = {
-        "answers": {
-            "age": 28,
-            "investment_goal": "growth",
-            "risk_tolerance": "high",
-            "time_horizon": "long"
-        }
-    }
-    response = client.patch("/users/me/risk-profile", headers=user_token_headers, json=data)
     assert response.status_code == 200
-    content = response.json()
-    assert content["category"] == "aggressive"
-    assert "answers" in content
-    
-    # Now read it
-    response = client.get("/users/me/risk-profile", headers=user_token_headers)
-    assert response.status_code == 200
-    content = response.json()
-    assert content["category"] == "aggressive"
+    assert response.json()["category"] == "conservative"
 
-def test_update_risk_profile(user_token_headers):
-    # First create
-    client.patch("/users/me/risk-profile", headers=user_token_headers, json={
-        "answers": {"age": 28, "investment_goal": "growth", "risk_tolerance": "high", "time_horizon": "long"}
-    })
-    
-    # Now update to conservative
-    data = {
-        "answers": {
-            "age": 65,
-            "investment_goal": "preservation",
-            "risk_tolerance": "low",
-            "time_horizon": "short"
-        }
-    }
-    response = client.patch("/users/me/risk-profile", headers=user_token_headers, json=data)
+
+def test_incomplete_risk_profile_rejected(client, auth_headers):
+    response = client.patch(
+        "/users/me/risk-profile", headers=auth_headers, json={"answers": {"age_band": "under_30"}}
+    )
+    assert response.status_code == 422
+
+
+def test_onboarding_progress_resume_and_clear(client, auth_headers):  # PRD.md FR6
+    assert client.get("/users/me/onboarding-progress", headers=auth_headers).json() is None
+
+    draft = {"answers": {"age_band": "under_30", "income_stability": "unstable"}, "current_step": 2}
+    response = client.put("/users/me/onboarding-progress", headers=auth_headers, json=draft)
     assert response.status_code == 200
-    content = response.json()
-    assert content["category"] == "conservative"
+    assert client.get("/users/me/onboarding-progress", headers=auth_headers).json() == draft
+
+    bad = {"answers": {"age_band": "teen"}, "current_step": 1}
+    assert (
+        client.put("/users/me/onboarding-progress", headers=auth_headers, json=bad).status_code
+        == 422
+    )
+
+    client.patch("/users/me/risk-profile", headers=auth_headers, json={"answers": MODERATE})
+    assert client.get("/users/me/onboarding-progress", headers=auth_headers).json() is None

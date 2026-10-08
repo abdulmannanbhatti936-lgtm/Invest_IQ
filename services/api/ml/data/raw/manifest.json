@@ -1,0 +1,80 @@
+{
+  "source": "Yahoo Finance via yfinance (PSX symbols with .KA suffix), daily OHLCV",
+  "price_adjustment": "yfinance default (auto_adjust=True: split/dividend-adjusted)",
+  "period": "5y",
+  "downloaded_at": "2026-10-08T19:12:01.703154+00:00",
+  "tickers": {
+    "SYS": {
+      "rows": 1284,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "provider_symbol": "SYS.KA"
+    },
+    "HUBC": {
+      "rows": 1284,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "provider_symbol": "HUBC.KA"
+    },
+    "OGDC": {
+      "rows": 1284,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "provider_symbol": "OGDC.KA"
+    },
+    "PPL": {
+      "rows": 1284,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "provider_symbol": "PPL.KA"
+    },
+    "MCB": {
+      "rows": 1284,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "provider_symbol": "MCB.KA"
+    },
+    "UBL": {
+      "rows": 1285,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "provider_symbol": "UBL.KA"
+    },
+    "HBL": {
+      "rows": 1284,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "provider_symbol": "HBL.KA"
+    },
+    "MEBL": {
+      "rows": 1284,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "provider_symbol": "MEBL.KA"
+    },
+    "FFC": {
+      "rows": 1284,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "provider_symbol": "FFC.KA"
+    },
+    "EFERT": {
+      "rows": 1284,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "provider_symbol": "EFERT.KA"
+    },
+    "LUCK": {
+      "rows": 1284,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "provider_symbol": "LUCK.KA"
+    },
+    "PSO": {
+      "rows": 1284,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "provider_symbol": "PSO.KA"
+    }
+  }
+}

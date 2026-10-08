@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import Column, DateTime, Enum, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import backref, relationship
 
 from core.database import Base
 
@@ -14,6 +14,7 @@ class RiskCategory(str, enum.Enum):
     moderate = "moderate"
     aggressive = "aggressive"
 
+
 class RiskProfile(Base):
     __tablename__ = "risk_profiles"
 
@@ -22,5 +23,5 @@ class RiskProfile(Base):
     category = Column(Enum(RiskCategory), nullable=False)
     answers = Column(JSONB, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    
-    user = relationship("User", backref="risk_profile")
+
+    user = relationship("User", backref=backref("risk_profile", uselist=False))

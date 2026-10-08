@@ -2,8 +2,20 @@ node_modules/
 __pycache__/
 .env
 venv/
+.venv/
 build/
 dist/
+*.tsbuildinfo
+.expo/
+
+# Tool caches / local runtime state
+.pytest_cache/
+.ruff_cache/
+celerybeat-schedule*
+
+# Model files / trained artifacts (Workflow.md Step 0.1)
 *.h5
 *.pt
 *.pkl
+*.joblib
+services/api/ml/artifacts/

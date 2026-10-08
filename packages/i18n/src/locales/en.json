@@ -1,8 +1,233 @@
 {
   "test_key": "Hello InvestIQ",
+  "common": {
+    "appName": "InvestIQ",
+    "loading": "Loading…",
+    "retry": "Try again",
+    "back": "Back",
+    "logout": "Log out",
+    "switchLanguage": "اردو",
+    "switchLanguageLabel": "Switch language",
+    "currency": "Rs.",
+    "notAvailable": "—",
+    "errorGeneric": "Something went wrong. Please try again.",
+    "comingSoonTitle": "{{section}} is on the way",
+    "comingSoonBody": "This part of InvestIQ is built in Phase {{phase}} of the roadmap.",
+    "adminBadge": "Admin"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "stocks": "Stocks",
+    "portfolio": "Portfolio",
+    "backtest": "Backtest",
+    "chat": "Chat",
+    "notifications": "Notifications",
+    "admin": "Admin"
+  },
   "nav_dashboard": "Dashboard",
   "nav_stocks": "Stocks",
   "nav_portfolio": "Portfolio",
   "nav_backtest": "Backtest",
-  "nav_chat": "Chat"
+  "nav_chat": "Chat",
+  "disclaimer": "Advisory only. Not a licensed financial advisor. Predictions are probabilistic. Execute trades only through a licensed PSX broker.",
+  "auth": {
+    "login": {
+      "title": "Welcome back",
+      "subtitle": "Log in to see your PSX insights",
+      "submit": "Log in",
+      "noAccount": "Don't have an account?",
+      "signUp": "Sign up",
+      "failed": "Incorrect email or password."
+    },
+    "register": {
+      "title": "Create your account",
+      "subtitle": "Start with a short questionnaire about how you invest",
+      "submit": "Sign up",
+      "haveAccount": "Already have an account?",
+      "logIn": "Log in",
+      "failed": "We couldn't create your account. Please try again."
+    },
+    "fields": {
+      "fullName": "Full name",
+      "email": "Email address",
+      "password": "Password",
+      "confirmPassword": "Confirm password"
+    },
+    "validation": {
+      "nameMin": "Please enter your full name",
+      "emailInvalid": "Enter a valid email address",
+      "passwordRequired": "Password is required",
+      "passwordMin": "Password must be at least 8 characters",
+      "passwordsMismatch": "Passwords don't match"
+    },
+    "sessionExpired": "Your session expired. Please log in again.",
+    "tooManyAttempts": "Too many attempts. Please wait a minute and try again."
+  },
+  "onboarding": {
+    "title": "Your investor profile",
+    "stepOf": "Question {{current}} of {{total}}",
+    "saving": "Saving your profile…",
+    "saveError": "We couldn't save your answers. Check your connection and try again.",
+    "resumed": "Welcome back — we kept your earlier answers.",
+    "questions": {
+      "age_band": {
+        "title": "How old are you?",
+        "options": {
+          "under_30": "Under 30",
+          "30_to_50": "30 to 50",
+          "over_50": "Over 50"
+        }
+      },
+      "income_stability": {
+        "title": "How steady is your monthly income?",
+        "options": {
+          "very_stable": "Very steady — a fixed salary or reliable business income",
+          "somewhat_stable": "Mostly steady, with some ups and downs",
+          "unstable": "Irregular — it changes a lot month to month"
+        }
+      },
+      "investment_horizon": {
+        "title": "When do you think you will need this money back?",
+        "options": {
+          "long": "More than 5 years from now",
+          "medium": "In 1 to 5 years",
+          "short": "Within the next year"
+        }
+      },
+      "loss_tolerance": {
+        "title": "If your investment dropped 15% in one month, what would you do?",
+        "options": {
+          "buy_more": "Buy more while the price is low",
+          "hold": "Wait — markets usually recover",
+          "sell": "Sell to stop losing more"
+        }
+      },
+      "market_experience": {
+        "title": "Have you invested in shares before?",
+        "options": {
+          "experienced": "Yes, for several years",
+          "some": "A little, or through a mutual fund",
+          "none": "No, this is my first time"
+        }
+      },
+      "investment_goal": {
+        "title": "What do you want this money to do?",
+        "options": {
+          "growth": "Grow as much as possible, even with big swings",
+          "income": "Give me steady extra income",
+          "preservation": "Keep its value safe from inflation"
+        }
+      },
+      "emergency_savings": {
+        "title": "If you lost your income, how long could your savings cover your expenses?",
+        "options": {
+          "over_6_months": "More than 6 months",
+          "3_to_6_months": "3 to 6 months",
+          "under_3_months": "Less than 3 months"
+        }
+      }
+    },
+    "result": {
+      "title": "You are a {{category}} investor",
+      "cta": "Go to dashboard",
+      "retake": "Retake questionnaire"
+    }
+  },
+  "risk": {
+    "conservative": "Conservative",
+    "moderate": "Moderate",
+    "aggressive": "Aggressive",
+    "description": {
+      "conservative": "Protecting your money comes first. You prefer slow, steady gains over risky bets, so InvestIQ will lean towards stable, lower-volatility companies.",
+      "moderate": "You want growth without losing sleep. InvestIQ will balance steady dividend payers with some higher-growth companies.",
+      "aggressive": "You are comfortable with big ups and downs in exchange for higher long-term growth. InvestIQ will include more high-growth, higher-volatility companies."
+    }
+  },
+  "dashboard": {
+    "welcome": "Welcome back, {{name}}",
+    "subtitle": "Here is your investing snapshot.",
+    "riskTitle": "Your risk profile",
+    "updated": "Last updated {{date}}",
+    "retake": "Retake questionnaire",
+    "portfolioEmptyTitle": "No portfolio yet",
+    "portfolioEmptyBody": "Personalised portfolio generation arrives in a later phase. Meanwhile, explore PSX companies and their AI forecasts.",
+    "browseStocks": "Browse stocks"
+  },
+  "stocks": {
+    "title": "PSX companies",
+    "subtitle": "Search by ticker, company name or sector.",
+    "searchLabel": "Search",
+    "searchPlaceholder": "e.g. SYS, Meezan, Cement",
+    "resultCount": "{{count}} companies",
+    "noResults": "No PSX companies match “{{query}}”. Try a ticker (SYS), a name (Meezan) or a sector (Cement).",
+    "loadError": "We couldn't load the company list."
+  },
+  "stockDetail": {
+    "backToSearch": "Back to stocks",
+    "notFound": "We couldn't find market data for {{ticker}}.",
+    "unavailable": "Market data is temporarily unavailable. Please try again in a few minutes.",
+    "summaryUp": "▲ Up {{pct}} over the last {{period}}",
+    "summaryDown": "▼ Down {{pct}} over the last {{period}}",
+    "summaryFlat": "Unchanged over the last {{period}}",
+    "dayChange": "Today",
+    "chartTitle": "Price history",
+    "chartActual": "Closing price",
+    "chartForecast": "AI forecast (next trading day)",
+    "insufficientHistory": "Insufficient data: this stock has too little trading history for a reliable chart or prediction.",
+    "periods": {
+      "1mo": "1 month",
+      "3mo": "3 months",
+      "6mo": "6 months",
+      "1y": "1 year",
+      "5y": "5 years"
+    },
+    "periodShort": {
+      "1mo": "1M",
+      "3mo": "3M",
+      "6mo": "6M",
+      "1y": "1Y",
+      "5y": "5Y"
+    },
+    "statsTitle": "Key statistics",
+    "stats": {
+      "previousClose": "Previous close",
+      "open": "Open",
+      "dayRange": "Day range",
+      "volume": "Volume",
+      "week52High": "52-week high",
+      "week52Low": "52-week low",
+      "peRatio": "P/E ratio",
+      "marketCap": "Market cap"
+    },
+    "asOf": "As of {{date}}"
+  },
+  "prediction": {
+    "title": "AI forecast",
+    "subtitle": "From an LSTM price model and a Random Forest buy/sell/hold classifier, trained on this stock's past prices and technical indicators.",
+    "signal": {
+      "BUY": "Buy",
+      "SELL": "Sell",
+      "HOLD": "Hold"
+    },
+    "forecastLabel": "Forecast close, next trading day",
+    "fromClose": "from last close {{price}}",
+    "confidence": "Confidence",
+    "confidenceHelp": "How sure the classifier is about this signal (its probability). It is not a guarantee.",
+    "level": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "lowConfidenceTitle": "Low-confidence prediction",
+    "lowConfidenceBody": "Confidence is below {{threshold}}%. Treat this as a weak signal, not advice.",
+    "disagree": "The price forecast and the buy/sell/hold signal point in different directions, so this prediction is flagged as low confidence.",
+    "insufficientData": "Insufficient data for a reliable prediction. This stock doesn't have enough trading history yet.",
+    "notReady": "No prediction yet. Forecasts are generated daily after market close for tracked stocks.",
+    "notTracked": "AI forecasts are currently available for tracked KSE-100 stocks only.",
+    "loadError": "We couldn't load the forecast.",
+    "generated": "Generated {{date}} · model {{version}}",
+    "evaluationTitle": "How accurate has this model been?",
+    "evaluationBody": "On {{start}} to {{end}} — days the model never saw in training — it called the direction of the next day's move correctly {{direction}} of the time. Its buy/sell/hold signal was right {{accuracy}} of the time, versus {{baseline}} for always guessing the most common outcome. Typical price error: {{rmse}}.",
+    "evaluationNote": "Short-term stock moves are very hard to predict; these numbers are shown so you can judge the forecast yourself."
+  }
 }

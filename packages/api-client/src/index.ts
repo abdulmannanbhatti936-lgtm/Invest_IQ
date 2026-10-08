@@ -1,8 +1,10 @@
+import { apiClient } from './client';
+
 export * from './client';
 export * from './auth';
 export * from './stocks';
 
-export const healthCheck = async () => {
-  const res = await fetch('http://127.0.0.1:8000/health');
-  return res.json();
+export const healthCheck = async (): Promise<{ status: string }> => {
+  const { data } = await apiClient.get<{ status: string }>('/health');
+  return data;
 };

@@ -81,19 +81,25 @@ investiq/
 │   └── admin/                 # (optional) separate admin panel, or a route within web/
 ├── services/
 │   ├── api/                   # FastAPI backend — auth, users, portfolio, backtest, notifications
-│   ├── ml-engine/              # LSTM/BiLSTM, SVM, Random Forest training + inference
-│   ├── sentiment-engine/       # FinBERT + VADER pipeline, news scrapers
-│   └── chatbot-service/        # LLM orchestration layer (Claude API), context grounding
+│   │   ├── ml/                 # ML code lives HERE (internal module, §6.5): features, training, inference, sentiment
+│   │   ├── integrations/       # market data + news scraper clients
+│   │   └── worker/             # Celery tasks
+│   ├── ml-engine/              # placeholder README → code is in services/api/ml/ (§6.5)
+│   ├── sentiment-engine/       # placeholder README → runs inside services/api (§6.5), Phase 4
+│   └── chatbot-service/        # placeholder README → runs inside services/api (§6.5), Phase 8
 ├── packages/
 │   ├── shared-types/           # TypeScript types shared by web + mobile
 │   ├── api-client/             # Typed API client (generated from FastAPI OpenAPI schema)
-│   └── i18n/                   # English/Urdu translation strings
+│   ├── i18n/                   # English/Urdu translation strings
+│   └── design-tokens/          # Shared design tokens (Design.md §20)
 ├── infra/
 │   ├── docker-compose.yml      # Local dev: Postgres, Redis, API, ML services
 │   └── deploy/                 # Deployment configs (Railway/AWS, Vercel, EAS)
 ├── docs/                       # PRD.md, Architecture.md, Rules.md, Phases.md, Design.md, Memory.md
 └── README.md
 ```
+
+**Code location (decided 2026-10-09):** per §6.5, the ML, sentiment and chatbot code runs as internal Python modules of `services/api` (ML is in `services/api/ml/`). The `services/ml-engine`, `services/sentiment-engine` and `services/chatbot-service` folders hold only pointer READMEs until/unless they are split into real services.
 
 **Rationale:** a monorepo keeps the FastAPI OpenAPI contract, the shared types, and both frontends in sync — critical when one person is likely doing more backend/ML and the other more frontend/mobile, and both need to move without breaking each other's work.
 

@@ -1,71 +1,52 @@
 import datetime
-from typing import List, Optional
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-
-from core.deps import get_current_user
-from schemas.stock import PricePointResponse, StockQuote, StockSearchResponse
-from schemas.prediction import PredictionResponse
-from services.stock_service import StockService
-from core.database import get_db
 from sqlalchemy.orm import Session
-from models.prediction import Prediction
-from models.stock import Stock
 
-router = APIRouter()
+from core.database import get_db
+from core.deps import get_current_user
+from integrations.market_data import MarketDataUnavailable
+from schemas.stock import PricePointResponse, StockQuote, StockSearchResponse
+from services.stock_service import StockService
+
+router = APIRouter(prefix="/stocks", tags=["stocks"], dependencies=[Depends(get_current_user)])
+
+UNAVAILABLE = "Market data is temporarily unavailable. Please try again in a few minutes."
+
+HistoryPeriod = Literal["1mo", "3mo", "6mo", "1y", "2y", "5y", "max"]
+
 
 @router.get("/search", response_model=StockSearchResponse)
-def search_stocks(q: str = Query(..., min_length=1), current_user=Depends(get_current_user)):
-    """
-    Search for a stock ticker. For now, since we rely on yfinance directly, 
-    we will query it as a quote and return a 1-item list if found.
-    """
-    quote = StockService.get_quote_cached(q)
-    if quote:
-        return {"results": [quote]}
-    return {"results": []}
+def search_stocks(
+    q: str = Query("", max_length=60, description="Ticker, company name or sector"),
+    db: Session = Depends(get_db),
+):
+    """Search/browse PSX companies. An empty query lists the whole catalog."""
+    return {"results": StockService.search(db, q)}
+
 
 @router.get("/{ticker}", response_model=StockQuote)
-def get_stock_quote(ticker: str, current_user=Depends(get_current_user)):
-    """
-    Get the latest quote and info for a specific ticker.
-    """
-    quote = StockService.get_quote_cached(ticker)
+def get_stock_quote(ticker: str, db: Session = Depends(get_db)):
+    """Latest quote and key statistics for a PSX ticker (e.g. SYS)."""
+    try:
+        quote = StockService.get_quote_cached(db, ticker)
+    except MarketDataUnavailable as e:
+        raise HTTPException(status_code=503, detail=UNAVAILABLE) from e
     if not quote:
-        raise HTTPException(status_code=404, detail="Stock not found or data unavailable")
+        raise HTTPException(status_code=404, detail=f"No market data found for '{ticker}'")
     return quote
 
-@router.get("/{ticker}/history", response_model=List[PricePointResponse])
-def get_stock_history(
-    ticker: str, 
-    period: str = "1y",
-    start: Optional[datetime.date] = None,
-    end: Optional[datetime.date] = None,
-    current_user=Depends(get_current_user)
-):
-    """
-    Get historical price points for a specific ticker.
-    """
-    history = StockService.get_history_cached(ticker, period=period, start=start, end=end)
-    if not history:
-        raise HTTPException(status_code=404, detail="Stock history not found or data unavailable")
-    return history
 
-@router.get("/{ticker}/prediction", response_model=PredictionResponse)
-def get_stock_prediction(
+@router.get("/{ticker}/history", response_model=list[PricePointResponse])
+def get_stock_history(
     ticker: str,
-    current_user = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    period: HistoryPeriod = "1y",
+    start: datetime.date | None = None,
+    end: datetime.date | None = None,
 ):
-    """
-    Get the latest prediction (LSTM + Base models) for a specific ticker.
-    """
-    stock = db.query(Stock).filter(Stock.ticker == ticker).first()
-    if not stock:
-        raise HTTPException(status_code=404, detail="Stock not found")
-        
-    prediction = db.query(Prediction).filter(Prediction.stock_id == stock.id).order_by(Prediction.timestamp.desc()).first()
-    if not prediction:
-        raise HTTPException(status_code=404, detail="No prediction available for this stock yet")
-        
-    return prediction
+    """Daily OHLCV history. Returns an empty list when the stock has no history."""
+    try:
+        return StockService.get_history_cached(ticker, period=period, start=start, end=end)
+    except MarketDataUnavailable as e:
+        raise HTTPException(status_code=503, detail=UNAVAILABLE) from e

@@ -12,7 +12,10 @@ export default defineConfig({
     // so we avoid the stale CommonJS dist builds
     alias: {
       '@investiq/api-client': path.resolve(__dirname, '../../packages/api-client/src/index.ts'),
-      '@investiq/design-tokens': path.resolve(__dirname, '../../packages/design-tokens/src/index.ts'),
+      '@investiq/design-tokens': path.resolve(
+        __dirname,
+        '../../packages/design-tokens/src/index.ts',
+      ),
       '@investiq/shared-types': path.resolve(__dirname, '../../packages/shared-types/src/index.ts'),
       '@investiq/i18n': path.resolve(__dirname, '../../packages/i18n/src/index.ts'),
     },

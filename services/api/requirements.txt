@@ -1,4 +1,8 @@
-﻿fastapi
+# CPU-only PyTorch wheels (the default Linux wheels bundle CUDA and are ~2 GB)
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# API
+fastapi
 uvicorn
 sqlalchemy
 pydantic
@@ -9,19 +13,25 @@ bcrypt<4.0.0
 alembic
 redis
 celery
-pytest
-httpx
-black
-ruff
 psycopg2-binary
 python-dotenv
 email-validator
 python-multipart
+
+# Data + ML
 yfinance
+requests
 beautifulsoup4
 lxml
+numpy
+pandas
+scikit-learn
+joblib
 torch
 transformers
-scikit-learn
-pandas
-pandas-ta
+
+# Dev
+pytest
+httpx
+black
+ruff

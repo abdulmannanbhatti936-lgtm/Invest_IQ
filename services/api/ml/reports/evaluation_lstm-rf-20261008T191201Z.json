@@ -1,0 +1,1946 @@
+[
+  {
+    "ticker": "SYS",
+    "model_version": "lstm-rf-20261008T191201Z",
+    "trained_at": "2026-10-08T19:12:18.761387+00:00",
+    "data": {
+      "rows_after_warmup": 1234,
+      "date_start": "2021-12-16",
+      "date_end": "2026-10-06",
+      "train_end_date": "2025-04-28",
+      "val_end_date": "2026-01-15",
+      "split": {
+        "train": 0.7,
+        "val": 0.15,
+        "test": 0.15
+      },
+      "label_counts_test": {
+        "HOLD": 91,
+        "SELL": 55,
+        "BUY": 40
+      }
+    },
+    "features": [
+      "return_1d",
+      "return_5d",
+      "return_20d",
+      "volatility_20d",
+      "rsi_14",
+      "macd_norm",
+      "macd_signal_norm",
+      "macd_hist_norm",
+      "close_to_sma20",
+      "close_to_sma50",
+      "sma20_to_sma50",
+      "bb_position",
+      "bb_width",
+      "volume_ratio_20d",
+      "range_pct"
+    ],
+    "signal_threshold": 0.01,
+    "lstm": {
+      "hyperparameters": {
+        "seq_length": 60,
+        "layers": "LSTM(64) -> LSTM(32) -> Dropout(0.2) -> Dense(1)",
+        "target": "next-day return, standardised by train std",
+        "optimizer": "Adam",
+        "lr": 0.001,
+        "batch_size": 64,
+        "max_epochs": 60,
+        "early_stopping_patience": 8
+      },
+      "test_metrics": {
+        "test_samples": 186,
+        "rmse": 3.275464046197348,
+        "rmse_pct_of_price": 2.360615276961759,
+        "mape_pct": 1.7010390318834285,
+        "directional_accuracy": 0.45348837209302323,
+        "baseline_naive_rmse": 3.1131305421430855,
+        "baseline_naive_rmse_pct_of_price": 2.2436220985209485,
+        "baseline_majority_direction_accuracy": 0.5581395348837209,
+        "best_epoch": 1,
+        "best_val_loss": 0.23619011044502258
+      }
+    },
+    "random_forest": {
+      "hyperparameters": {
+        "n_estimators": 300,
+        "max_depth": 6,
+        "min_samples_leaf": 5,
+        "class_weight": "balanced_subsample",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.41397849462365593,
+        "precision_macro": 0.3778233531083921,
+        "recall_macro": 0.3623210123210123,
+        "f1_macro": 0.36707871554418864,
+        "baseline_majority_class_accuracy": 0.489247311827957
+      },
+      "feature_importance": [
+        {
+          "feature": "range_pct",
+          "importance": 0.09195894419156034
+        },
+        {
+          "feature": "volatility_20d",
+          "importance": 0.08852098579978958
+        },
+        {
+          "feature": "bb_width",
+          "importance": 0.0819973591009492
+        },
+        {
+          "feature": "return_20d",
+          "importance": 0.07688368727078677
+        },
+        {
+          "feature": "close_to_sma50",
+          "importance": 0.06527752617064685
+        },
+        {
+          "feature": "sma20_to_sma50",
+          "importance": 0.0650880163479142
+        },
+        {
+          "feature": "return_1d",
+          "importance": 0.06483770922336486
+        },
+        {
+          "feature": "rsi_14",
+          "importance": 0.06439324323454007
+        },
+        {
+          "feature": "macd_signal_norm",
+          "importance": 0.06293434873033524
+        },
+        {
+          "feature": "return_5d",
+          "importance": 0.06026492079105254
+        },
+        {
+          "feature": "bb_position",
+          "importance": 0.05853240481190827
+        },
+        {
+          "feature": "macd_norm",
+          "importance": 0.05578438641555645
+        },
+        {
+          "feature": "macd_hist_norm",
+          "importance": 0.05486186458278823
+        },
+        {
+          "feature": "close_to_sma20",
+          "importance": 0.05471192150242575
+        },
+        {
+          "feature": "volume_ratio_20d",
+          "importance": 0.053952681826381646
+        }
+      ]
+    },
+    "svm": {
+      "hyperparameters": {
+        "C": 1.0,
+        "kernel": "rbf",
+        "class_weight": "balanced",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.44623655913978494,
+        "precision_macro": 0.3586480186480186,
+        "recall_macro": 0.39074259074259077,
+        "f1_macro": 0.3653092561881948,
+        "baseline_majority_class_accuracy": 0.489247311827957
+      }
+    },
+    "signal_model": "random_forest",
+    "library_versions": {
+      "torch": "2.14.0+cpu",
+      "sklearn": "1.9.1"
+    }
+  },
+  {
+    "ticker": "HUBC",
+    "model_version": "lstm-rf-20261008T191201Z",
+    "trained_at": "2026-10-08T19:12:28.037506+00:00",
+    "data": {
+      "rows_after_warmup": 1234,
+      "date_start": "2021-12-16",
+      "date_end": "2026-10-06",
+      "train_end_date": "2025-04-28",
+      "val_end_date": "2026-01-15",
+      "split": {
+        "train": 0.7,
+        "val": 0.15,
+        "test": 0.15
+      },
+      "label_counts_test": {
+        "HOLD": 103,
+        "SELL": 44,
+        "BUY": 39
+      }
+    },
+    "features": [
+      "return_1d",
+      "return_5d",
+      "return_20d",
+      "volatility_20d",
+      "rsi_14",
+      "macd_norm",
+      "macd_signal_norm",
+      "macd_hist_norm",
+      "close_to_sma20",
+      "close_to_sma50",
+      "sma20_to_sma50",
+      "bb_position",
+      "bb_width",
+      "volume_ratio_20d",
+      "range_pct"
+    ],
+    "signal_threshold": 0.01,
+    "lstm": {
+      "hyperparameters": {
+        "seq_length": 60,
+        "layers": "LSTM(64) -> LSTM(32) -> Dropout(0.2) -> Dense(1)",
+        "target": "next-day return, standardised by train std",
+        "optimizer": "Adam",
+        "lr": 0.001,
+        "batch_size": 64,
+        "max_epochs": 60,
+        "early_stopping_patience": 8
+      },
+      "test_metrics": {
+        "test_samples": 186,
+        "rmse": 4.669154723000748,
+        "rmse_pct_of_price": 2.1967931952900357,
+        "mape_pct": 1.483448571986411,
+        "directional_accuracy": 0.44508670520231214,
+        "baseline_naive_rmse": 4.639520917131046,
+        "baseline_naive_rmse_pct_of_price": 2.182850769530525,
+        "baseline_majority_direction_accuracy": 0.5722543352601156,
+        "best_epoch": 1,
+        "best_val_loss": 1.1933196783065796
+      }
+    },
+    "random_forest": {
+      "hyperparameters": {
+        "n_estimators": 300,
+        "max_depth": 6,
+        "min_samples_leaf": 5,
+        "class_weight": "balanced_subsample",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.41935483870967744,
+        "precision_macro": 0.38178633013718194,
+        "recall_macro": 0.37062748470515455,
+        "f1_macro": 0.3701749639249639,
+        "baseline_majority_class_accuracy": 0.553763440860215
+      },
+      "feature_importance": [
+        {
+          "feature": "range_pct",
+          "importance": 0.11892518698446074
+        },
+        {
+          "feature": "return_1d",
+          "importance": 0.0757405055468178
+        },
+        {
+          "feature": "volume_ratio_20d",
+          "importance": 0.07257440991029959
+        },
+        {
+          "feature": "macd_signal_norm",
+          "importance": 0.06936782799606403
+        },
+        {
+          "feature": "bb_width",
+          "importance": 0.06681320701914797
+        },
+        {
+          "feature": "macd_hist_norm",
+          "importance": 0.06406686849322442
+        },
+        {
+          "feature": "rsi_14",
+          "importance": 0.06393699632232412
+        },
+        {
+          "feature": "sma20_to_sma50",
+          "importance": 0.06140246320429265
+        },
+        {
+          "feature": "return_20d",
+          "importance": 0.06119625788476122
+        },
+        {
+          "feature": "return_5d",
+          "importance": 0.06060350748399825
+        },
+        {
+          "feature": "close_to_sma50",
+          "importance": 0.05990568992204084
+        },
+        {
+          "feature": "macd_norm",
+          "importance": 0.059371192497723234
+        },
+        {
+          "feature": "bb_position",
+          "importance": 0.05853719911956738
+        },
+        {
+          "feature": "close_to_sma20",
+          "importance": 0.05477514554019299
+        },
+        {
+          "feature": "volatility_20d",
+          "importance": 0.05278354207508471
+        }
+      ]
+    },
+    "svm": {
+      "hyperparameters": {
+        "C": 1.0,
+        "kernel": "rbf",
+        "class_weight": "balanced",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.34946236559139787,
+        "precision_macro": 0.3007770079077379,
+        "recall_macro": 0.2880126884981254,
+        "f1_macro": 0.2826886453003177,
+        "baseline_majority_class_accuracy": 0.553763440860215
+      }
+    },
+    "signal_model": "random_forest",
+    "library_versions": {
+      "torch": "2.14.0+cpu",
+      "sklearn": "1.9.1"
+    }
+  },
+  {
+    "ticker": "OGDC",
+    "model_version": "lstm-rf-20261008T191201Z",
+    "trained_at": "2026-10-08T19:12:40.493014+00:00",
+    "data": {
+      "rows_after_warmup": 1234,
+      "date_start": "2021-12-16",
+      "date_end": "2026-10-06",
+      "train_end_date": "2025-04-28",
+      "val_end_date": "2026-01-15",
+      "split": {
+        "train": 0.7,
+        "val": 0.15,
+        "test": 0.15
+      },
+      "label_counts_test": {
+        "HOLD": 95,
+        "SELL": 48,
+        "BUY": 43
+      }
+    },
+    "features": [
+      "return_1d",
+      "return_5d",
+      "return_20d",
+      "volatility_20d",
+      "rsi_14",
+      "macd_norm",
+      "macd_signal_norm",
+      "macd_hist_norm",
+      "close_to_sma20",
+      "close_to_sma50",
+      "sma20_to_sma50",
+      "bb_position",
+      "bb_width",
+      "volume_ratio_20d",
+      "range_pct"
+    ],
+    "signal_threshold": 0.01,
+    "lstm": {
+      "hyperparameters": {
+        "seq_length": 60,
+        "layers": "LSTM(64) -> LSTM(32) -> Dropout(0.2) -> Dense(1)",
+        "target": "next-day return, standardised by train std",
+        "optimizer": "Adam",
+        "lr": 0.001,
+        "batch_size": 64,
+        "max_epochs": 60,
+        "early_stopping_patience": 8
+      },
+      "test_metrics": {
+        "test_samples": 186,
+        "rmse": 6.205640976876304,
+        "rmse_pct_of_price": 2.0343493296837147,
+        "mape_pct": 1.4688557230037425,
+        "directional_accuracy": 0.4942528735632184,
+        "baseline_naive_rmse": 6.007880770396096,
+        "baseline_naive_rmse_pct_of_price": 1.969519065575585,
+        "baseline_majority_direction_accuracy": 0.5057471264367817,
+        "best_epoch": 9,
+        "best_val_loss": 0.8377357125282288
+      }
+    },
+    "random_forest": {
+      "hyperparameters": {
+        "n_estimators": 300,
+        "max_depth": 6,
+        "min_samples_leaf": 5,
+        "class_weight": "balanced_subsample",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.5053763440860215,
+        "precision_macro": 0.4414230019493177,
+        "recall_macro": 0.4405582755337958,
+        "f1_macro": 0.43884646157087964,
+        "baseline_majority_class_accuracy": 0.510752688172043
+      },
+      "feature_importance": [
+        {
+          "feature": "range_pct",
+          "importance": 0.10645719509051682
+        },
+        {
+          "feature": "return_20d",
+          "importance": 0.07758474088798602
+        },
+        {
+          "feature": "return_5d",
+          "importance": 0.075360078838313
+        },
+        {
+          "feature": "return_1d",
+          "importance": 0.07472378032125594
+        },
+        {
+          "feature": "volatility_20d",
+          "importance": 0.07237992230340144
+        },
+        {
+          "feature": "macd_signal_norm",
+          "importance": 0.07049832551128742
+        },
+        {
+          "feature": "bb_width",
+          "importance": 0.06995446034331329
+        },
+        {
+          "feature": "sma20_to_sma50",
+          "importance": 0.0644025349103734
+        },
+        {
+          "feature": "macd_hist_norm",
+          "importance": 0.06425554679229814
+        },
+        {
+          "feature": "close_to_sma20",
+          "importance": 0.06178597031779946
+        },
+        {
+          "feature": "macd_norm",
+          "importance": 0.056954640543334954
+        },
+        {
+          "feature": "close_to_sma50",
+          "importance": 0.05494338873372728
+        },
+        {
+          "feature": "volume_ratio_20d",
+          "importance": 0.05472366363903998
+        },
+        {
+          "feature": "bb_position",
+          "importance": 0.048161387805540204
+        },
+        {
+          "feature": "rsi_14",
+          "importance": 0.047814363961812684
+        }
+      ]
+    },
+    "svm": {
+      "hyperparameters": {
+        "C": 1.0,
+        "kernel": "rbf",
+        "class_weight": "balanced",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.4838709677419355,
+        "precision_macro": 0.43829138062547673,
+        "recall_macro": 0.44026587787297705,
+        "f1_macro": 0.4391631884353049,
+        "baseline_majority_class_accuracy": 0.510752688172043
+      }
+    },
+    "signal_model": "random_forest",
+    "library_versions": {
+      "torch": "2.14.0+cpu",
+      "sklearn": "1.9.1"
+    }
+  },
+  {
+    "ticker": "PPL",
+    "model_version": "lstm-rf-20261008T191201Z",
+    "trained_at": "2026-10-08T19:13:08.747693+00:00",
+    "data": {
+      "rows_after_warmup": 1234,
+      "date_start": "2021-12-16",
+      "date_end": "2026-10-06",
+      "train_end_date": "2025-04-28",
+      "val_end_date": "2026-01-15",
+      "split": {
+        "train": 0.7,
+        "val": 0.15,
+        "test": 0.15
+      },
+      "label_counts_test": {
+        "HOLD": 77,
+        "SELL": 59,
+        "BUY": 50
+      }
+    },
+    "features": [
+      "return_1d",
+      "return_5d",
+      "return_20d",
+      "volatility_20d",
+      "rsi_14",
+      "macd_norm",
+      "macd_signal_norm",
+      "macd_hist_norm",
+      "close_to_sma20",
+      "close_to_sma50",
+      "sma20_to_sma50",
+      "bb_position",
+      "bb_width",
+      "volume_ratio_20d",
+      "range_pct"
+    ],
+    "signal_threshold": 0.01,
+    "lstm": {
+      "hyperparameters": {
+        "seq_length": 60,
+        "layers": "LSTM(64) -> LSTM(32) -> Dropout(0.2) -> Dense(1)",
+        "target": "next-day return, standardised by train std",
+        "optimizer": "Adam",
+        "lr": 0.001,
+        "batch_size": 64,
+        "max_epochs": 60,
+        "early_stopping_patience": 8
+      },
+      "test_metrics": {
+        "test_samples": 186,
+        "rmse": 6.177219811361631,
+        "rmse_pct_of_price": 2.699200106526478,
+        "mape_pct": 2.016258926699386,
+        "directional_accuracy": 0.5058139534883721,
+        "baseline_naive_rmse": 5.754843175645368,
+        "baseline_naive_rmse_pct_of_price": 2.514638265611782,
+        "baseline_majority_direction_accuracy": 0.5406976744186047,
+        "best_epoch": 18,
+        "best_val_loss": 0.9765765070915222
+      }
+    },
+    "random_forest": {
+      "hyperparameters": {
+        "n_estimators": 300,
+        "max_depth": 6,
+        "min_samples_leaf": 5,
+        "class_weight": "balanced_subsample",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.3817204301075269,
+        "precision_macro": 0.37912806148100264,
+        "recall_macro": 0.3781891554772911,
+        "f1_macro": 0.3780641395278435,
+        "baseline_majority_class_accuracy": 0.41397849462365593
+      },
+      "feature_importance": [
+        {
+          "feature": "bb_width",
+          "importance": 0.10233459072036002
+        },
+        {
+          "feature": "range_pct",
+          "importance": 0.09041263207553345
+        },
+        {
+          "feature": "return_5d",
+          "importance": 0.07669325784873351
+        },
+        {
+          "feature": "return_1d",
+          "importance": 0.06798638305889919
+        },
+        {
+          "feature": "macd_norm",
+          "importance": 0.06692268567730164
+        },
+        {
+          "feature": "return_20d",
+          "importance": 0.06666333287863054
+        },
+        {
+          "feature": "macd_signal_norm",
+          "importance": 0.06617795852443673
+        },
+        {
+          "feature": "volatility_20d",
+          "importance": 0.06347719921278792
+        },
+        {
+          "feature": "macd_hist_norm",
+          "importance": 0.06121084158416637
+        },
+        {
+          "feature": "close_to_sma50",
+          "importance": 0.0594930524380489
+        },
+        {
+          "feature": "sma20_to_sma50",
+          "importance": 0.05933677838364881
+        },
+        {
+          "feature": "volume_ratio_20d",
+          "importance": 0.05776583135808483
+        },
+        {
+          "feature": "bb_position",
+          "importance": 0.05614122695016616
+        },
+        {
+          "feature": "close_to_sma20",
+          "importance": 0.05557022774416257
+        },
+        {
+          "feature": "rsi_14",
+          "importance": 0.04981400154503944
+        }
+      ]
+    },
+    "svm": {
+      "hyperparameters": {
+        "C": 1.0,
+        "kernel": "rbf",
+        "class_weight": "balanced",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.3978494623655914,
+        "precision_macro": 0.3862599874315468,
+        "recall_macro": 0.385483894636437,
+        "f1_macro": 0.3857323526820191,
+        "baseline_majority_class_accuracy": 0.41397849462365593
+      }
+    },
+    "signal_model": "random_forest",
+    "library_versions": {
+      "torch": "2.14.0+cpu",
+      "sklearn": "1.9.1"
+    }
+  },
+  {
+    "ticker": "MCB",
+    "model_version": "lstm-rf-20261008T191201Z",
+    "trained_at": "2026-10-08T19:13:18.694181+00:00",
+    "data": {
+      "rows_after_warmup": 1234,
+      "date_start": "2021-12-16",
+      "date_end": "2026-10-06",
+      "train_end_date": "2025-04-28",
+      "val_end_date": "2026-01-15",
+      "split": {
+        "train": 0.7,
+        "val": 0.15,
+        "test": 0.15
+      },
+      "label_counts_test": {
+        "HOLD": 104,
+        "SELL": 43,
+        "BUY": 39
+      }
+    },
+    "features": [
+      "return_1d",
+      "return_5d",
+      "return_20d",
+      "volatility_20d",
+      "rsi_14",
+      "macd_norm",
+      "macd_signal_norm",
+      "macd_hist_norm",
+      "close_to_sma20",
+      "close_to_sma50",
+      "sma20_to_sma50",
+      "bb_position",
+      "bb_width",
+      "volume_ratio_20d",
+      "range_pct"
+    ],
+    "signal_threshold": 0.01,
+    "lstm": {
+      "hyperparameters": {
+        "seq_length": 60,
+        "layers": "LSTM(64) -> LSTM(32) -> Dropout(0.2) -> Dense(1)",
+        "target": "next-day return, standardised by train std",
+        "optimizer": "Adam",
+        "lr": 0.001,
+        "batch_size": 64,
+        "max_epochs": 60,
+        "early_stopping_patience": 8
+      },
+      "test_metrics": {
+        "test_samples": 186,
+        "rmse": 7.029501996608222,
+        "rmse_pct_of_price": 1.8116344609962884,
+        "mape_pct": 1.2343923459847512,
+        "directional_accuracy": 0.47701149425287354,
+        "baseline_naive_rmse": 6.977925402691916,
+        "baseline_naive_rmse_pct_of_price": 1.7983422057320213,
+        "baseline_majority_direction_accuracy": 0.5229885057471264,
+        "best_epoch": 4,
+        "best_val_loss": 1.3208354711532593
+      }
+    },
+    "random_forest": {
+      "hyperparameters": {
+        "n_estimators": 300,
+        "max_depth": 6,
+        "min_samples_leaf": 5,
+        "class_weight": "balanced_subsample",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.4838709677419355,
+        "precision_macro": 0.38452871810117145,
+        "recall_macro": 0.38973365136155835,
+        "f1_macro": 0.3859936575052854,
+        "baseline_majority_class_accuracy": 0.5591397849462365
+      },
+      "feature_importance": [
+        {
+          "feature": "volatility_20d",
+          "importance": 0.10592272202023244
+        },
+        {
+          "feature": "range_pct",
+          "importance": 0.0965305538636908
+        },
+        {
+          "feature": "bb_width",
+          "importance": 0.06849124480531167
+        },
+        {
+          "feature": "macd_hist_norm",
+          "importance": 0.06743911241791115
+        },
+        {
+          "feature": "return_1d",
+          "importance": 0.06735689410302115
+        },
+        {
+          "feature": "close_to_sma50",
+          "importance": 0.06733911428984478
+        },
+        {
+          "feature": "macd_norm",
+          "importance": 0.06725444938508773
+        },
+        {
+          "feature": "return_5d",
+          "importance": 0.06710702430423074
+        },
+        {
+          "feature": "sma20_to_sma50",
+          "importance": 0.0625465076244728
+        },
+        {
+          "feature": "volume_ratio_20d",
+          "importance": 0.060737222401451164
+        },
+        {
+          "feature": "rsi_14",
+          "importance": 0.05587776839162225
+        },
+        {
+          "feature": "close_to_sma20",
+          "importance": 0.0556252855771897
+        },
+        {
+          "feature": "return_20d",
+          "importance": 0.05550780596444592
+        },
+        {
+          "feature": "macd_signal_norm",
+          "importance": 0.053080012438740186
+        },
+        {
+          "feature": "bb_position",
+          "importance": 0.049184282412747526
+        }
+      ]
+    },
+    "svm": {
+      "hyperparameters": {
+        "C": 1.0,
+        "kernel": "rbf",
+        "class_weight": "balanced",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.45698924731182794,
+        "precision_macro": 0.42619531652606507,
+        "recall_macro": 0.4076972768833234,
+        "f1_macro": 0.40471845216868396,
+        "baseline_majority_class_accuracy": 0.5591397849462365
+      }
+    },
+    "signal_model": "random_forest",
+    "library_versions": {
+      "torch": "2.14.0+cpu",
+      "sklearn": "1.9.1"
+    }
+  },
+  {
+    "ticker": "UBL",
+    "model_version": "lstm-rf-20261008T191201Z",
+    "trained_at": "2026-10-08T19:13:44.928191+00:00",
+    "data": {
+      "rows_after_warmup": 1235,
+      "date_start": "2021-12-16",
+      "date_end": "2026-10-06",
+      "train_end_date": "2025-04-29",
+      "val_end_date": "2026-01-15",
+      "split": {
+        "train": 0.7,
+        "val": 0.15,
+        "test": 0.15
+      },
+      "label_counts_test": {
+        "HOLD": 78,
+        "SELL": 58,
+        "BUY": 50
+      }
+    },
+    "features": [
+      "return_1d",
+      "return_5d",
+      "return_20d",
+      "volatility_20d",
+      "rsi_14",
+      "macd_norm",
+      "macd_signal_norm",
+      "macd_hist_norm",
+      "close_to_sma20",
+      "close_to_sma50",
+      "sma20_to_sma50",
+      "bb_position",
+      "bb_width",
+      "volume_ratio_20d",
+      "range_pct"
+    ],
+    "signal_threshold": 0.01,
+    "lstm": {
+      "hyperparameters": {
+        "seq_length": 60,
+        "layers": "LSTM(64) -> LSTM(32) -> Dropout(0.2) -> Dense(1)",
+        "target": "next-day return, standardised by train std",
+        "optimizer": "Adam",
+        "lr": 0.001,
+        "batch_size": 64,
+        "max_epochs": 60,
+        "early_stopping_patience": 8
+      },
+      "test_metrics": {
+        "test_samples": 186,
+        "rmse": 13.017696611649463,
+        "rmse_pct_of_price": 3.1065777113492574,
+        "mape_pct": 2.328645591768959,
+        "directional_accuracy": 0.47398843930635837,
+        "baseline_naive_rmse": 10.835988812192447,
+        "baseline_naive_rmse_pct_of_price": 2.585929164631344,
+        "baseline_majority_direction_accuracy": 0.5606936416184971,
+        "best_epoch": 37,
+        "best_val_loss": 8.138930320739746
+      }
+    },
+    "random_forest": {
+      "hyperparameters": {
+        "n_estimators": 300,
+        "max_depth": 6,
+        "min_samples_leaf": 5,
+        "class_weight": "balanced_subsample",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.4032258064516129,
+        "precision_macro": 0.4151705736611397,
+        "recall_macro": 0.40926024167403474,
+        "f1_macro": 0.39937217118151724,
+        "baseline_majority_class_accuracy": 0.41935483870967744
+      },
+      "feature_importance": [
+        {
+          "feature": "range_pct",
+          "importance": 0.0833087885354589
+        },
+        {
+          "feature": "close_to_sma50",
+          "importance": 0.0792971488187397
+        },
+        {
+          "feature": "close_to_sma20",
+          "importance": 0.07889384622990826
+        },
+        {
+          "feature": "macd_norm",
+          "importance": 0.07621337760193259
+        },
+        {
+          "feature": "return_1d",
+          "importance": 0.07348789932109666
+        },
+        {
+          "feature": "macd_signal_norm",
+          "importance": 0.07084813115744162
+        },
+        {
+          "feature": "sma20_to_sma50",
+          "importance": 0.06760974051995154
+        },
+        {
+          "feature": "return_20d",
+          "importance": 0.06695046312612693
+        },
+        {
+          "feature": "macd_hist_norm",
+          "importance": 0.06435835857164567
+        },
+        {
+          "feature": "return_5d",
+          "importance": 0.06396255780851871
+        },
+        {
+          "feature": "bb_width",
+          "importance": 0.05926776923756092
+        },
+        {
+          "feature": "rsi_14",
+          "importance": 0.057227947925610596
+        },
+        {
+          "feature": "volatility_20d",
+          "importance": 0.05710669461585109
+        },
+        {
+          "feature": "bb_position",
+          "importance": 0.056305559267361055
+        },
+        {
+          "feature": "volume_ratio_20d",
+          "importance": 0.045161717262795775
+        }
+      ]
+    },
+    "svm": {
+      "hyperparameters": {
+        "C": 1.0,
+        "kernel": "rbf",
+        "class_weight": "balanced",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.3709677419354839,
+        "precision_macro": 0.36740927560599684,
+        "recall_macro": 0.3663129973474801,
+        "f1_macro": 0.36436175419226274,
+        "baseline_majority_class_accuracy": 0.41935483870967744
+      }
+    },
+    "signal_model": "random_forest",
+    "library_versions": {
+      "torch": "2.14.0+cpu",
+      "sklearn": "1.9.1"
+    }
+  },
+  {
+    "ticker": "HBL",
+    "model_version": "lstm-rf-20261008T191201Z",
+    "trained_at": "2026-10-08T19:13:52.288634+00:00",
+    "data": {
+      "rows_after_warmup": 1234,
+      "date_start": "2021-12-16",
+      "date_end": "2026-10-06",
+      "train_end_date": "2025-04-28",
+      "val_end_date": "2026-01-15",
+      "split": {
+        "train": 0.7,
+        "val": 0.15,
+        "test": 0.15
+      },
+      "label_counts_test": {
+        "HOLD": 93,
+        "SELL": 51,
+        "BUY": 42
+      }
+    },
+    "features": [
+      "return_1d",
+      "return_5d",
+      "return_20d",
+      "volatility_20d",
+      "rsi_14",
+      "macd_norm",
+      "macd_signal_norm",
+      "macd_hist_norm",
+      "close_to_sma20",
+      "close_to_sma50",
+      "sma20_to_sma50",
+      "bb_position",
+      "bb_width",
+      "volume_ratio_20d",
+      "range_pct"
+    ],
+    "signal_threshold": 0.01,
+    "lstm": {
+      "hyperparameters": {
+        "seq_length": 60,
+        "layers": "LSTM(64) -> LSTM(32) -> Dropout(0.2) -> Dense(1)",
+        "target": "next-day return, standardised by train std",
+        "optimizer": "Adam",
+        "lr": 0.001,
+        "batch_size": 64,
+        "max_epochs": 60,
+        "early_stopping_patience": 8
+      },
+      "test_metrics": {
+        "test_samples": 186,
+        "rmse": 6.814795285861145,
+        "rmse_pct_of_price": 2.3218306117590304,
+        "mape_pct": 1.579004885639661,
+        "directional_accuracy": 0.4624277456647399,
+        "baseline_naive_rmse": 6.792564775961066,
+        "baseline_naive_rmse_pct_of_price": 2.314256579636876,
+        "baseline_majority_direction_accuracy": 0.5375722543352601,
+        "best_epoch": 1,
+        "best_val_loss": 1.6255850791931152
+      }
+    },
+    "random_forest": {
+      "hyperparameters": {
+        "n_estimators": 300,
+        "max_depth": 6,
+        "min_samples_leaf": 5,
+        "class_weight": "balanced_subsample",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.40860215053763443,
+        "precision_macro": 0.3325075075075075,
+        "recall_macro": 0.3409385259480136,
+        "f1_macro": 0.3332369438605467,
+        "baseline_majority_class_accuracy": 0.5
+      },
+      "feature_importance": [
+        {
+          "feature": "range_pct",
+          "importance": 0.1296759653310446
+        },
+        {
+          "feature": "return_1d",
+          "importance": 0.11447885988418671
+        },
+        {
+          "feature": "volume_ratio_20d",
+          "importance": 0.06633218728916072
+        },
+        {
+          "feature": "bb_width",
+          "importance": 0.06592369135286895
+        },
+        {
+          "feature": "macd_hist_norm",
+          "importance": 0.06551774462446822
+        },
+        {
+          "feature": "macd_signal_norm",
+          "importance": 0.06337724890664394
+        },
+        {
+          "feature": "sma20_to_sma50",
+          "importance": 0.06079064145716799
+        },
+        {
+          "feature": "return_5d",
+          "importance": 0.06044765088845602
+        },
+        {
+          "feature": "close_to_sma50",
+          "importance": 0.05906377955212444
+        },
+        {
+          "feature": "volatility_20d",
+          "importance": 0.05678690721429076
+        },
+        {
+          "feature": "bb_position",
+          "importance": 0.05611801191856718
+        },
+        {
+          "feature": "return_20d",
+          "importance": 0.054261699190996604
+        },
+        {
+          "feature": "macd_norm",
+          "importance": 0.05194703701859947
+        },
+        {
+          "feature": "rsi_14",
+          "importance": 0.049720766959069865
+        },
+        {
+          "feature": "close_to_sma20",
+          "importance": 0.04555780841235463
+        }
+      ]
+    },
+    "svm": {
+      "hyperparameters": {
+        "C": 1.0,
+        "kernel": "rbf",
+        "class_weight": "balanced",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.3924731182795699,
+        "precision_macro": 0.3185312914036318,
+        "recall_macro": 0.33158639800006023,
+        "f1_macro": 0.3225244798623371,
+        "baseline_majority_class_accuracy": 0.5
+      }
+    },
+    "signal_model": "random_forest",
+    "library_versions": {
+      "torch": "2.14.0+cpu",
+      "sklearn": "1.9.1"
+    }
+  },
+  {
+    "ticker": "MEBL",
+    "model_version": "lstm-rf-20261008T191201Z",
+    "trained_at": "2026-10-08T19:14:00.115563+00:00",
+    "data": {
+      "rows_after_warmup": 1234,
+      "date_start": "2021-12-16",
+      "date_end": "2026-10-06",
+      "train_end_date": "2025-04-28",
+      "val_end_date": "2026-01-15",
+      "split": {
+        "train": 0.7,
+        "val": 0.15,
+        "test": 0.15
+      },
+      "label_counts_test": {
+        "HOLD": 93,
+        "SELL": 47,
+        "BUY": 46
+      }
+    },
+    "features": [
+      "return_1d",
+      "return_5d",
+      "return_20d",
+      "volatility_20d",
+      "rsi_14",
+      "macd_norm",
+      "macd_signal_norm",
+      "macd_hist_norm",
+      "close_to_sma20",
+      "close_to_sma50",
+      "sma20_to_sma50",
+      "bb_position",
+      "bb_width",
+      "volume_ratio_20d",
+      "range_pct"
+    ],
+    "signal_threshold": 0.01,
+    "lstm": {
+      "hyperparameters": {
+        "seq_length": 60,
+        "layers": "LSTM(64) -> LSTM(32) -> Dropout(0.2) -> Dense(1)",
+        "target": "next-day return, standardised by train std",
+        "optimizer": "Adam",
+        "lr": 0.001,
+        "batch_size": 64,
+        "max_epochs": 60,
+        "early_stopping_patience": 8
+      },
+      "test_metrics": {
+        "test_samples": 186,
+        "rmse": 10.16650621821081,
+        "rmse_pct_of_price": 2.0279214514298785,
+        "mape_pct": 1.4701959917834122,
+        "directional_accuracy": 0.47126436781609193,
+        "baseline_naive_rmse": 10.162218792994793,
+        "baseline_naive_rmse_pct_of_price": 2.0270662351559348,
+        "baseline_majority_direction_accuracy": 0.5287356321839081,
+        "best_epoch": 1,
+        "best_val_loss": 1.3307666778564453
+      }
+    },
+    "random_forest": {
+      "hyperparameters": {
+        "n_estimators": 300,
+        "max_depth": 6,
+        "min_samples_leaf": 5,
+        "class_weight": "balanced_subsample",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.46236559139784944,
+        "precision_macro": 0.4172598508002235,
+        "recall_macro": 0.41548712031538565,
+        "f1_macro": 0.4162182777743419,
+        "baseline_majority_class_accuracy": 0.5
+      },
+      "feature_importance": [
+        {
+          "feature": "range_pct",
+          "importance": 0.1336591284012856
+        },
+        {
+          "feature": "return_1d",
+          "importance": 0.1054709400128127
+        },
+        {
+          "feature": "bb_width",
+          "importance": 0.0778485220646226
+        },
+        {
+          "feature": "volatility_20d",
+          "importance": 0.07503420139999001
+        },
+        {
+          "feature": "rsi_14",
+          "importance": 0.07001802235095304
+        },
+        {
+          "feature": "volume_ratio_20d",
+          "importance": 0.061825667490477965
+        },
+        {
+          "feature": "return_5d",
+          "importance": 0.05920401636826438
+        },
+        {
+          "feature": "bb_position",
+          "importance": 0.054613341065709274
+        },
+        {
+          "feature": "close_to_sma20",
+          "importance": 0.05447323233782333
+        },
+        {
+          "feature": "macd_norm",
+          "importance": 0.05299885065897039
+        },
+        {
+          "feature": "macd_hist_norm",
+          "importance": 0.052913933165741306
+        },
+        {
+          "feature": "close_to_sma50",
+          "importance": 0.05149344988740806
+        },
+        {
+          "feature": "return_20d",
+          "importance": 0.05102082163008069
+        },
+        {
+          "feature": "sma20_to_sma50",
+          "importance": 0.05042849362099837
+        },
+        {
+          "feature": "macd_signal_norm",
+          "importance": 0.04899737954486247
+        }
+      ]
+    },
+    "svm": {
+      "hyperparameters": {
+        "C": 1.0,
+        "kernel": "rbf",
+        "class_weight": "balanced",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.3924731182795699,
+        "precision_macro": 0.37838990109465037,
+        "recall_macro": 0.36873796000649867,
+        "f1_macro": 0.36708535660317637,
+        "baseline_majority_class_accuracy": 0.5
+      }
+    },
+    "signal_model": "random_forest",
+    "library_versions": {
+      "torch": "2.14.0+cpu",
+      "sklearn": "1.9.1"
+    }
+  },
+  {
+    "ticker": "FFC",
+    "model_version": "lstm-rf-20261008T191201Z",
+    "trained_at": "2026-10-08T19:14:09.132017+00:00",
+    "data": {
+      "rows_after_warmup": 1234,
+      "date_start": "2021-12-16",
+      "date_end": "2026-10-06",
+      "train_end_date": "2025-04-28",
+      "val_end_date": "2026-01-15",
+      "split": {
+        "train": 0.7,
+        "val": 0.15,
+        "test": 0.15
+      },
+      "label_counts_test": {
+        "HOLD": 116,
+        "SELL": 36,
+        "BUY": 34
+      }
+    },
+    "features": [
+      "return_1d",
+      "return_5d",
+      "return_20d",
+      "volatility_20d",
+      "rsi_14",
+      "macd_norm",
+      "macd_signal_norm",
+      "macd_hist_norm",
+      "close_to_sma20",
+      "close_to_sma50",
+      "sma20_to_sma50",
+      "bb_position",
+      "bb_width",
+      "volume_ratio_20d",
+      "range_pct"
+    ],
+    "signal_threshold": 0.01,
+    "lstm": {
+      "hyperparameters": {
+        "seq_length": 60,
+        "layers": "LSTM(64) -> LSTM(32) -> Dropout(0.2) -> Dense(1)",
+        "target": "next-day return, standardised by train std",
+        "optimizer": "Adam",
+        "lr": 0.001,
+        "batch_size": 64,
+        "max_epochs": 60,
+        "early_stopping_patience": 8
+      },
+      "test_metrics": {
+        "test_samples": 186,
+        "rmse": 11.60313450895642,
+        "rmse_pct_of_price": 2.1907401042292487,
+        "mape_pct": 1.2835697350534863,
+        "directional_accuracy": 0.4682080924855491,
+        "baseline_naive_rmse": 11.486286838257096,
+        "baseline_naive_rmse_pct_of_price": 2.168678576106034,
+        "baseline_majority_direction_accuracy": 0.5317919075144508,
+        "best_epoch": 4,
+        "best_val_loss": 1.1299978494644165
+      }
+    },
+    "random_forest": {
+      "hyperparameters": {
+        "n_estimators": 300,
+        "max_depth": 6,
+        "min_samples_leaf": 5,
+        "class_weight": "balanced_subsample",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.5,
+        "precision_macro": 0.35332314744079446,
+        "recall_macro": 0.36317707159492146,
+        "f1_macro": 0.341371158392435,
+        "baseline_majority_class_accuracy": 0.6236559139784946
+      },
+      "feature_importance": [
+        {
+          "feature": "range_pct",
+          "importance": 0.10405518197301297
+        },
+        {
+          "feature": "volatility_20d",
+          "importance": 0.08400322833785596
+        },
+        {
+          "feature": "return_5d",
+          "importance": 0.07703354322344563
+        },
+        {
+          "feature": "return_20d",
+          "importance": 0.07271027971922259
+        },
+        {
+          "feature": "bb_width",
+          "importance": 0.0708340923251866
+        },
+        {
+          "feature": "return_1d",
+          "importance": 0.07059668342144573
+        },
+        {
+          "feature": "sma20_to_sma50",
+          "importance": 0.06678221099643218
+        },
+        {
+          "feature": "macd_signal_norm",
+          "importance": 0.06300012244803165
+        },
+        {
+          "feature": "close_to_sma20",
+          "importance": 0.06076053288661596
+        },
+        {
+          "feature": "macd_norm",
+          "importance": 0.05939636477818112
+        },
+        {
+          "feature": "close_to_sma50",
+          "importance": 0.05926108977496452
+        },
+        {
+          "feature": "rsi_14",
+          "importance": 0.05740812969052715
+        },
+        {
+          "feature": "bb_position",
+          "importance": 0.053126622525300767
+        },
+        {
+          "feature": "volume_ratio_20d",
+          "importance": 0.05245842964392034
+        },
+        {
+          "feature": "macd_hist_norm",
+          "importance": 0.04857348825585679
+        }
+      ]
+    },
+    "svm": {
+      "hyperparameters": {
+        "C": 1.0,
+        "kernel": "rbf",
+        "class_weight": "balanced",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.4838709677419355,
+        "precision_macro": 0.4267661490891981,
+        "recall_macro": 0.4242543760799338,
+        "f1_macro": 0.41619225810867855,
+        "baseline_majority_class_accuracy": 0.6236559139784946
+      }
+    },
+    "signal_model": "random_forest",
+    "library_versions": {
+      "torch": "2.14.0+cpu",
+      "sklearn": "1.9.1"
+    }
+  },
+  {
+    "ticker": "EFERT",
+    "model_version": "lstm-rf-20261008T191201Z",
+    "trained_at": "2026-10-08T19:14:16.540028+00:00",
+    "data": {
+      "rows_after_warmup": 1234,
+      "date_start": "2021-12-16",
+      "date_end": "2026-10-06",
+      "train_end_date": "2025-04-28",
+      "val_end_date": "2026-01-15",
+      "split": {
+        "train": 0.7,
+        "val": 0.15,
+        "test": 0.15
+      },
+      "label_counts_test": {
+        "HOLD": 114,
+        "SELL": 39,
+        "BUY": 33
+      }
+    },
+    "features": [
+      "return_1d",
+      "return_5d",
+      "return_20d",
+      "volatility_20d",
+      "rsi_14",
+      "macd_norm",
+      "macd_signal_norm",
+      "macd_hist_norm",
+      "close_to_sma20",
+      "close_to_sma50",
+      "sma20_to_sma50",
+      "bb_position",
+      "bb_width",
+      "volume_ratio_20d",
+      "range_pct"
+    ],
+    "signal_threshold": 0.01,
+    "lstm": {
+      "hyperparameters": {
+        "seq_length": 60,
+        "layers": "LSTM(64) -> LSTM(32) -> Dropout(0.2) -> Dense(1)",
+        "target": "next-day return, standardised by train std",
+        "optimizer": "Adam",
+        "lr": 0.001,
+        "batch_size": 64,
+        "max_epochs": 60,
+        "early_stopping_patience": 8
+      },
+      "test_metrics": {
+        "test_samples": 186,
+        "rmse": 3.56172904632014,
+        "rmse_pct_of_price": 1.7866971075430969,
+        "mape_pct": 1.1470869254600167,
+        "directional_accuracy": 0.41040462427745666,
+        "baseline_naive_rmse": 3.526783878828241,
+        "baseline_naive_rmse_pct_of_price": 1.7691672986024385,
+        "baseline_majority_direction_accuracy": 0.5895953757225434,
+        "best_epoch": 1,
+        "best_val_loss": 1.610192894935608
+      }
+    },
+    "random_forest": {
+      "hyperparameters": {
+        "n_estimators": 300,
+        "max_depth": 6,
+        "min_samples_leaf": 5,
+        "class_weight": "balanced_subsample",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.5268817204301075,
+        "precision_macro": 0.3930481913514787,
+        "recall_macro": 0.38177319756267125,
+        "f1_macro": 0.3843178621659635,
+        "baseline_majority_class_accuracy": 0.6129032258064516
+      },
+      "feature_importance": [
+        {
+          "feature": "range_pct",
+          "importance": 0.10461103718345038
+        },
+        {
+          "feature": "return_1d",
+          "importance": 0.08935721254960996
+        },
+        {
+          "feature": "close_to_sma20",
+          "importance": 0.08157176937530301
+        },
+        {
+          "feature": "return_5d",
+          "importance": 0.06965897129443976
+        },
+        {
+          "feature": "bb_position",
+          "importance": 0.06757196130993778
+        },
+        {
+          "feature": "volatility_20d",
+          "importance": 0.06577135982649022
+        },
+        {
+          "feature": "macd_signal_norm",
+          "importance": 0.0648869378349578
+        },
+        {
+          "feature": "macd_hist_norm",
+          "importance": 0.06483206078026622
+        },
+        {
+          "feature": "sma20_to_sma50",
+          "importance": 0.06230242335105398
+        },
+        {
+          "feature": "rsi_14",
+          "importance": 0.06028175647864708
+        },
+        {
+          "feature": "bb_width",
+          "importance": 0.05925468775484664
+        },
+        {
+          "feature": "close_to_sma50",
+          "importance": 0.05518509629927286
+        },
+        {
+          "feature": "macd_norm",
+          "importance": 0.05441848088264559
+        },
+        {
+          "feature": "return_20d",
+          "importance": 0.05027982250537407
+        },
+        {
+          "feature": "volume_ratio_20d",
+          "importance": 0.050016422573704616
+        }
+      ]
+    },
+    "svm": {
+      "hyperparameters": {
+        "C": 1.0,
+        "kernel": "rbf",
+        "class_weight": "balanced",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.5161290322580645,
+        "precision_macro": 0.34104528635778636,
+        "recall_macro": 0.3472171103750051,
+        "f1_macro": 0.3413722552478533,
+        "baseline_majority_class_accuracy": 0.6129032258064516
+      }
+    },
+    "signal_model": "random_forest",
+    "library_versions": {
+      "torch": "2.14.0+cpu",
+      "sklearn": "1.9.1"
+    }
+  },
+  {
+    "ticker": "LUCK",
+    "model_version": "lstm-rf-20261008T191201Z",
+    "trained_at": "2026-10-08T19:14:25.064431+00:00",
+    "data": {
+      "rows_after_warmup": 1234,
+      "date_start": "2021-12-16",
+      "date_end": "2026-10-06",
+      "train_end_date": "2025-04-28",
+      "val_end_date": "2026-01-15",
+      "split": {
+        "train": 0.7,
+        "val": 0.15,
+        "test": 0.15
+      },
+      "label_counts_test": {
+        "HOLD": 82,
+        "SELL": 60,
+        "BUY": 44
+      }
+    },
+    "features": [
+      "return_1d",
+      "return_5d",
+      "return_20d",
+      "volatility_20d",
+      "rsi_14",
+      "macd_norm",
+      "macd_signal_norm",
+      "macd_hist_norm",
+      "close_to_sma20",
+      "close_to_sma50",
+      "sma20_to_sma50",
+      "bb_position",
+      "bb_width",
+      "volume_ratio_20d",
+      "range_pct"
+    ],
+    "signal_threshold": 0.01,
+    "lstm": {
+      "hyperparameters": {
+        "seq_length": 60,
+        "layers": "LSTM(64) -> LSTM(32) -> Dropout(0.2) -> Dense(1)",
+        "target": "next-day return, standardised by train std",
+        "optimizer": "Adam",
+        "lr": 0.001,
+        "batch_size": 64,
+        "max_epochs": 60,
+        "early_stopping_patience": 8
+      },
+      "test_metrics": {
+        "test_samples": 186,
+        "rmse": 10.658213517409182,
+        "rmse_pct_of_price": 2.497879902420867,
+        "mape_pct": 1.7982842310978835,
+        "directional_accuracy": 0.47398843930635837,
+        "baseline_naive_rmse": 10.581318718694659,
+        "baseline_naive_rmse_pct_of_price": 2.479858686013824,
+        "baseline_majority_direction_accuracy": 0.5202312138728324,
+        "best_epoch": 4,
+        "best_val_loss": 0.028164977207779884
+      }
+    },
+    "random_forest": {
+      "hyperparameters": {
+        "n_estimators": 300,
+        "max_depth": 6,
+        "min_samples_leaf": 5,
+        "class_weight": "balanced_subsample",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.41935483870967744,
+        "precision_macro": 0.38665681399992174,
+        "recall_macro": 0.39613205222961323,
+        "f1_macro": 0.3862764171153958,
+        "baseline_majority_class_accuracy": 0.44086021505376344
+      },
+      "feature_importance": [
+        {
+          "feature": "range_pct",
+          "importance": 0.09550439998066698
+        },
+        {
+          "feature": "return_1d",
+          "importance": 0.09356894277910681
+        },
+        {
+          "feature": "return_5d",
+          "importance": 0.07921368523029934
+        },
+        {
+          "feature": "macd_signal_norm",
+          "importance": 0.074989879192755
+        },
+        {
+          "feature": "bb_position",
+          "importance": 0.07382234595240122
+        },
+        {
+          "feature": "bb_width",
+          "importance": 0.07153135652462084
+        },
+        {
+          "feature": "macd_norm",
+          "importance": 0.061977330462217685
+        },
+        {
+          "feature": "return_20d",
+          "importance": 0.06117022039178443
+        },
+        {
+          "feature": "close_to_sma20",
+          "importance": 0.060302366687184916
+        },
+        {
+          "feature": "sma20_to_sma50",
+          "importance": 0.05739651398252497
+        },
+        {
+          "feature": "rsi_14",
+          "importance": 0.056512124993948955
+        },
+        {
+          "feature": "volume_ratio_20d",
+          "importance": 0.05592740122709755
+        },
+        {
+          "feature": "close_to_sma50",
+          "importance": 0.05543749670135239
+        },
+        {
+          "feature": "macd_hist_norm",
+          "importance": 0.05234982251013932
+        },
+        {
+          "feature": "volatility_20d",
+          "importance": 0.05029611338389957
+        }
+      ]
+    },
+    "svm": {
+      "hyperparameters": {
+        "C": 1.0,
+        "kernel": "rbf",
+        "class_weight": "balanced",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.41935483870967744,
+        "precision_macro": 0.413994925614116,
+        "recall_macro": 0.40136733185513673,
+        "f1_macro": 0.3947912017486639,
+        "baseline_majority_class_accuracy": 0.44086021505376344
+      }
+    },
+    "signal_model": "random_forest",
+    "library_versions": {
+      "torch": "2.14.0+cpu",
+      "sklearn": "1.9.1"
+    }
+  },
+  {
+    "ticker": "PSO",
+    "model_version": "lstm-rf-20261008T191201Z",
+    "trained_at": "2026-10-08T19:14:40.177067+00:00",
+    "data": {
+      "rows_after_warmup": 1234,
+      "date_start": "2021-12-16",
+      "date_end": "2026-10-06",
+      "train_end_date": "2025-04-28",
+      "val_end_date": "2026-01-15",
+      "split": {
+        "train": 0.7,
+        "val": 0.15,
+        "test": 0.15
+      },
+      "label_counts_test": {
+        "HOLD": 97,
+        "SELL": 50,
+        "BUY": 39
+      }
+    },
+    "features": [
+      "return_1d",
+      "return_5d",
+      "return_20d",
+      "volatility_20d",
+      "rsi_14",
+      "macd_norm",
+      "macd_signal_norm",
+      "macd_hist_norm",
+      "close_to_sma20",
+      "close_to_sma50",
+      "sma20_to_sma50",
+      "bb_position",
+      "bb_width",
+      "volume_ratio_20d",
+      "range_pct"
+    ],
+    "signal_threshold": 0.01,
+    "lstm": {
+      "hyperparameters": {
+        "seq_length": 60,
+        "layers": "LSTM(64) -> LSTM(32) -> Dropout(0.2) -> Dense(1)",
+        "target": "next-day return, standardised by train std",
+        "optimizer": "Adam",
+        "lr": 0.001,
+        "batch_size": 64,
+        "max_epochs": 60,
+        "early_stopping_patience": 8
+      },
+      "test_metrics": {
+        "test_samples": 186,
+        "rmse": 9.198164062804139,
+        "rmse_pct_of_price": 2.4803009378308016,
+        "mape_pct": 1.5981216414045492,
+        "directional_accuracy": 0.5086705202312138,
+        "baseline_naive_rmse": 8.795365270098348,
+        "baseline_naive_rmse_pct_of_price": 2.371685542792858,
+        "baseline_majority_direction_accuracy": 0.5606936416184971,
+        "best_epoch": 11,
+        "best_val_loss": 0.8059208989143372
+      }
+    },
+    "random_forest": {
+      "hyperparameters": {
+        "n_estimators": 300,
+        "max_depth": 6,
+        "min_samples_leaf": 5,
+        "class_weight": "balanced_subsample",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.43010752688172044,
+        "precision_macro": 0.3582538262770821,
+        "recall_macro": 0.3671935853379152,
+        "f1_macro": 0.3613043760824997,
+        "baseline_majority_class_accuracy": 0.521505376344086
+      },
+      "feature_importance": [
+        {
+          "feature": "range_pct",
+          "importance": 0.10418004214279258
+        },
+        {
+          "feature": "bb_width",
+          "importance": 0.09349372991517842
+        },
+        {
+          "feature": "volatility_20d",
+          "importance": 0.07270555421130981
+        },
+        {
+          "feature": "macd_hist_norm",
+          "importance": 0.07039241593939521
+        },
+        {
+          "feature": "close_to_sma20",
+          "importance": 0.06568262325561885
+        },
+        {
+          "feature": "macd_norm",
+          "importance": 0.06497495406290749
+        },
+        {
+          "feature": "sma20_to_sma50",
+          "importance": 0.06311249627207574
+        },
+        {
+          "feature": "macd_signal_norm",
+          "importance": 0.0623429235793109
+        },
+        {
+          "feature": "rsi_14",
+          "importance": 0.06049157885180539
+        },
+        {
+          "feature": "close_to_sma50",
+          "importance": 0.06043649902434404
+        },
+        {
+          "feature": "return_1d",
+          "importance": 0.06041979692416766
+        },
+        {
+          "feature": "return_5d",
+          "importance": 0.0590002196399033
+        },
+        {
+          "feature": "return_20d",
+          "importance": 0.05862619495980345
+        },
+        {
+          "feature": "volume_ratio_20d",
+          "importance": 0.05419098469901756
+        },
+        {
+          "feature": "bb_position",
+          "importance": 0.049949986522369795
+        }
+      ]
+    },
+    "svm": {
+      "hyperparameters": {
+        "C": 1.0,
+        "kernel": "rbf",
+        "class_weight": "balanced",
+        "random_state": 42
+      },
+      "test_metrics": {
+        "accuracy": 0.44623655913978494,
+        "precision_macro": 0.37715844026523637,
+        "recall_macro": 0.38584368666842894,
+        "f1_macro": 0.37986552953386576,
+        "baseline_majority_class_accuracy": 0.521505376344086
+      }
+    },
+    "signal_model": "random_forest",
+    "library_versions": {
+      "torch": "2.14.0+cpu",
+      "sklearn": "1.9.1"
+    }
+  }
+]

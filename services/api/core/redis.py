@@ -2,8 +2,14 @@ import redis
 
 from core.config import settings
 
-# Create a connection pool for Redis
-redis_pool = redis.ConnectionPool.from_url(settings.REDIS_URL, decode_responses=True)
+# Short timeouts so a missing/down Redis degrades gracefully instead of hanging requests
+redis_pool = redis.ConnectionPool.from_url(
+    settings.REDIS_URL,
+    decode_responses=True,
+    socket_connect_timeout=1,
+    socket_timeout=1,
+)
+
 
 def get_redis_client() -> redis.Redis:
     """

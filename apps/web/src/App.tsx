@@ -1,152 +1,131 @@
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
-import { healthCheck } from '@investiq/api-client';
-import type { Placeholder } from '@investiq/shared-types';
-import { colors } from '@investiq/design-tokens';
-import i18next from '@investiq/i18n';
-import { useEffect, useState } from 'react';
-import { AuthProvider } from './contexts/AuthContext';
-import { Login } from './pages/Login';
-import { Register } from './pages/Register';
-import { Onboarding } from './pages/Onboarding';
-import { Dashboard } from './pages/Dashboard';
-import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import type { ReactNode } from 'react';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { AuthProvider } from './features/auth/AuthContext';
+import {
+  GuestOnly,
+  RequireAdmin,
+  RequireAuth,
+  RequireRiskProfile,
+} from './features/auth/RouteGuards';
+import { LoginPage } from './features/auth/LoginPage';
+import { RegisterPage } from './features/auth/RegisterPage';
+import { OnboardingPage } from './features/onboarding/OnboardingPage';
+import { DashboardPage } from './features/dashboard/DashboardPage';
+import { StocksPage } from './features/stocks/StocksPage';
+import { StockDetailPage } from './features/stocks/StockDetailPage';
+import { ComingSoonPage } from './features/common/ComingSoonPage';
 import { AppLayout } from './components/layout/AppLayout';
-import { Stocks } from './pages/Stocks';
-import { StockDetail } from './pages/StockDetail';
 
-const NavItem = ({ to, label }: { to: string; label: string }) => (
-  <Link to={to} className="mx-2 hover:underline">
-    {label}
-  </Link>
+/** Logged in + completed risk profile + app chrome. */
+const AppPage = ({ children }: { children: ReactNode }) => (
+  <RequireAuth>
+    <RequireRiskProfile>
+      <AppLayout>{children}</AppLayout>
+    </RequireRiskProfile>
+  </RequireAuth>
 );
 
-const PlaceholderScreen = ({ title }: { title: string }) => {
-  const [healthStatus, setHealthStatus] = useState<string>('Loading backend status...');
-
-  useEffect(() => {
-    healthCheck()
-      .then((res) => setHealthStatus(JSON.stringify(res)))
-      .catch((err) => setHealthStatus('Error: ' + err.message));
-  }, []);
-
-  return (
-    <div className="p-8 text-center" style={{ color: colors.primary }}>
-      <h2 className="text-2xl font-bold mb-4">{title}</h2>
-      <p>{i18next.t('test_key')} (from i18n)</p>
-      <p className="mt-4 text-sm text-gray-500">Backend status: {healthStatus}</p>
-      <nav className="mt-6">
-        <NavItem to="/" label="Home" />
-        <NavItem to="/login" label="Login" />
-        <NavItem to="/register" label="Register" />
-        <NavItem to="/dashboard" label="Dashboard" />
-      </nav>
-    </div>
-  );
-};
-
 function App() {
-  // Use the imported type just to satisfy TypeScript and test resolution
-  const _testType: Placeholder = { id: 'test' };
-  console.log(_testType);
-
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<PlaceholderScreen title="Home" />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-
-          {/* Protected Routes */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route
+            path="/login"
+            element={
+              <GuestOnly>
+                <LoginPage />
+              </GuestOnly>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <GuestOnly>
+                <RegisterPage />
+              </GuestOnly>
+            }
+          />
           <Route
             path="/onboarding"
             element={
-              <ProtectedRoute>
-                <Onboarding />
-              </ProtectedRoute>
+              <RequireAuth>
+                <OnboardingPage />
+              </RequireAuth>
             }
           />
 
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <Dashboard />
-                </AppLayout>
-              </ProtectedRoute>
+              <AppPage>
+                <DashboardPage />
+              </AppPage>
             }
           />
           <Route
             path="/stocks"
             element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <Stocks />
-                </AppLayout>
-              </ProtectedRoute>
+              <AppPage>
+                <StocksPage />
+              </AppPage>
             }
           />
           <Route
             path="/stocks/:ticker"
             element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <StockDetail />
-                </AppLayout>
-              </ProtectedRoute>
+              <AppPage>
+                <StockDetailPage />
+              </AppPage>
             }
           />
+
+          {/* Later phases (Phases.md) */}
           <Route
             path="/portfolio"
             element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <PlaceholderScreen title="Portfolio" />
-                </AppLayout>
-              </ProtectedRoute>
+              <AppPage>
+                <ComingSoonPage section="portfolio" phase={5} />
+              </AppPage>
             }
           />
           <Route
             path="/backtest"
             element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <PlaceholderScreen title="Backtest" />
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/chat"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <PlaceholderScreen title="Chat" />
-                </AppLayout>
-              </ProtectedRoute>
+              <AppPage>
+                <ComingSoonPage section="backtest" phase={6} />
+              </AppPage>
             }
           />
           <Route
             path="/notifications"
             element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <PlaceholderScreen title="Notifications" />
-                </AppLayout>
-              </ProtectedRoute>
+              <AppPage>
+                <ComingSoonPage section="notifications" phase={7} />
+              </AppPage>
+            }
+          />
+          <Route
+            path="/chat"
+            element={
+              <AppPage>
+                <ComingSoonPage section="chat" phase={8} />
+              </AppPage>
             }
           />
           <Route
             path="/admin"
             element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <PlaceholderScreen title="Admin" />
-                </AppLayout>
-              </ProtectedRoute>
+              <AppPage>
+                <RequireAdmin>
+                  <ComingSoonPage section="admin" phase={9} />
+                </RequireAdmin>
+              </AppPage>
             }
           />
+
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
