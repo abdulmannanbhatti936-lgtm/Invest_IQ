@@ -22,6 +22,11 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
 
+# bcrypt hash of a throwaway string (same cost factor as real hashes). Checked when the
+# email is unknown so that path costs the same as a wrong password, and response time
+# doesn't reveal which emails are registered.
+_DUMMY_PASSWORD_HASH = "$2b$12$9uI56Mz9tujzkTpjogk8POJW8UGYqmRBm6OLyiDujoEEDQOyW1PbK"
+
 router = APIRouter(prefix="/auth", tags=["auth"], dependencies=[Depends(auth_rate_limit)])
 
 
@@ -47,7 +52,10 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
 @router.post("/login", response_model=Token)
 def login(db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
     user = get_user_by_email(db, email=form_data.username)
-    if not user or not verify_password(form_data.password, user.password_hash):
+    password_ok = verify_password(
+        form_data.password, user.password_hash if user else _DUMMY_PASSWORD_HASH
+    )
+    if not user or not password_ok:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",

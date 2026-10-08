@@ -245,3 +245,144 @@ def test_rate_limit_fails_open_without_redis(client, monkeypatch, caplog):
         r for r in caplog.records if r.levelname == "WARNING" and "rate limit SKIPPED" in r.message
     ]
     assert len(skips) == 3
+
+
+# ---- Step 1.4 audit: token edge cases and user enumeration
+
+
+def _new_user(client) -> tuple[str, dict]:
+    email = f"edge_{uuid.uuid4()}@example.com"
+    client.post(
+        "/auth/register", json={"email": email, "full_name": "Edge", "password": "password123"}
+    )
+    pair = client.post("/auth/login", data={"username": email, "password": "password123"}).json()
+    return email, pair
+
+
+def _me(client, token):
+    return client.get("/users/me", headers={"Authorization": f"Bearer {token}"})
+
+
+def _refresh(client, token):
+    return client.post("/auth/refresh", json={"refresh_token": token})
+
+
+def test_expired_refresh_token_rejected(client):
+    email, _ = _new_user(client)
+    expired = create_refresh_token(email, expires_delta=timedelta(seconds=-1))
+    response = _refresh(client, expired)
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Could not validate credentials"
+
+
+def test_malformed_and_tampered_tokens_rejected(client):
+    import base64
+    import json
+
+    from jose import jwt
+
+    email, pair = _new_user(client)
+    other_email, _ = _new_user(client)
+    header, payload, signature = pair["access_token"].split(".")
+
+    def b64(data: dict) -> str:
+        return base64.urlsafe_b64encode(json.dumps(data).encode()).rstrip(b"=").decode()
+
+    claims = json.loads(base64.urlsafe_b64decode(payload + "=="))
+    flipped = signature[:-2] + ("AA" if signature[-2:] != "AA" else "BB")
+    forged_access = {
+        "garbage": "not-a-jwt",
+        "two segments": f"{header}.{payload}",
+        "flipped signature": f"{header}.{payload}.{flipped}",
+        # payload edited to another user's email, original signature kept
+        "swapped subject": f"{header}.{b64({**claims, 'sub': other_email})}.{signature}",
+        # 'alg: none' with no signature must never be accepted
+        "alg none": f"{b64({'alg': 'none', 'typ': 'JWT'})}.{payload}.",
+        "unrelated secret": jwt.encode(claims, "attacker-secret", algorithm="HS256"),
+    }
+    for name, token in forged_access.items():
+        assert _me(client, token).status_code == 401, name
+        assert _refresh(client, token).status_code == 401, name
+
+    r_header, r_payload, r_sig = pair["refresh_token"].split(".")
+    r_claims = json.loads(base64.urlsafe_b64decode(r_payload + "=="))
+    tampered_refresh = f"{r_header}.{b64({**r_claims, 'sub': other_email})}.{r_sig}"
+    assert _refresh(client, tampered_refresh).status_code == 401
+
+    # The genuine tokens still work, so the 401s above come from the tampering
+    assert _me(client, pair["access_token"]).status_code == 200
+    assert _refresh(client, pair["refresh_token"]).status_code == 200
+
+
+def test_tokens_for_deleted_user_rejected(client, db):
+    from models.user import User
+
+    email, pair = _new_user(client)
+    assert _me(client, pair["access_token"]).status_code == 200
+
+    db.query(User).filter(User.email == email).delete()
+    db.commit()
+
+    assert _me(client, pair["access_token"]).status_code == 401
+    assert _refresh(client, pair["refresh_token"]).status_code == 401
+
+
+def test_login_does_not_reveal_whether_email_exists(client):
+    email, _ = _new_user(client)
+    wrong_password = client.post("/auth/login", data={"username": email, "password": "Wrong-pass1"})
+    unknown_email = client.post(
+        "/auth/login",
+        data={"username": f"nobody_{uuid.uuid4()}@example.com", "password": "Wrong-pass1"},
+    )
+    assert wrong_password.status_code == unknown_email.status_code == 401
+    assert (
+        wrong_password.json() == unknown_email.json() == {"detail": "Incorrect email or password"}
+    )
+    assert (
+        wrong_password.headers["www-authenticate"]
+        == unknown_email.headers["www-authenticate"]
+        == "Bearer"
+    )
+
+
+def test_unknown_email_still_runs_one_password_check(client, monkeypatch):
+    # Deterministic stand-in for a timing test: an unknown email must cost the same bcrypt
+    # check as a wrong password, so response time can't reveal registered emails.
+    import routers.auth as auth_router
+
+    calls = []
+    real_verify = auth_router.verify_password
+
+    def spy(plain, hashed):
+        calls.append(hashed)
+        return real_verify(plain, hashed)
+
+    monkeypatch.setattr(auth_router, "verify_password", spy)
+
+    unknown = client.post(
+        "/auth/login",
+        data={"username": f"nobody_{uuid.uuid4()}@example.com", "password": "Wrong-pass1"},
+    )
+    assert unknown.status_code == 401
+    assert calls == [auth_router._DUMMY_PASSWORD_HASH]
+
+    email, _ = _new_user(client)
+    calls.clear()
+    assert (
+        client.post("/auth/login", data={"username": email, "password": "Wrong-pass1"}).status_code
+        == 401
+    )
+    assert len(calls) == 1 and calls[0] != auth_router._DUMMY_PASSWORD_HASH
+
+    # Typing the dummy password for an unknown email still fails
+    calls.clear()
+    assert (
+        client.post(
+            "/auth/login",
+            data={
+                "username": f"nobody_{uuid.uuid4()}@example.com",
+                "password": "investiq-timing-equaliser-not-a-real-password",
+            },
+        ).status_code
+        == 401
+    )
