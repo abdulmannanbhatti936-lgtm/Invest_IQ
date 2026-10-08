@@ -94,6 +94,10 @@ jobs:
         working-directory: ./apps/web
         run: npx tsc -b
 
+      - name: Unit tests (web, Node built-in test runner)
+        working-directory: ./apps/web
+        run: npm test
+
       - name: Type-check mobile
         working-directory: ./apps/mobile
         run: npx tsc --noEmit

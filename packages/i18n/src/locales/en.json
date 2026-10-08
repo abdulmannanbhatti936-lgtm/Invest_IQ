@@ -131,7 +131,7 @@
       }
     },
     "result": {
-      "title": "You are a {{category}} investor",
+      "title": "Your investor profile: {{category}}",
       "cta": "Go to dashboard",
       "retake": "Retake questionnaire",
       "caps": {
@@ -139,7 +139,10 @@
         "sells_on_loss": "Because you said you would sell if your investment dropped, we have kept your profile no higher than Moderate. Bigger swings could push you to sell at a loss.",
         "low_emergency_savings": "Because your savings would cover less than 3 months of expenses, we have kept your profile no higher than Moderate. Your safety cushion comes before higher-risk investing."
       }
-    }
+    },
+    "loadError": "We couldn't load your saved answers. Check your connection and try again.",
+    "draftSaveError": "We couldn't save your progress just now. Your answers are still here, and we'll save them again with your next answer.",
+    "cancelRetake": "Cancel and keep my current profile"
   },
   "risk": {
     "conservative": "Conservative",

@@ -1,22 +1,29 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Check } from 'lucide-react';
 import { riskProfileApi } from '@investiq/api-client';
 import { useTranslation } from '@investiq/i18n';
-import { RISK_QUESTIONS, type RiskAnswers, type RiskProfile } from '@investiq/shared-types';
+import {
+  RISK_QUESTIONS,
+  type OnboardingProgress,
+  type RiskAnswers,
+  type RiskProfile,
+} from '@investiq/shared-types';
 import { useAuth } from '../auth/AuthContext';
 import { Button } from '../../components/ui/Button';
 import { DisclaimerBanner, ErrorState, Notice, Skeleton } from '../../components/ui/Feedback';
 import { LanguageToggle } from '../../components/LanguageToggle';
 import { RiskBadge } from './RiskBadge';
+import { createLatestOnlySender } from '../../lib/latestOnlySender';
 
 const TOTAL = RISK_QUESTIONS.length;
 
 export const OnboardingPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { refreshUser } = useAuth();
+  const { user, refreshUser } = useAuth();
+  const isRetake = !!user?.has_risk_profile;
   const queryClient = useQueryClient();
 
   const [step, setStep] = useState(0);
@@ -30,10 +37,12 @@ export const OnboardingPage = () => {
     queryKey: ['onboarding-progress'],
     queryFn: riskProfileApi.getProgress,
     staleTime: Infinity,
+    retry: 1,
   });
 
   useEffect(() => {
-    if (restored || progress.isPending) return;
+    // Never start over while the saved draft couldn't be read: the next answer would overwrite it
+    if (restored || progress.isPending || progress.isError) return;
     const saved = progress.data;
     if (saved && Object.keys(saved.answers).length > 0) {
       setAnswers(saved.answers);
@@ -43,9 +52,21 @@ export const OnboardingPage = () => {
     setRestored(true);
   }, [progress.isPending, progress.data, restored]);
 
-  const saveDraft = useMutation({ mutationFn: riskProfileApi.saveProgress });
+  // Draft saves go out one at a time, latest answers last, so the server never keeps an
+  // older step than the user reached (FR6 resume)
+  const [draftSaveFailed, setDraftSaveFailed] = useState(false);
+  const [draftSender] = useState(() =>
+    createLatestOnlySender<OnboardingProgress>(riskProfileApi.saveProgress, (ok) =>
+      setDraftSaveFailed(!ok),
+    ),
+  );
   const saveProfile = useMutation({
-    mutationFn: riskProfileApi.save,
+    mutationFn: async (final: RiskAnswers) => {
+      // Let any in-flight draft finish first: a late draft save would re-create the draft
+      // the server clears when the profile is saved
+      await draftSender.flush();
+      return riskProfileApi.save(final);
+    },
     onSuccess: async (profile) => {
       // The server clears the draft once the profile is saved
       queryClient.removeQueries({ queryKey: ['onboarding-progress'] });
@@ -62,7 +83,7 @@ export const OnboardingPage = () => {
     setAnswers(next);
     if (step < TOTAL - 1) {
       setStep(step + 1);
-      saveDraft.mutate({ answers: next, current_step: step + 1 });
+      draftSender.send({ answers: next, current_step: step + 1 });
     } else {
       saveProfile.mutate(next);
     }
@@ -71,7 +92,7 @@ export const OnboardingPage = () => {
   const goBack = () => {
     if (step === 0) return;
     setStep(step - 1);
-    saveDraft.mutate({ answers, current_step: step - 1 });
+    draftSender.send({ answers, current_step: step - 1 });
   };
 
   if (result) {
@@ -97,6 +118,14 @@ export const OnboardingPage = () => {
             {t('onboarding.result.cta')}
           </Button>
         </div>
+      </Shell>
+    );
+  }
+
+  if (progress.isError) {
+    return (
+      <Shell>
+        <ErrorState message={t('onboarding.loadError')} onRetry={() => void progress.refetch()} />
       </Shell>
     );
   }
@@ -135,6 +164,13 @@ export const OnboardingPage = () => {
           {t('onboarding.stepOf', { current: step + 1, total: TOTAL })}
         </p>
       </div>
+
+      {draftSaveFailed && (
+        // Non-blocking: answers stay on the page and the next answer re-sends all of them
+        <div className="mb-6" role="status">
+          <Notice tone="warning">{t('onboarding.draftSaveError')}</Notice>
+        </div>
+      )}
 
       {resumed && step > 0 && (
         <div className="mb-6">
@@ -197,8 +233,18 @@ export const OnboardingPage = () => {
         ) : (
           <span />
         )}
-        {saveProfile.isPending && (
+        {saveProfile.isPending ? (
           <span className="animate-pulse text-sm text-gray-500">{t('onboarding.saving')}</span>
+        ) : (
+          isRetake && (
+            // A retake must never trap the user: they keep their current profile if they leave
+            <Link
+              to="/dashboard"
+              className="text-sm font-medium text-gray-500 transition-colors hover:text-gray-900"
+            >
+              {t('onboarding.cancelRetake')}
+            </Link>
+          )
         )}
       </div>
     </Shell>
