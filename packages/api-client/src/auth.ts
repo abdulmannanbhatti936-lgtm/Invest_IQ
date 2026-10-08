@@ -2,6 +2,7 @@ import type {
   OnboardingProgress,
   RiskAnswers,
   RiskProfile,
+  RiskQuestion,
   TokenPair,
   User,
 } from '@investiq/shared-types';
@@ -54,6 +55,12 @@ export const auth = {
 };
 
 export const riskProfileApi = {
+  /** The questionnaire is defined once, on the server (ids + option values; labels are i18n). */
+  getQuestionnaire: async (): Promise<RiskQuestion[]> => {
+    const response = await apiClient.get<RiskQuestion[]>('/users/risk-questionnaire');
+    return response.data;
+  },
+
   get: async (): Promise<RiskProfile> => {
     const response = await apiClient.get<RiskProfile>('/users/me/risk-profile');
     return response.data;

@@ -20,6 +20,12 @@ class UserBase(BaseModel):
     def email_lowercase(cls, v: object) -> object:
         return normalize_email(v) if isinstance(v, str) else v
 
+    # Runs before the length check, so a blank or whitespace-only name is rejected (422)
+    @field_validator("full_name", mode="before")
+    @classmethod
+    def full_name_trimmed(cls, v: object) -> object:
+        return v.strip() if isinstance(v, str) else v
+
 
 # bcrypt only uses the first 72 bytes of a password; anything longer would be silently
 # ignored, so two long passwords sharing their first 72 bytes would both log in.

@@ -10,6 +10,8 @@ import pytest
 # for the DB/Redis URLs; secrets get test defaults so CI needs no .env file.
 os.environ.setdefault("JWT_SECRET", "test-access-secret")
 os.environ.setdefault("JWT_REFRESH_SECRET", "test-refresh-secret")
+# Tests are a development context (weak test secrets, /docs on); .env or CI usually set it too
+os.environ.setdefault("ENVIRONMENT", "development")
 os.environ["AUTH_RATE_LIMIT"] = "10000"
 
 from sqlalchemy import create_engine, text  # noqa: E402

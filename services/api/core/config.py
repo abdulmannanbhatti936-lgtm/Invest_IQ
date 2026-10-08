@@ -42,7 +42,9 @@ class Settings(BaseSettings):
     LOW_CONFIDENCE_THRESHOLD: float = 0.6  # PRD.md FR16
     MIN_HISTORY_DAYS: int = 120  # below this we refuse to predict (PRD.md FR10)
 
-    ENVIRONMENT: str = "development"
+    # Fail-safe: unset means production (strict secret checks, no public /docs). Local .env
+    # and CI set ENVIRONMENT=development explicitly.
+    ENVIRONMENT: str = "production"
 
     # hide_input_in_errors: a validation error must never print the settings (they hold secrets)
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", hide_input_in_errors=True)

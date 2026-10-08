@@ -60,6 +60,16 @@ def test_no_warning_with_strong_secrets(caplog):
     assert caplog.records == []
 
 
+def test_unset_environment_means_production(monkeypatch):
+    monkeypatch.delenv("ENVIRONMENT", raising=False)
+    strict = _settings()  # _env_file=None: nothing sets ENVIRONMENT
+    assert strict.ENVIRONMENT == "production"
+    assert not strict.is_development
+    # ...so a deployment that forgets ENVIRONMENT can't start with a placeholder secret
+    with pytest.raises(ValidationError, match="Refusing to start with ENVIRONMENT=production"):
+        _settings(JWT_SECRET="placeholder_jwt_secret")
+
+
 def test_api_docs_only_in_development(monkeypatch):
     from fastapi.testclient import TestClient
 

@@ -1,5 +1,6 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import type { TokenPair } from '@investiq/shared-types';
+import { createRefreshCoordinator, type LockManagerLike } from './refreshCoordinator';
 
 export const DEFAULT_API_URL = 'http://127.0.0.1:8000';
 
@@ -62,35 +63,21 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// On a 401, exchange the refresh token once and retry; concurrent 401s share one refresh.
-let refreshing: Promise<string | null> | null = null;
-
-// Web Locks (browsers only; absent on React Native, where there is a single app instance)
-type LockManagerLike = {
-  request: (name: string, callback: () => Promise<string | null>) => Promise<string | null>;
-};
+// On a 401, exchange the refresh token once and retry (see refreshCoordinator.ts)
 const locks = (globalThis as { navigator?: { locks?: LockManagerLike } }).navigator?.locks;
 
-const refreshAccessToken = async (): Promise<string | null> => {
-  const refreshToken = storage.getRefreshToken();
-  if (!refreshToken) return null;
-  // Refresh tokens are single-use (the server rotates them and treats a second use as theft),
-  // so two tabs must never send the same one: refresh under a cross-tab lock, and skip the
-  // call if another tab already rotated the token while this one waited.
-  const exchange = async (): Promise<string | null> => {
-    if (storage.getRefreshToken() !== refreshToken) return storage.getAccessToken();
-    try {
-      const { data } = await axios.post<TokenPair>(`${apiClient.defaults.baseURL}/auth/refresh`, {
-        refresh_token: refreshToken,
-      });
-      storage.setTokens(data);
-      return data.access_token;
-    } catch {
-      return null;
-    }
-  };
-  return locks ? locks.request('investiq-token-refresh', exchange) : exchange();
-};
+const refreshAccessToken = createRefreshCoordinator({
+  getRefreshToken: () => storage.getRefreshToken(),
+  getAccessToken: () => storage.getAccessToken(),
+  exchange: async (refreshToken) => {
+    const { data } = await axios.post<TokenPair>(`${apiClient.defaults.baseURL}/auth/refresh`, {
+      refresh_token: refreshToken,
+    });
+    storage.setTokens(data);
+    return data.access_token;
+  },
+  locks,
+});
 
 apiClient.interceptors.response.use(undefined, async (error: AxiosError) => {
   const original = error.config as
@@ -100,10 +87,7 @@ apiClient.interceptors.response.use(undefined, async (error: AxiosError) => {
     throw error;
   }
   original._retried = true;
-  refreshing ??= refreshAccessToken().finally(() => {
-    refreshing = null;
-  });
-  const newToken = await refreshing;
+  const newToken = await refreshAccessToken();
   if (!newToken) {
     storage.clear();
     onSessionExpired?.();

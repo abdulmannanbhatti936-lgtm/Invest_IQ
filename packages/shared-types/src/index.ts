@@ -21,21 +21,17 @@ export interface TokenPair {
   token_type: string;
 }
 
-// ---- Risk questionnaire (PRD.md FR2). Mirrors services/api/services/risk_scoring.py;
+// ---- Risk questionnaire (PRD.md FR2). The question set comes from the API
+// (GET /users/risk-questionnaire, defined in services/api/services/risk_scoring.py);
 // display text for each id/option lives in packages/i18n under onboarding.questions.
 
-export const RISK_QUESTIONS = [
-  { id: 'age_band', options: ['under_30', '30_to_50', 'over_50'] },
-  { id: 'income_stability', options: ['very_stable', 'somewhat_stable', 'unstable'] },
-  { id: 'investment_horizon', options: ['long', 'medium', 'short'] },
-  { id: 'loss_tolerance', options: ['buy_more', 'hold', 'sell'] },
-  { id: 'market_experience', options: ['experienced', 'some', 'none'] },
-  { id: 'investment_goal', options: ['growth', 'income', 'preservation'] },
-  { id: 'emergency_savings', options: ['over_6_months', '3_to_6_months', 'under_3_months'] },
-] as const;
+export interface RiskQuestion {
+  id: string;
+  options: string[];
+}
 
-export type RiskQuestionId = (typeof RISK_QUESTIONS)[number]['id'];
-export type RiskAnswers = Partial<Record<RiskQuestionId, string>>;
+/** Question id -> chosen option value. */
+export type RiskAnswers = Record<string, string>;
 
 /** Safety caps that can lower the score-based category (services/api/services/risk_scoring.py). */
 export type RiskCap = 'short_horizon' | 'sells_on_loss' | 'low_emergency_savings';

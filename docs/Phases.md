@@ -69,11 +69,11 @@
 
 **Exit criteria:**
 
-- [ ] New user can register, log in, complete the risk questionnaire, and land on a (placeholder) dashboard
-- [ ] Risk profile persists across logout/login
-- [ ] Partial-onboarding resume works (FR6 edge case)
-- [ ] Auth endpoints have passing unit/integration tests
-- [ ] Disclaimer language (PRD.md Section 8.5) shown at onboarding
+- [x] New user can register, log in, complete the risk questionnaire, and land on a (placeholder) dashboard
+- [x] Risk profile persists across logout/login
+- [x] Partial-onboarding resume works (FR6 edge case)
+- [x] Auth endpoints have passing unit/integration tests
+- [x] Disclaimer language (PRD.md Section 8.5) shown at onboarding
 
 ---
 

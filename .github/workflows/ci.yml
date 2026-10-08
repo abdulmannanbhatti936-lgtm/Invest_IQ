@@ -103,6 +103,9 @@ jobs:
         working-directory: ./apps/web
         run: npm test
 
+      - name: Unit tests (api-client token refresh, Node built-in test runner)
+        run: npm test -w @investiq/api-client
+
       - name: Type-check mobile
         working-directory: ./apps/mobile
         run: npx tsc --noEmit

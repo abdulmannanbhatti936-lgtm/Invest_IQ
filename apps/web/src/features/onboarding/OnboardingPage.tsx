@@ -4,12 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Check, LogOut } from 'lucide-react';
 import { riskProfileApi } from '@investiq/api-client';
 import { useTranslation } from '@investiq/i18n';
-import {
-  RISK_QUESTIONS,
-  type OnboardingProgress,
-  type RiskAnswers,
-  type RiskProfile,
-} from '@investiq/shared-types';
+import type { OnboardingProgress, RiskAnswers, RiskProfile } from '@investiq/shared-types';
 import { useAuth } from '../auth/AuthContext';
 import { onboardingRedirect, RETAKE_PARAM } from '../auth/guardRules';
 import { Button } from '../../components/ui/Button';
@@ -17,8 +12,6 @@ import { DisclaimerBanner, ErrorState, Notice, Skeleton } from '../../components
 import { LanguageToggle } from '../../components/LanguageToggle';
 import { RiskBadge } from './RiskBadge';
 import { createLatestOnlySender } from '../../lib/latestOnlySender';
-
-const TOTAL = RISK_QUESTIONS.length;
 
 export const OnboardingPage = () => {
   const { t } = useTranslation();
@@ -40,6 +33,17 @@ export const OnboardingPage = () => {
     showingResult: result !== null,
   });
 
+  // The question set is defined once, on the server; labels come from i18n by id
+  const questionnaire = useQuery({
+    queryKey: ['risk-questionnaire'],
+    queryFn: riskProfileApi.getQuestionnaire,
+    staleTime: Infinity,
+    retry: 1,
+    enabled: !redirect,
+  });
+  const questions = questionnaire.data ?? [];
+  const total = questions.length;
+
   // FR6: pick up where the user left off
   const progress = useQuery({
     queryKey: ['onboarding-progress'],
@@ -51,15 +55,15 @@ export const OnboardingPage = () => {
 
   useEffect(() => {
     // Never start over while the saved draft couldn't be read: the next answer would overwrite it
-    if (restored || progress.isPending || progress.isError) return;
+    if (restored || progress.isPending || progress.isError || !questionnaire.data) return;
     const saved = progress.data;
     if (saved && Object.keys(saved.answers).length > 0) {
       setAnswers(saved.answers);
-      setStep(Math.min(saved.current_step, TOTAL - 1));
+      setStep(Math.min(saved.current_step, questionnaire.data.length - 1));
       setResumed(true);
     }
     setRestored(true);
-  }, [progress.isPending, progress.data, restored]);
+  }, [progress.isPending, progress.isError, progress.data, questionnaire.data, restored]);
 
   // Draft saves go out one at a time, latest answers last, so the server never keeps an
   // older step than the user reached (FR6 resume)
@@ -87,12 +91,12 @@ export const OnboardingPage = () => {
     },
   });
 
-  const question = RISK_QUESTIONS[step];
+  const question = questions[step];
 
   const choose = (value: string) => {
     const next = { ...answers, [question.id]: value };
     setAnswers(next);
-    if (step < TOTAL - 1) {
+    if (step < total - 1) {
       setStep(step + 1);
       draftSender.send({ answers: next, current_step: step + 1 });
     } else {
@@ -135,10 +139,16 @@ export const OnboardingPage = () => {
     );
   }
 
-  if (progress.isError) {
+  if (progress.isError || questionnaire.isError || (restored && !question)) {
     return (
       <Shell>
-        <ErrorState message={t('onboarding.loadError')} onRetry={() => void progress.refetch()} />
+        <ErrorState
+          message={t('onboarding.loadError')}
+          onRetry={() => {
+            if (progress.isError) void progress.refetch();
+            if (questionnaire.isError) void questionnaire.refetch();
+          }}
+        />
       </Shell>
     );
   }
@@ -155,7 +165,7 @@ export const OnboardingPage = () => {
     );
   }
 
-  const progressPct = ((step + 1) / TOTAL) * 100;
+  const progressPct = ((step + 1) / total) * 100;
   const prefix = `onboarding.questions.${question.id}`;
 
   return (
@@ -165,7 +175,7 @@ export const OnboardingPage = () => {
           className="h-2 w-full overflow-hidden rounded-full bg-gray-200"
           role="progressbar"
           aria-valuemin={1}
-          aria-valuemax={TOTAL}
+          aria-valuemax={total}
           aria-valuenow={step + 1}
         >
           <div
@@ -174,7 +184,7 @@ export const OnboardingPage = () => {
           />
         </div>
         <p className="mt-2 text-end text-xs font-medium tracking-wider text-gray-500 uppercase">
-          {t('onboarding.stepOf', { current: step + 1, total: TOTAL })}
+          {t('onboarding.stepOf', { current: step + 1, total })}
         </p>
       </div>
 

@@ -19,9 +19,6 @@ class RiskProfileUpdate(BaseModel):
         return v
 
 
-RiskProfileCreate = RiskProfileUpdate
-
-
 class RiskProfile(BaseModel):
     id: UUID
     user_id: UUID

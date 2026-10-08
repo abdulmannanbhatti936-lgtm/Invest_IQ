@@ -560,3 +560,20 @@ def test_deleting_a_user_deletes_their_refresh_tokens(client, db):
     db.query(User).filter(User.email == email).delete()
     db.commit()
     assert db.get(RefreshToken, jti) is None  # ON DELETE CASCADE
+
+
+def test_full_name_is_trimmed_and_must_not_be_blank(client):
+    def register(name):
+        email = f"name_{uuid.uuid4().hex[:8]}@example.com"
+        return client.post(
+            "/auth/register", json={"email": email, "full_name": name, "password": "password123"}
+        )
+
+    for blank in ("", "   ", "\t\n "):
+        response = register(blank)
+        assert response.status_code == 422, repr(blank)
+        assert response.json()["detail"][0]["loc"] == ["body", "full_name"]
+
+    response = register("  Ahmed Khan \n")
+    assert response.status_code == 201
+    assert response.json()["full_name"] == "Ahmed Khan"
