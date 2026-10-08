@@ -24,11 +24,6 @@
     "notifications": "Notifications",
     "admin": "Admin"
   },
-  "nav_dashboard": "Dashboard",
-  "nav_stocks": "Stocks",
-  "nav_portfolio": "Portfolio",
-  "nav_backtest": "Backtest",
-  "nav_chat": "Chat",
   "disclaimer": "Advisory only. Not a licensed financial advisor. Predictions are probabilistic. Execute trades only through a licensed PSX broker.",
   "auth": {
     "login": {

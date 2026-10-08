@@ -4,7 +4,9 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check": "node scripts/check-parity.mjs",
+    "test": "node --test \"scripts/*.test.mjs\""
   },
   "devDependencies": {
     "typescript": "~6.0.2"

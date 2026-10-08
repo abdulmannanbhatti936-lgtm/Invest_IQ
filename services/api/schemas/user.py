@@ -1,9 +1,9 @@
-from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from models.user import UserRole
+from schemas.types import UTCDateTime
 
 
 class UserBase(BaseModel):
@@ -33,7 +33,7 @@ class UserCreate(UserBase):
 class User(UserBase):
     id: UUID
     role: UserRole
-    created_at: datetime
+    created_at: UTCDateTime
     has_risk_profile: bool = False
 
     model_config = ConfigDict(from_attributes=True)

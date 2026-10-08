@@ -90,6 +90,11 @@ jobs:
       - name: Lint (ESLint + Prettier, all workspaces)
         run: npm run lint
 
+      - name: i18n parity (en.json vs ur.json keys, empty values, placeholders)
+        run: |
+          npm test -w @investiq/i18n
+          npm run check -w @investiq/i18n
+
       - name: Type-check web
         working-directory: ./apps/web
         run: npx tsc -b

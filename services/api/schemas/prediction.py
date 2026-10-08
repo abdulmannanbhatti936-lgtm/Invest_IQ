@@ -1,6 +1,6 @@
-import datetime
-
 from pydantic import BaseModel
+
+from schemas.types import UTCDateTime
 
 
 class ModelEvaluation(BaseModel):
@@ -16,7 +16,7 @@ class ModelEvaluation(BaseModel):
 class PredictionResponse(BaseModel):
     ticker: str
     model_version: str
-    generated_at: datetime.datetime
+    generated_at: UTCDateTime
     last_close: float
     forecast_price: float
     expected_change_pct: float

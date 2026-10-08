@@ -1,6 +1,6 @@
-import datetime
-
 from pydantic import BaseModel, ConfigDict
+
+from schemas.types import UTCDateTime
 
 
 class StockSummary(BaseModel):
@@ -28,7 +28,7 @@ class StockQuote(BaseModel):
     change: float | None = None
     change_percent: float | None = None
     volume: int
-    timestamp: datetime.datetime
+    timestamp: UTCDateTime
     # Key statistics (PRD.md FR8)
     fifty_two_week_high: float | None = None
     fifty_two_week_low: float | None = None
@@ -37,7 +37,7 @@ class StockQuote(BaseModel):
 
 
 class PricePointResponse(BaseModel):
-    timestamp: datetime.datetime
+    timestamp: UTCDateTime
     open: float | None = None
     high: float | None = None
     low: float | None = None

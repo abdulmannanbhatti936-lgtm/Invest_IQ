@@ -1,9 +1,9 @@
-from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from models.risk_profile import RiskCategory
+from schemas.types import UTCDateTime
 from services.risk_scoring import QUESTION_IDS, assess_risk, validate_answers
 
 
@@ -27,7 +27,7 @@ class RiskProfile(BaseModel):
     user_id: UUID
     category: RiskCategory
     answers: dict
-    updated_at: datetime
+    updated_at: UTCDateTime
 
     model_config = ConfigDict(from_attributes=True)
 

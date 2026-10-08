@@ -23,8 +23,12 @@ export const formatCompact = (value: number | null | undefined): string =>
         value,
       );
 
+/** PSX time: dates always show in Pakistan time, whatever the viewer's device timezone is. */
+export const DISPLAY_TIME_ZONE = 'Asia/Karachi';
+
 export const formatDate = (iso: string, language: string): string =>
   new Date(iso).toLocaleDateString(language.startsWith('ur') ? 'ur-PK' : 'en-PK', {
+    timeZone: DISPLAY_TIME_ZONE,
     year: 'numeric',
     month: 'short',
     day: 'numeric',
