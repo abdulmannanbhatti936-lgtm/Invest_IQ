@@ -45,7 +45,8 @@
       "submit": "Sign up",
       "haveAccount": "Already have an account?",
       "logIn": "Log in",
-      "failed": "We couldn't create your account. Please try again."
+      "failed": "We couldn't create your account. Please try again.",
+      "emailTaken": "An account with this email already exists. Try logging in instead."
     },
     "fields": {
       "fullName": "Full name",
@@ -58,7 +59,9 @@
       "emailInvalid": "Enter a valid email address",
       "passwordRequired": "Password is required",
       "passwordMin": "Password must be at least 8 characters",
-      "passwordsMismatch": "Passwords don't match"
+      "passwordsMismatch": "Passwords don't match",
+      "passwordTooLong": "Password is too long. Use at most 72 English characters (fewer if it contains Urdu letters).",
+      "checkFields": "Some details weren't accepted. Please check the form and try again."
     },
     "sessionExpired": "Your session expired. Please log in again.",
     "tooManyAttempts": "Too many attempts. Please wait a minute and try again."

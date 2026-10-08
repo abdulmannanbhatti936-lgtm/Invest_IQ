@@ -3,18 +3,27 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
-import { getErrorMessage, getErrorStatus } from '@investiq/api-client';
+import { getErrorStatus, getValidationErrors } from '@investiq/api-client';
 import { useTranslation } from '@investiq/i18n';
 import { useAuth } from './AuthContext';
 import { AuthShell } from './AuthShell';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 
+// bcrypt (server side) only uses the first 72 bytes of a password; Urdu letters take 2 bytes each
+const MAX_PASSWORD_BYTES = 72;
+const utf8Bytes = (value: string) => new TextEncoder().encode(value).length;
+
 const registerSchema = z
   .object({
     fullName: z.string().trim().min(2, { message: 'auth.validation.nameMin' }),
     email: z.string().email({ message: 'auth.validation.emailInvalid' }),
-    password: z.string().min(8, { message: 'auth.validation.passwordMin' }),
+    password: z
+      .string()
+      .min(8, { message: 'auth.validation.passwordMin' })
+      .refine((value) => utf8Bytes(value) <= MAX_PASSWORD_BYTES, {
+        message: 'auth.validation.passwordTooLong',
+      }),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -33,8 +42,12 @@ export const RegisterPage = () => {
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
-  } = useForm<RegisterFormValues>({ resolver: zodResolver(registerSchema) });
+  } = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
+    mode: 'onTouched', // inline errors on blur, then live while correcting (Design.md §12.3)
+  });
 
   const onSubmit = async (data: RegisterFormValues) => {
     try {
@@ -43,10 +56,29 @@ export const RegisterPage = () => {
       navigate('/onboarding', { replace: true });
     } catch (error) {
       const status = getErrorStatus(error);
+      if (status === 422) {
+        // Server-side validation (e.g. the 72-byte password limit): show it on the field
+        let placed = false;
+        for (const { field } of getValidationErrors(error)) {
+          if (field === 'password') {
+            setError('password', { message: 'auth.validation.passwordTooLong' });
+            placed = true;
+          } else if (field === 'email') {
+            setError('email', { message: 'auth.validation.emailInvalid' });
+            placed = true;
+          }
+        }
+        if (!placed) setServerError(t('auth.validation.checkFields'));
+        return;
+      }
       setServerError(
-        status === 400
-          ? getErrorMessage(error, t('auth.register.failed'))
-          : t(status === 429 ? 'auth.tooManyAttempts' : 'auth.register.failed'),
+        t(
+          status === 400
+            ? 'auth.register.emailTaken'
+            : status === 429
+              ? 'auth.tooManyAttempts'
+              : 'auth.register.failed',
+        ),
       );
     }
   };
@@ -54,13 +86,18 @@ export const RegisterPage = () => {
   const fieldError = (message?: string) => (message ? t(message) : undefined);
 
   return (
-    <AuthShell title={t('auth.register.title')} subtitle={t('auth.register.subtitle')}>
+    <AuthShell
+      title={t('auth.register.title')}
+      subtitle={t('auth.register.subtitle')}
+      showDisclaimer
+    >
       <form className="space-y-6" onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className="space-y-4">
           <Input
             label={t('auth.fields.fullName')}
             type="text"
             autoComplete="name"
+            required
             {...register('fullName')}
             error={fieldError(errors.fullName?.message)}
           />
@@ -69,6 +106,7 @@ export const RegisterPage = () => {
             type="email"
             autoComplete="email"
             dir="ltr"
+            required
             {...register('email')}
             error={fieldError(errors.email?.message)}
           />
@@ -77,6 +115,7 @@ export const RegisterPage = () => {
             type="password"
             autoComplete="new-password"
             dir="ltr"
+            required
             {...register('password')}
             error={fieldError(errors.password?.message)}
           />
@@ -85,6 +124,7 @@ export const RegisterPage = () => {
             type="password"
             autoComplete="new-password"
             dir="ltr"
+            required
             {...register('confirmPassword')}
             error={fieldError(errors.confirmPassword?.message)}
           />

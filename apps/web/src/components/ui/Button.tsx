@@ -29,7 +29,7 @@ export const Button: React.FC<ButtonProps> = ({
       disabled={isLoading || disabled}
       {...props}
     >
-      {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      {isLoading && <Loader2 className="me-2 h-4 w-4 animate-spin" aria-hidden="true" />}
       {children}
     </button>
   );

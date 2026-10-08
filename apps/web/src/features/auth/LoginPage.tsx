@@ -29,7 +29,10 @@ export const LoginPage = () => {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<LoginFormValues>({ resolver: zodResolver(loginSchema) });
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    mode: 'onTouched', // inline errors on blur, then live while correcting (Design.md §12.3)
+  });
 
   const onSubmit = async (data: LoginFormValues) => {
     try {
@@ -45,7 +48,9 @@ export const LoginPage = () => {
             ? 'auth.login.failed'
             : status === 429
               ? 'auth.tooManyAttempts'
-              : 'common.errorGeneric',
+              : status === 422
+                ? 'auth.validation.checkFields'
+                : 'common.errorGeneric',
         ),
       );
     }
@@ -65,6 +70,7 @@ export const LoginPage = () => {
             type="email"
             autoComplete="email"
             dir="ltr"
+            required
             {...register('email')}
             error={errors.email?.message && t(errors.email.message)}
           />
@@ -73,6 +79,7 @@ export const LoginPage = () => {
             type="password"
             autoComplete="current-password"
             dir="ltr"
+            required
             {...register('password')}
             error={errors.password?.message && t(errors.password.message)}
           />

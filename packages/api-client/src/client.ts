@@ -119,5 +119,16 @@ export const getErrorCode = (error: unknown): string | null => {
   return null;
 };
 
+/** Field-level problems from a FastAPI 422 response: the field name and the server's message. */
+export const getValidationErrors = (error: unknown): { field: string; message: string }[] => {
+  if (!axios.isAxiosError(error) || error.response?.status !== 422) return [];
+  const detail = error.response.data?.detail;
+  if (!Array.isArray(detail)) return [];
+  return detail.map((item: { loc?: unknown[]; msg?: unknown }) => ({
+    field: String(item.loc?.[item.loc.length - 1] ?? ''),
+    message: String(item.msg ?? ''),
+  }));
+};
+
 export const getErrorStatus = (error: unknown): number | null =>
   axios.isAxiosError(error) ? (error.response?.status ?? null) : null;
