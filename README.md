@@ -173,7 +173,12 @@ From the repo root:
 ```bash
 npm run lint                       # ESLint + Prettier rules across apps/* and packages/*
 npm run format                     # rewrites files with Prettier
+npm test -w @investiq/web          # web unit tests (Node's built-in test runner, no extra install)
+npm run check -w @investiq/i18n    # en.json / ur.json parity: missing keys, empty values, {{placeholders}}
+npx tsc -b apps/web                # web type-check
 ```
+
+The Urdu font (Noto Naskh Arabic) is self-hosted in `apps/web/public/fonts/`, so nothing extra needs installing and the app works offline.
 
 From `services/api`, with the venv active:
 

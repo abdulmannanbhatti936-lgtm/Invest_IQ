@@ -86,7 +86,7 @@ InvestIQ is a bilingual (English/Urdu) AI-powered investment advisory platform b
 | News Scraping | BeautifulSoup4 + requests | latest | Financial news RSS parsing |
 | AI Sentiment | HuggingFace Transformers + FinBERT | latest | NLP-based news sentiment scoring |
 | ML Prediction | scikit-learn | latest | Random Forest BUY/SELL/HOLD signal |
-| Technical Indicators | pandas-ta | latest | RSI, MACD, Bollinger Bands, SMA |
+| Technical Indicators | pandas (own implementation) | — | RSI, MACD, Bollinger Bands, SMA (pandas-ta was removed) |
 | Deep Learning | PyTorch + LSTM | latest | Advanced time-series price prediction |
 | Frontend | React 19 + TypeScript | latest | Web UI |
 | Build Tool | Vite 8 | latest | Ultra-fast frontend dev server |
@@ -101,211 +101,80 @@ InvestIQ is a bilingual (English/Urdu) AI-powered investment advisory platform b
 
 ---
 
-## Phase 0: Foundation Setup (✅ Completed)
+## Phase 0: Foundation Setup (✅ Complete — re-verified 2026-10-09)
 
-### Step 0.1 — GitHub Repo & Directory Structure
+Every Workflow.md Phase 0 checkpoint was re-run on 2026-10-09 against the real code (not assumed). Gaps found during that audit were fixed and are listed per step.
 
-**What was done:** Initialized a strict monorepo directory structure.
+### Step 0.1 — Repository & monorepo skeleton
 
-**Structure created:**
-```
-Invest_IQ/
-├── apps/
-│   ├── web/          ← React web app
-│   └── mobile/       ← Expo React Native app
-├── packages/
-│   ├── api-client/   ← Shared HTTP client (axios wrappers)
-│   ├── design-tokens/← Shared colors, spacing, typography
-│   ├── shared-types/ ← Shared TypeScript interfaces
-│   └── i18n/         ← English/Urdu translations
-├── services/
-│   └── api/          ← FastAPI Python backend
-├── infra/
-│   └── docker-compose.yml ← Postgres + Redis containers
-├── docs/             ← All project documentation
-└── .github/
-    └── workflows/ci.yml ← GitHub Actions CI pipeline
-```
+- Folders match Architecture.md §5: `apps/web`, `apps/mobile`, `services/api`, `services/ml-engine`, `services/sentiment-engine`, `services/chatbot-service`, `packages/{shared-types,api-client,i18n,design-tokens}`, `infra/` (incl. `infra/deploy/`), `docs/`.
+- Per Architecture.md §6.5 the ML, sentiment and chatbot code runs as internal modules of `services/api` (ML lives in `services/api/ml/`); the three `services/*-engine|service` folders hold pointer READMEs only.
+- `.gitignore` covers `node_modules`, `__pycache__`, `.env`, `venv`, build output, tool caches, and all model artifacts (`*.h5`, `*.pt`, `*.pkl`, `*.joblib`, `services/api/ml/artifacts/`).
 
-**Purpose:** Keeps all related code in one repository while enforcing strict separation of concerns — backend never imports from frontend and vice versa.
+### Step 0.2 — Local infrastructure (Docker)
 
----
+- `infra/docker-compose.yml`: Postgres 15 (host port **5435**) and Redis 7 (6379), named volumes, **healthchecks** (`pg_isready`, `redis-cli ping`). `docker compose up -d --wait` reports both containers `healthy`.
+- `.env.example` (root and `services/api/`) lists every variable from Architecture.md §17 with placeholder values; the database URL uses port 5435.
 
-### Step 0.2 — Infrastructure Setup (Docker Compose)
+### Step 0.3 — Backend skeleton (FastAPI)
 
-**What was done:** Containerized local database and cache infrastructure.
+- `services/api`: `main.py`, `routers/`, `services/`, `crud/`, `models/`, `schemas/`, `core/` (config, database, security, deps, rate limiting, Redis, Celery), `integrations/`, `worker/`, `ml/`, `tests/`.
+- `GET /health` → `{"status": "ok"}` (200). Alembic migrations apply to the Postgres container; a full upgrade → downgrade → upgrade round trip on an empty database is clean.
+- `requirements.txt` pins every top-level package to the tested version (an unpinned SQLAlchemy 2.1 once broke CI by switching the default Postgres driver).
 
-**File:** `infra/docker-compose.yml`
+### Step 0.4 — Web skeleton (React + Vite + TypeScript)
 
-**Services configured:**
-- **PostgreSQL 15** — mapped to `localhost:5435` (offset from default 5432 to avoid conflicts with any native PostgreSQL installations on Windows)
-- **Redis 7** — mapped to `localhost:6379` (standard port)
+- Tailwind CSS 4, React Router 7, React Query. Routes per Design.md §14.1: `/`, `/login`, `/register`, `/onboarding`, `/dashboard`, `/stocks`, `/stocks/:ticker`, `/portfolio`, `/backtest`, `/chat`, `/notifications`, `/admin` (later-phase routes show a "coming in Phase N" screen).
+- Verified in a headless browser: every route renders with no console errors. `react-is` was added because Recharts requires it (the production build was failing without it).
 
-**How to start:** `docker-compose up -d` (from `infra/` directory)
+### Step 0.5 — Mobile skeleton (Expo)
 
-**Purpose:** Every developer gets identical database environments without manual installation. Docker containers are destroyed and recreated cleanly without affecting the host machine.
+- Expo SDK 57 + React Native, React Navigation bottom tabs (Home, Stocks, Portfolio, Chat, Notifications — Design.md §14.2), React Query.
+- Verified: `tsc --noEmit` passes, an Android bundle builds (918 modules, a single React copy), and Metro starts. Running on a physical device / emulator is a manual check.
 
----
+### Step 0.6 — Shared packages (npm workspaces)
 
-### Step 0.3 — Backend Skeleton (FastAPI)
+- `@investiq/shared-types` (domain types), `@investiq/api-client` (axios client, token refresh, error helpers), `@investiq/i18n` (i18next + `en.json`/`ur.json`), `@investiq/design-tokens` (colors, typography, spacing, shadows, motion — placeholder values per Design.md §2).
+- Packages are consumed as TypeScript source. Verified in the browser: the web app imports all four and `healthCheck()` reaches the backend `/health`.
 
-**What was done:** Established the Python backend environment and folder structure.
+### Step 0.7 — Linting, formatting, CI
 
-**File structure inside `services/api/`:**
-```
-services/api/
-├── main.py           ← FastAPI app entry point, router registration
-├── core/
-│   ├── database.py   ← SQLAlchemy engine + session factory
-│   ├── config.py     ← Pydantic Settings (reads .env)
-│   ├── redis.py      ← Redis connection pool
-│   └── celery_app.py ← Celery + beat schedule
-├── models/           ← SQLAlchemy ORM table definitions
-├── schemas/          ← Pydantic request/response models
-├── routers/          ← FastAPI route handlers
-├── services/         ← Business logic layer
-├── integrations/     ← External API clients
-├── ml/               ← Machine learning modules
-├── worker/           ← Celery background tasks
-├── alembic/          ← Database migration scripts
-├── tests/            ← pytest test suite
-├── .env              ← Environment variables (not committed)
-└── requirements.txt  ← Python dependencies
-```
+- One shared ESLint + Prettier config for `apps/*` and `packages/*`; `ruff` + `black` for Python.
+- `.github/workflows/ci.yml` (every push and every PR to `main`):
+  - **backend:** ruff, black `--check`, Alembic migrations on a fresh Postgres, pytest.
+  - **frontend:** `npm ci`, ESLint, i18n parity check (+ its tests), `tsc -b` (web), web unit tests (Node's built-in test runner), `tsc --noEmit` (mobile), type-check of all four packages.
+- Deliberately broken code makes `npm run lint` and `ruff check` fail (tooling is active, not a no-op).
 
-**Key setup:**
-- Virtual environment: `python -m venv venv`
-- Dependencies: `pip install -r requirements.txt`
-- Database connection: SQLAlchemy reads `DATABASE_URL` from `.env`
-- Dependency Injection: `get_db()` generator yields a scoped DB session per request and always closes it afterward
+### Step 0.8 — Documentation sync
+
+- Root `README.md` has working setup instructions (Docker → backend `.env` → migrations → API → Celery → ML training → web → mobile → quality checks).
 
 ---
 
-### Step 0.4 — Web Skeleton (React/Vite)
+## Phase 1: Auth, Onboarding & Risk Profiling (✅ Complete — re-verified 2026-10-09)
 
-**What was done:** Initialized the browser-based frontend.
+Implements PRD.md FR1–FR6 on the web. Each step was audited one at a time against Workflow.md and the related PRD/Architecture/Design/Rules sections; failures were fixed and covered by tests.
 
-**Tech:** Vite + React + TypeScript template
+### Step 1.1 — Database models
 
-**Key config fix applied:** The `vite.config.ts` was updated to alias all `@investiq/*` workspace packages directly to their TypeScript source files (bypassing the stale CommonJS dist builds), and added React `dedupe` to handle npm workspace hoisting in Vite 8:
+- `users`: `id` UUID, `email` (unique), `password_hash`, `full_name`, `role` (`user`/`admin`, added early because the admin route guard needs it), `onboarding_progress` JSONB (FR6 draft), `created_at`.
+- `risk_profiles`: `id` UUID, `user_id` (unique FK → users), `category` enum (`conservative`/`moderate`/`aggressive`), `answers` JSONB, `updated_at`.
+- Fixed: the original migration's downgrade left the `riskcategory` enum type behind, so a re-upgrade failed.
 
-```typescript
-resolve: {
-  alias: {
-    '@investiq/api-client': path.resolve(__dirname, '../../packages/api-client/src/index.ts'),
-    '@investiq/design-tokens': path.resolve(__dirname, '../../packages/design-tokens/src/index.ts'),
-    '@investiq/shared-types': path.resolve(__dirname, '../../packages/shared-types/src/index.ts'),
-    '@investiq/i18n': path.resolve(__dirname, '../../packages/i18n/src/index.ts'),
-  },
-  dedupe: ['react', 'react-dom'],
-},
-```
+### Step 1.2 — Auth backend
 
----
+- `POST /auth/register`, `POST /auth/login` (OAuth2 password form), `POST /auth/refresh`.
+- Passwords hashed with bcrypt (passlib 1.7.4 + `bcrypt==3.2.2`; bcrypt 5 breaks passlib). Passwords limited to **72 bytes** (bcrypt ignores the rest).
+- JWT: access token **30 min**, refresh token **7 days**, signed with **separate secrets** (`JWT_SECRET` / `JWT_REFRESH_SECRET`; the app refuses to start if they are equal) and a `type` claim, so neither token works in place of the other.
+- Rate limiting on `/auth/*`: 10 attempts / 60 s per client IP and path (Redis). If Redis is down it fails open and logs a WARNING (accepted for the FYP; see Memory.md §11).
+- Login with an unknown email returns the same error **and costs the same bcrypt check** as a wrong password (dummy-hash comparison), so neither message nor timing reveals registered emails (before: 19 ms vs 367 ms; after: 371 ms vs 385 ms).
+- No password or token is ever written to logs (tested).
 
-### Step 0.5 — Mobile Skeleton (Expo)
+### Step 1.3 — Risk profile backend
 
-**What was done:** Initialized the cross-platform mobile app using Expo + React Native with a blank TypeScript template.
+**File:** `services/api/services/risk_scoring.py` — pure functions, no DB/HTTP inside (tested).
 
-**Purpose:** Allows writing TypeScript once and compiling to native Android/iOS.
-
----
-
-### Step 0.6 — Shared Packages (NPM Workspaces)
-
-**Root `package.json` workspaces:**
-```json
-{ "workspaces": ["apps/*", "packages/*"] }
-```
-
-**Packages created:**
-
-| Package | Purpose |
-|---------|---------|
-| `@investiq/api-client` | Axios-based HTTP client for all API calls |
-| `@investiq/design-tokens` | Standardized colors, spacing, typography constants |
-| `@investiq/shared-types` | TypeScript interfaces shared between web & mobile |
-| `@investiq/i18n` | i18next configuration + English/Urdu translation files |
-
----
-
-### Step 0.7 — Tooling & CI/CD
-
-**Python linting:** `ruff` (fast linter) + `black` (formatter) configured in `pyproject.toml`
-
-**JS/TS linting:** `ESLint` + `Prettier` at root level
-
-**CI Pipeline** (`.github/workflows/ci.yml`):
-- Triggers on every push to `main`
-- **Backend job:** Spins up Postgres 15 + Redis 7 service containers, installs Python dependencies, runs `alembic upgrade head`, then runs `pytest tests/ -v`
-- **Frontend job:** Installs npm deps, runs ESLint, runs TypeScript type-check
-
----
-
-### Step 0.8 — Documentation
-
-**Files maintained:**
-- `README.md` — setup and run instructions
-- `docs/Workflow.md` — step-by-step implementation plan
-- `docs/Memory.md` — living project state for AI agents
-- `docs/DetailedReport.md` — this file
-
----
-
-## Phase 1: Auth, Onboarding & Risk Profiling (✅ Completed)
-
-### Step 1.1 — Database Models
-
-**File:** `services/api/models/` — `user.py`, `risk_profile.py`
-
-**User model fields:**
-- `id` — UUID primary key (cryptographically random, never guessable)
-- `email` — unique string, indexed
-- `hashed_password` — bcrypt hash (never the plain password)
-- `created_at` — timestamp
-
-**RiskProfile model fields:**
-- `id` — UUID primary key
-- `user_id` — Foreign Key → users.id (one-to-one)
-- `category` — Enum: `Conservative | Moderate | Aggressive`
-- `answers` — JSONB (stores raw questionnaire answers for audit)
-- `score` — Integer (raw calculated score)
-
-**Migration:** `alembic revision --autogenerate` → `alembic upgrade head`
-
----
-
-### Step 1.2 — Auth API Endpoints
-
-**File:** `services/api/routers/auth.py`
-
-**Endpoints:**
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/auth/register` | Create new user, hash password, return JWT |
-| POST | `/auth/login` | Verify credentials, return access + refresh tokens |
-| POST | `/auth/refresh` | Exchange refresh token for new access token |
-
-**Libraries:**
-- `passlib[bcrypt]` — hashes passwords with bcrypt (deliberately slow, rainbow-table resistant)
-- `python-jose[cryptography]` — creates and verifies HS256 JWT tokens
-- `email-validator` — validates email format in Pydantic schema
-- `bcrypt<4.0.0` — pinned because passlib is unmaintained and breaks with bcrypt>=4
-
-**Token flow:**
-1. User registers → password hashed → stored in DB → 24hr access token returned
-2. User logs in → password verified against hash → new token pair returned
-3. Protected routes: extract Bearer token from Authorization header → decode JWT → inject user into route handler via `Depends(get_current_user)`
-
----
-
-### Step 1.3 — Risk Profile Backend
-
-**File:** `services/api/services/risk_scoring.py`
-
-**Scoring algorithm** (team-approved 2026-10-09; pure function `assess_risk()`):
-- 7 questions, each option scores 3 / 2 / 1 (higher = more risk capacity) → total 7–21
+**Scoring (team-approved 2026-10-09):** 7 questions, each option 3 / 2 / 1 points → total 7–21.
 
 | Question (id) | 3 points | 2 points | 1 point |
 |---|---|---|---|
@@ -317,95 +186,85 @@ resolve: {
 | Goal (`investment_goal`) | Growth | Steady income | Preserve value |
 | Emergency savings (`emergency_savings`) | More than 6 months | 3–6 months | Less than 3 months |
 
-- Score → category: **7–11 Conservative, 12–16 Moderate, 17–21 Aggressive**
-- Safety caps, applied after scoring (a cap can only lower the category, never raise it):
-  - Needs the money within 1 year → capped at **Conservative**
-  - Would sell after a drop, OR emergency savings under 3 months → capped at **Moderate**
-- The API returns `score` and `caps_applied`; the onboarding result screen explains each applied cap in plain language (EN/UR)
+- Score → category: **7–11 Conservative, 12–16 Moderate, 17–21 Aggressive**.
+- Safety caps after scoring (a cap can only lower the category): money needed within 1 year → at most **Conservative**; would sell after a drop, or emergency savings under 3 months → at most **Moderate**.
 
-**Endpoints:**
+**Endpoints** (all scoped to the logged-in user — no user-id routes):
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/users/me/risk-profile` | Submit questionnaire, calculate & save profile |
-| GET | `/users/me/risk-profile` | Retrieve stored risk profile |
-| PATCH | `/users/me/risk-profile` | Update profile if user retakes quiz |
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/users/me` | Current user incl. `role` and `has_risk_profile` |
+| GET | `/users/risk-questionnaire` | Public: question ids + option values only (scores stay server-side) |
+| GET | `/users/me/risk-profile` | Current profile incl. `score` and `caps_applied` |
+| PATCH | `/users/me/risk-profile` | Create or retake (FR5); always bumps `updated_at`; clears the draft |
+| GET / PUT | `/users/me/onboarding-progress` | Save / read partial answers + step (FR6) |
 
----
+- Validation returns **422** (never 500) for unknown question ids, unknown options, missing answers, non-text answers, **duplicate answers** (a JSON key sent twice) and an out-of-range draft step.
+- Every API datetime is timezone-aware UTC with a trailing `Z`; the web shows dates in Asia/Karachi time.
 
-### Step 1.4 — Auth Tests
+### Step 1.4 — Auth tests
 
-**File:** `services/api/tests/test_auth.py`
+`services/api/tests/test_auth.py` (15 tests) and `tests/test_admin_guard.py` (4). They prove:
 
-Tests written:
-- Register a new user → 201 response, token returned
-- Register duplicate email → 400 conflict error
-- Login with correct password → token returned
-- Login with wrong password → 401 error
-- Access protected route with valid token → 200
-- Access protected route without token → 401
-- Token refresh → new access token returned
+| Test | What it proves |
+|---|---|
+| `test_register_and_login` | Register (201, no password hash returned) → login → protected endpoint; duplicate email 400, wrong password / unknown email 401, no or garbage token 401, refresh issues new tokens |
+| `test_expired_access_token_rejected` / `test_expired_refresh_token_rejected` | Tokens with a past expiry → 401 |
+| `test_malformed_and_tampered_tokens_rejected` | Flipped signature, swapped user, `alg: none`, foreign secret, missing segment → 401 |
+| `test_tokens_for_deleted_user_rejected` | Unexpired tokens of a deleted user → 401 |
+| `test_refresh_token_signed_with_separate_secret`, `test_access_and_refresh_tokens_are_not_interchangeable` | Separate secrets; a token only works in its own role |
+| `test_login_does_not_reveal_whether_email_exists`, `test_unknown_email_still_runs_one_password_check` | No user enumeration via message or timing |
+| `test_passwords_and_tokens_never_logged` | Nothing secret appears in any log line |
+| `test_register_validates_input`, `test_password_limited_to_72_bytes` | Server-side input validation |
+| `test_auth_rate_limit`, `test_register_rate_limited`, `test_rate_limit_fails_open_without_redis` | Brute-force protection; visible WARNING when skipped |
+| `test_admin_guard.py` | `require_admin`: admin 200, non-admin 403, no token 401 (test-only route) |
 
-Run: `pytest tests/test_auth.py -v`
+### Step 1.5 — Web: auth screens
 
----
+`apps/web/src/features/auth/` — `LoginPage`, `RegisterPage`, `AuthShell`.
 
-### Step 1.5 — Web: Auth Screens
+- Labels above inputs, required fields marked (`*` + `aria-required`), inline errors on blur and on submit, linked to the input for screen readers (Design.md §12.3, §13).
+- Submit button disabled with a spinner while submitting.
+- 400 (email taken), 401, 422 (incl. the 72-byte limit, shown on the password field) and 429 all have English and Urdu messages via `packages/i18n`.
+- The register page shows the PRD §8.5 disclaimer. Tokens are stored in `localStorage` (XSS trade-off accepted for the FYP; httpOnly-cookie refresh token is a Phase 11 item — Memory.md §11).
 
-**Files:** `apps/web/src/pages/Login.tsx`, `Register.tsx`
+### Step 1.6 — Web: onboarding questionnaire
 
-**Libraries used:**
-- `react-hook-form` — manages form state efficiently (no re-render per keypress)
-- `zod` — defines TypeScript-safe validation schemas
-- `@hookform/resolvers/zod` — connects zod to react-hook-form
+`apps/web/src/features/onboarding/OnboardingPage.tsx`
 
-**Features:**
-- Real-time inline validation errors (email format, password minimum length, password match)
-- JWT token stored in `AuthContext.tsx` (React Context API)
-- Automatic redirect to `/onboarding` after first login, `/dashboard` on subsequent logins
+- One question per screen, large choice cards (no radios/dropdowns), progress bar + "Question X of 7", Back keeps earlier answers.
+- **FR6:** a draft (answers + step) is saved after every answer; closing the tab and logging in again resumes at the same question. Draft saves are sent one at a time with the latest answers last, so fast clicking can never leave the server on an older step (unit-tested).
+- Result screen: category badge, a 1–2 sentence plain explanation, and a plain-language note for each safety cap that applied. Disclaimer on every onboarding screen.
+- **FR5:** retake from the dashboard (`/onboarding?retake=1`) with a "Cancel and keep my current profile" link.
+- Error states: failed progress load → message + retry (never silently starts over); failed draft save → non-blocking warning.
 
----
+### Step 1.7 — Route guard
 
-### Step 1.6 — Web: Onboarding Questionnaire
+Guard decisions live in `apps/web/src/features/auth/guardRules.ts` (pure, unit-tested).
 
-**File:** `apps/web/src/pages/Onboarding.tsx`
+- Logged out → `/login`, then back to the page originally requested (same-app paths only; `//evil.com`-style redirects are refused).
+- Logged in without a completed risk profile → `/onboarding` from every protected route (`/dashboard`, `/stocks`, `/stocks/:ticker`, `/portfolio`, `/backtest`, `/chat`, `/notifications`, `/admin`). The check uses the server's `/users/me` (`has_risk_profile`), never client storage, and shows a loading spinner first, so protected content never flashes.
+- Completed profile opening `/onboarding` → `/dashboard` unless retaking. Logged-in users opening `/login` or `/register` → `/dashboard`.
+- Expired/invalid refresh token → logged out, sent to `/login` with "Your session expired. Please log in again." (EN/UR), one refresh attempt, no loop.
+- `/admin` requires the `admin` role (UI); the backend `require_admin` dependency returns 403 for non-admins. Server-side risk-profile enforcement is required from Phase 5 (Memory.md §4).
 
-**Design:** One question per screen, large tappable cards (not radio buttons), visual progress bar
+### Step 1.8 — i18n pass (English / Urdu)
 
-**Questions cover:**
-- Investment horizon (short vs long term)
-- Reaction to portfolio losses (panic sell vs hold)
-- Income stability
-- Existing financial knowledge
+- All Phase 1 strings go through `packages/i18n`; an AST scan found 0 hardcoded user-facing strings in Phase 1 screens and shared components.
+- `npm run check -w @investiq/i18n` (in CI) fails on missing/extra keys, empty values or mismatched `{{placeholders}}` between `en.json` and `ur.json` (165 keys).
+- Urdu: `<html lang="ur" dir="rtl">`, layout mirrored, emails/numbers stay LTR with Western digits, body text in **Noto Naskh Arabic** (self-hosted, SIL OFL; Design.md §3). The language choice persists across reloads and logout/login. All Phase 1 screens checked at 360 px and 1280 px with no overflow.
+- `docs/i18n-review-phase1.md`: all 103 Phase 1 strings (key | English | Urdu) for the team's Urdu tone review (Design.md §10).
 
-**Flow:** Submit → API call → backend scores answers → returns category → shows "Results" screen explaining what Conservative/Moderate/Aggressive means in plain language
+### Step 1.9 — Documentation sync and exit criteria
 
----
-
-### Step 1.7 — Dashboard Structure
-
-**Files:** `apps/web/src/components/layout/AppLayout.tsx`, `pages/Dashboard.tsx`, `components/auth/ProtectedRoute.tsx`
-
-**AppLayout:** Sidebar (left) + Topbar (top-right), wraps all authenticated pages
-
-**ProtectedRoute:** Checks `AuthContext` → if no token → redirects to `/login`
-
-**Dashboard Empty State:** Shows actionable "Generate your first portfolio" prompt instead of a blank screen
-
----
-
-### Step 1.8 — Language Toggle & RTL (Urdu)
-
-**Files:** `packages/i18n/src/`, `apps/web/src/components/layout/AppLayout.tsx`
-
-- Language toggle button in topbar
-- `useEffect` flips `document.documentElement.dir` between `ltr` and `rtl`
-- Tailwind uses `rtl:` prefix for mirrored layouts
-- Translation keys in `packages/i18n/src/locales/en.json` and `ur.json`
+- Memory.md, Phases.md, this report and the README updated; Phase 1 exit criteria and Workflow.md Appendix A checked one by one (see Memory.md §7, 2026-10-09).
+- Screenshots of every audited state: `docs/screenshots/phase1/`.
 
 ---
 
-## Phase 2: Stock Data & Market Analysis (✅ Completed)
+## Phase 2: Stock Data & Market Analysis (⚠️ Needs re-audit)
+
+> **Needs re-audit:** marked complete earlier without checkpoint evidence; an offline test on 2026-10-09 showed the history/quote endpoints do not degrade gracefully (Memory.md §4), and the mobile screens (Step 2.9) were never built. The text below is the original record, kept as history.
 
 ### Step 2.1 — Database Models
 
@@ -545,7 +404,9 @@ beat_schedule = {
 
 ---
 
-## Phase 3: Machine Learning (✅ Completed)
+## Phase 3: Machine Learning (⚠️ Needs re-audit)
+
+> **Needs re-audit:** the original models were trained on **AAPL (non-PSX)**, and Step 3.1 (3+ years of KSE-100 data) was never done. A 12-ticker PSX retrain exists (`services/api/ml/reports/`), but it has not been audited step by step and does not beat its naive baselines (Memory.md §10). The text below is the original record, kept as history; several files it names (`ml/predictor.py`, `ml/lstm_predictor.py`, `pandas-ta`) have since been replaced.
 
 ### Step 3.1 — FinBERT Sentiment Analysis
 
@@ -638,119 +499,104 @@ pipeline("sentiment-analysis", model="ProsusAI/finbert")
 
 ## Frontend Pages Summary
 
-| Route | Page | Description |
-|-------|------|-------------|
-| `/` | Home (placeholder) | Landing/status screen |
-| `/login` | Login.tsx | Email + password login |
-| `/register` | Register.tsx | New account creation |
-| `/onboarding` | Onboarding.tsx | Risk profile quiz (protected) |
-| `/dashboard` | Dashboard.tsx | Main hub (protected) |
-| `/stocks` | Stocks.tsx | Search and browse stocks (protected) |
-| `/stocks/:ticker` | StockDetail.tsx | Price chart + ML prediction (protected) |
+Code is organised by feature (Rules.md §4.2) under `apps/web/src/features/`.
+
+| Route | Component | Access |
+|-------|-----------|--------|
+| `/` | redirect | → `/dashboard` |
+| `/login`, `/register` | `auth/LoginPage`, `auth/RegisterPage` | Logged-out only |
+| `/onboarding` | `onboarding/OnboardingPage` | Logged in; with a completed profile only as `?retake=1` |
+| `/dashboard` | `dashboard/DashboardPage` | Logged in + completed risk profile |
+| `/stocks`, `/stocks/:ticker` | `stocks/StocksPage`, `stocks/StockDetailPage` | Logged in + completed risk profile (Phase 2/3, needs re-audit) |
+| `/portfolio`, `/backtest`, `/chat`, `/notifications` | `common/ComingSoonPage` | Logged in + completed risk profile (Phases 5–8) |
+| `/admin` | `common/ComingSoonPage` | Admin role only (Phase 9) |
 
 ---
 
-## Database Schema (Final)
+## Database Schema (current, Alembic head `f7a2c4e81b90`)
 
 ```sql
 users
-  id UUID PK | email UNIQUE | hashed_password | created_at
+  id UUID PK | email UNIQUE | password_hash | full_name | role ENUM('user','admin')
+  | onboarding_progress JSONB NULL | created_at TIMESTAMP (UTC)
 
 risk_profiles
-  id UUID PK | user_id FK(users) | category ENUM | answers JSONB | score INT
+  id UUID PK | user_id UUID UNIQUE FK(users) | category ENUM('conservative','moderate','aggressive')
+  | answers JSONB | updated_at TIMESTAMP (UTC)
 
 stocks
-  id UUID PK | ticker UNIQUE | name | exchange
+  id UUID PK | ticker UNIQUE | name | sector
 
 price_points
-  id UUID PK | stock_id FK(stocks) | timestamp | open | high | low | close | volume
+  id BIGSERIAL PK | stock_id FK(stocks) | timestamp TIMESTAMPTZ | open | high | low | close | volume
+  UNIQUE (stock_id, timestamp)
 
 news_sentiments
-  id UUID PK | stock_id FK(stocks) | headline | sentiment_score FLOAT | timestamp
+  id SERIAL PK | stock_id FK(stocks) | headline | sentiment_score FLOAT NULL (= not yet scored) | timestamp (UTC)
 
 predictions
-  id UUID PK | stock_id FK(stocks) | predicted_price | signal | confidence_score | model_version | timestamp
+  id UUID PK | stock_id FK(stocks) | model_version | forecast_price NUMERIC(14,4) | last_close NUMERIC(14,4)
+  | signal | confidence_score NUMERIC(5,4) | generated_at TIMESTAMP (UTC)
 ```
+
+The four naive `TIMESTAMP` columns hold UTC; migrating them to `TIMESTAMPTZ` is proposed and awaiting approval (Memory.md §4).
 
 ---
 
-## Backend Tests (All Passing ✅)
+## Automated Tests
 
-| File | Tests | Status |
-|------|-------|--------|
-| `tests/test_stocks.py` | 3 (search, quote, history) | ✅ PASS |
-| `tests/test_predictions.py` | 3 (prediction endpoint) | ✅ PASS |
+| Suite | File | Tests |
+|-------|------|-------|
+| Backend (pytest) | `tests/test_auth.py` | 15 |
+| | `tests/test_admin_guard.py` | 4 |
+| | `tests/test_risk_profile.py` | 33 |
+| | `tests/test_datetimes.py` | 4 |
+| | `tests/test_health.py` | 1 |
+| | `tests/test_stocks.py` | 14 (Phase 2, needs re-audit) |
+| | `tests/test_predictions.py` | 7 (Phase 3, needs re-audit) |
+| | `tests/test_ml_pipeline.py` | 13 (Phase 3, needs re-audit) |
+| Web (Node test runner) | `apps/web/src/**/*.test.ts` | 13 (draft-save ordering, route-guard rules, date formatting) |
+| i18n | `packages/i18n/scripts/*.test.mjs` | 3 (parity checker) |
 
-Run all: `pytest tests/ -v` (from `services/api/` with venv active)
+Backend total: **91**. All run in CI on every push.
+
+```bash
+cd services/api && python -m pytest          # backend
+npm test -w @investiq/web                    # web unit tests
+npm run check -w @investiq/i18n              # en/ur parity
+```
 
 ---
 
 ## How to Run the Complete Project
 
-### Prerequisites
-- Docker Desktop (running)
-- Python 3.11+
-- Node.js 20+
-- Git
-
-### Step 1 — Start Infrastructure (once per session)
-```powershell
-cd "C:\Users\Abdul Mannan\Desktop\Invest_IQ\infra"
-docker-compose up -d
-```
-Starts PostgreSQL on port 5435 and Redis on port 6379.
-
-### Step 2 — Start Backend API
-```powershell
-cd "C:\Users\Abdul Mannan\Desktop\Invest_IQ\services\api"
-.\venv\Scripts\activate
-alembic upgrade head
-uvicorn main:app --reload
-```
-API available at: http://127.0.0.1:8000
-API docs (Swagger): http://127.0.0.1:8000/docs
-
-### Step 3 — Start Frontend (new terminal)
-```powershell
-cd "C:\Users\Abdul Mannan\Desktop\Invest_IQ\apps\web"
-npm run dev
-```
-Web app available at: http://localhost:5173
-
-### First-Time Setup Only
-```powershell
-# Backend venv setup
-cd "C:\Users\Abdul Mannan\Desktop\Invest_IQ\services\api"
-python -m venv venv
-.\venv\Scripts\activate
-pip install -r requirements.txt
-
-# Frontend deps
-cd "C:\Users\Abdul Mannan\Desktop\Invest_IQ"
-npm install
-```
+The root [`README.md`](../README.md) "Local Setup" section is the maintained, step-by-step guide (Docker → backend `.env` → migrations → API → Celery → ML training → web → mobile → quality checks). It is not duplicated here so the two cannot drift apart.
 
 ---
 
-## What Still Needs to Be Built
+## What Still Needs to Be Built / Re-audited
 
-| Phase | Feature | Status |
-|-------|---------|--------|
-| Phase 4 | Sentiment API endpoint `/stocks/{ticker}/sentiment` | Not Started |
-| Phase 4 | "What's Driving This" news sentiment UI panel | Not Started |
-| Phase 5 | Portfolio generation using ML + risk profile | Not Started |
-| Phase 5 | KSE-100 comparison chart | Not Started |
-| Phase 6 | LLM Chatbot integration | Not Started |
-| Phase 7 | Alerts & Notifications | Not Started |
+| Phase | Item | Status |
+|-------|------|--------|
+| Phase 2 | Stock data & market analysis | ⚠️ Needs re-audit (graceful degradation gaps; mobile screens not built) |
+| Phase 3 | Prediction engine | ⚠️ Needs re-audit (KSE-100 data never acquired; PSX models below naive baselines) |
+| Phase 4 | FinBERT sentiment endpoint + "what's driving this" panel | Not started |
+| Phase 5 | Portfolio generation + cost engine (server must require a risk profile) | Not started |
+| Phase 6 | Backtesting vs KSE-100 | Not started |
+| Phase 7 | Autonomous agent & notifications | Not started |
+| Phase 8 | LLM chatbot (bilingual) | Not started |
+| Phase 9 | Admin panel | Not started |
+| Phase 10 | Mobile app parity | Not started |
+| Phase 11 | Testing, polish, defense prep (incl. hardening backlog in Memory.md §11) | Not started |
 
 ---
 
 ## GitHub Repository
 
 **URL:** https://github.com/abdulmannanbhatti936-lgtm/Invest_IQ
-**Branch:** `main`
-**CI Status:** GitHub Actions pipeline runs on every push — runs backend tests + frontend type-check
+**Working branch:** `fix/phase-0-3-completion` (Phase 0 and 1 re-verification)
+**CI:** GitHub Actions on every push — backend (ruff, black, migrations, pytest) and frontend (ESLint, i18n parity, type-checks for web/mobile/packages, web unit tests).
 
 ---
 
-*Last updated: 2026-09-27*
+*Last updated: 2026-10-09*

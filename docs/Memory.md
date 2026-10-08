@@ -16,12 +16,13 @@
 
 ## 2. Current Status (update this section every session)
 
-**Active:** re-verification of Phases 0–3 against the docs (branch `fix/phase-0-3-completion`, pushed; CI green). The earlier "COMPLETED" marks for Phases 2–3 were not backed by checkpoint evidence, so each phase is being re-checked step by step.
+**Phase 0 ✅ and Phase 1 ✅ complete (re-verified 2026-10-09).** Branch `fix/phase-0-3-completion` (not yet merged to `main`). **Next step: Phase 2 re-audit, starting at Workflow Step 2.1** — one step at a time, same discipline as Phase 1.
 
-- **Phase 0 — Foundation:** all checkpoints re-run on 2026-10-09 and passing locally (Docker healthchecks, `/health`, all web routes with no console errors, mobile bundle + Metro, shared-package imports, lint/format/CI commands). CI green on GitHub (run 37837093050, commit 8d4779d) after pinning backend requirements. **Still open:** the README hasn't been tested from a fresh clone by a second person.
-- **Phase 1 — Auth & Risk Profiling:** re-verification in progress, one step at a time. Step 1.1 PASSED (2026-10-09; fixed a downgrade that left the `riskcategory` enum behind). 60 pytest pass. Risk scoring + safety caps approved by the team on 2026-10-09 (§3) and implemented with tests. **Open:** full Phase 1 step-by-step re-verification (browser end-to-end, Urdu text review by a native speaker).
-- **Phase 2 — Stock Data:** backend, web screens and Celery jobs exist; worker and beat start cleanly. Mobile screens (Step 2.9) are not built.
-- **Phase 3 — Prediction Engine:** models trained on 12 PSX tickers (5 years of Yahoo `.KA` data). Honest result: the models do **not** beat the naive baselines yet (see §10); all live predictions are flagged low-confidence.
+- **Phase 0 — Foundation:** every checkpoint re-run and passing; CI green on GitHub. Open: the README has not yet been tested from a fresh clone by the second teammate.
+- **Phase 1 — Auth & Risk Profiling:** Steps 1.1–1.9 audited one at a time; all 5 Phases.md exit criteria and the Workflow Appendix A checklist verified against the running app (§7, 2026-10-09). 91 backend tests, 13 web unit tests, 3 i18n-checker tests. Open, not blocking: Urdu wording review by the team (`docs/i18n-review-phase1.md`); real-device and screen-reader checks.
+- **Phase 2 — Stock Data:** ⚠️ needs re-audit. Code exists (endpoints, Redis cache, Celery jobs, web screens) but was marked complete without checkpoint evidence. Known gaps: no graceful degradation when Yahoo is unreachable (§4); mobile screens (Step 2.9) not built.
+- **Phase 3 — Prediction Engine:** ⚠️ needs re-audit. The original prototype was trained on AAPL (non-PSX, §10). A 12-ticker PSX retrain exists but Step 3.1 (3+ years of KSE-100 data) was never done and the models do not beat their naive baselines; all live predictions are flagged low-confidence.
+- **Waiting on the team (§4):** TIMESTAMPTZ migration approval; Urdu wording review.
 
 > _Update instructions: replace this section's content each session with (a) which phase is active, (b) what was completed since the last update, (c) what's in progress, (d) what's blocked/waiting on a decision._
 
@@ -42,6 +43,16 @@ Decisions made so far, with the reasoning, so they're never silently re-litigate
 | Financial math uses `Decimal`, never float                  | Rounding errors unacceptable when showing real prices                                                                 | Rules.md §3.4                                                                    |
 | Risk scoring (2026-10-09): 7 questions × 3/2/1 pts (7–21); 7–11 Conservative, 12–16 Moderate, 17–21 Aggressive; safety caps after scoring: need money within 1 yr → max Conservative; would sell on a drop OR emergency savings < 3 months → max Moderate | Team decision. PRD FR2/FR3 only named the topics; the caps stop a high scorer with a short horizon, panic-selling tendency or no safety cushion from being pushed into aggressive picks | `services/api/services/risk_scoring.py`, DetailedReport.md Step 1.3 |
 | `users.role` added early (planned for Step 9.1) because the admin route guard needed it; `users.onboarding_progress` (JSONB) added for FR6 resume (2026-10-09) | Removing `role` until Phase 9 would only create churn; FR6 needs partial answers stored server-side | Architecture.md §7 |
+| JWT lifetimes: access 30 min, refresh 7 days, separate secrets (2026-10-09) | Short-lived access tokens per Architecture §11; the web client refreshes silently on 401 | `core/config.py`, DetailedReport Step 1.2 |
+| Passwords capped at 72 bytes; `bcrypt==3.2.2` pinned (2026-10-09) | bcrypt ignores bytes after 72; passlib 1.7.4 breaks with bcrypt 5 | `schemas/user.py`, `requirements.txt` |
+| Login runs a dummy bcrypt check for unknown emails (2026-10-09) | Same message and same timing as a wrong password, so login cannot reveal registered emails | `routers/auth.py` |
+| Web tokens stay in `localStorage` for the FYP (2026-10-09) | Simple and reload-safe; XSS trade-off documented, httpOnly-cookie refresh token planned for Phase 11 | §11, §12 |
+| Register page also shows the PRD §8.5 disclaimer (2026-10-09) | Registration is treated as the start of onboarding | `features/auth/RegisterPage.tsx` |
+| Retake = explicit `/onboarding?retake=1`; a completed profile otherwise goes to `/dashboard`; login returns only to same-app paths (2026-10-09) | Never trap a user, never open-redirect off-site | `features/auth/guardRules.ts` |
+| Frontend unit tests use Node's built-in test runner (2026-10-09) | No new dependency (Vitest/Jest would need approval); pure logic is extracted into testable modules | `apps/web/src/**/*.test.ts` |
+| Urdu body font: self-hosted Noto Naskh Arabic, no Nastaliq (2026-10-09) | Design §3 readability at small sizes; self-hosted so the demo works offline | `apps/web/src/index.css` |
+| API datetimes are UTC with a trailing `Z`; the web displays Asia/Karachi time (2026-10-09) | Naive timestamps made the dashboard show the previous day after 7 pm PKT | `schemas/types.py`, `lib/format.ts` |
+| en/ur i18n parity is enforced in CI (2026-10-09) | Missing or drifting Urdu strings fail the build instead of reaching a demo | `packages/i18n/scripts/check-parity.mjs` |
 
 ## 4. Open Questions / Not Yet Decided
 
@@ -175,6 +186,13 @@ Blocked: CI green on GitHub needs a push. Risk-questionnaire scoring thresholds 
 Decisions made: Ignore trained artifacts in git (regenerated by python -m ml.train); keep the CSV dataset committed.
 Next session should: Push the branch, confirm CI is green, then start Phase 1 re-verification.
 
+[2026-10-09] — Phase 1 re-verification complete (Steps 1.1–1.9)
+Completed: Audited Phase 1 one step at a time against Workflow/PRD/Architecture/Design/Rules and fixed every failure: enum left behind on downgrade (1.1); timing-based email enumeration, 72-byte passwords, bcrypt pin, token-separation/no-logging/rate-limit tests (1.2, 1.4); duplicate-answer 422, draft-step bound, retake updated_at, cross-user isolation tests (1.3); auth form patterns + i18n error mapping + register disclaimer (1.5); onboarding error states, retake exit, ordered draft saves (1.6); route-guard rules, deep-link return, retake mode, require_admin test (1.7); en/ur parity check in CI, Naskh font, UTC datetimes shown in PKT (1.8). Phase 1 exit criteria all PASS through the real UI (register → questionnaire → dashboard; profile persists across logout/login; FR6 resume after closing the tab; 19 auth tests; §8.5 disclaimer at onboarding). Appendix A checklist all PASS. Docs synced: Phases.md status, DetailedReport (Phases 0–1 rewritten, Phases 2–3 marked "Needs re-audit"), README quality checks, §9/§10/§15 trackers (AAPL rows labelled non-PSX).
+In progress: nothing.
+Blocked: team decisions only — TIMESTAMPTZ migration (§4), Urdu wording review (docs/i18n-review-phase1.md).
+Decisions made: see §3 rows dated 2026-10-09 (token lifetimes, 72-byte passwords, dummy-hash login, localStorage, retake mode, Node test runner, Naskh font, UTC datetimes, i18n parity in CI).
+Next session should: Start the Phase 2 re-audit at Workflow Step 2.1 — read §2, §4 (Phase 2 degradation gaps) and §11 first; one step at a time with a checkpoint report after each.
+
 ## 8. Team & Responsibilities
 
 | Person                      | Role (suggested per Phases.md owner-splits)                                                                                                                               | Notes                                                         |
@@ -189,7 +207,7 @@ Next session should: Push the branch, confirm CI is green, then start Phase 1 re
 
 | Dependency               | Status                    | Notes                                                                 |
 | ------------------------ | ------------------------- | --------------------------------------------------------------------- |
-| Yahoo Finance API        | Not yet integrated        | Confirm rate limits before Phase 2                                    |
+| Yahoo Finance API        | Integrated — needs Phase 2 re-audit | Via `yfinance`, PSX symbols with `.KA` suffix. Rate limits still unconfirmed. When Yahoo is unreachable the API does not degrade gracefully yet (§4). |
 | PSX Data API / website   | Not yet integrated        | Official API access vs scraping — open question (§4)                  |
 | Claude API               | Not yet integrated        | Needed for chatbot (Phase 8) — key budgeted per PRD.md §14 assumption |
 | Firebase Cloud Messaging | Not yet integrated        | Needed for Phase 7 (notifications)                                    |
@@ -204,10 +222,13 @@ _(Fill in once Phase 3/4 training actually happens — this table becomes primar
 
 | Model                          | Version | Trained on | RMSE | Directional Accuracy | Notes                                           |
 | ------------------------------ | ------- | ---------- | ---- | -------------------- | ----------------------------------------------- |
-| LSTM/BiLSTM (price prediction) | v1.0    | AAPL (1y)  | 9.06 | ~65%                 | Target: RMSE < 5% (Met, price is ~330), acc > 80% (needs more data) |
+| LSTM/BiLSTM (price prediction) | v1.0    | AAPL (1y)  | 9.06 | ~65%                 | **Non-PSX prototype, not valid for the report.** Kept as history. Target: RMSE < 5% (Met, price is ~330), acc > 80% (needs more data) |
 | SVM (buy/sell/hold)            | —       | —          | —    | —                    | Skipped in favor of Random Forest baseline      |
-| Random Forest (buy/sell/hold)  | v1.0    | AAPL (1y)  | —    | 40-60%               | Baseline prototype                              |
-| FinBERT (sentiment)            | pre-trn | News       | —    | >85%                 | HuggingFace Pretrained, proven on financial text|
+| Random Forest (buy/sell/hold)  | v1.0    | AAPL (1y)  | —    | 40-60%               | **Non-PSX prototype, not valid for the report.** Kept as history. Baseline prototype |
+| LSTM (next-day return)         | lstm-rf-20261008T191201Z | 12 PSX tickers, 5y Yahoo `.KA` (§15), chronological 70/15/15 | 2.29% of price (naive: 2.20%) | 47.0% (majority baseline: 54.4%) | **PSX, pending Phase 3 re-audit.** Mean over 12 tickers; does **not** beat its baselines. `services/api/ml/reports/` |
+| Random Forest (buy/sell/hold)  | lstm-rf-20261008T191201Z | same as above | — | 44.6% accuracy (class baseline: 51.2%) | **PSX, pending Phase 3 re-audit.** Below baseline; all predictions flagged low-confidence |
+| SVM (buy/sell/hold)            | lstm-rf-20261008T191201Z | same as above | — | 43.0% accuracy (class baseline: 51.2%) | **PSX, pending Phase 3 re-audit.** Below baseline |
+| FinBERT (sentiment)            | pre-trn | News       | —    | >85%                 | Published figure for ProsusAI/finbert, **not measured in this project** (Phase 4) |
 
 **Backtest results (once available):**
 
@@ -227,6 +248,7 @@ _(Fill in once Phase 3/4 training actually happens — this table becomes primar
 - **Registration reveals whether an email is already registered** ("already exists", 400). Accepted known limitation (2026-10-09): standard sign-up behaviour, slowed by the register rate limit; hiding it would need an email-verification flow, which is out of PRD scope. Login does NOT leak this: same message and same bcrypt cost for unknown emails (dummy-hash check, `routers/auth.py`).
 - **Web tokens live in `localStorage`** (`apps/web/src/lib/tokenStorage.ts`, keys `investiq.access_token` / `investiq.refresh_token`). XSS trade-off accepted for the FYP (2026-10-09): any script on the page could read them, and a stolen refresh token mints access tokens for up to 7 days. Mitigations: React escapes all rendered text, no `dangerouslySetInnerHTML`, 30-minute access tokens.
 - **Phase 11 hardening backlog** (decided, not yet built): (1) move the refresh token to an `httpOnly`, `Secure`, `SameSite=Strict` cookie and keep the access token in memory only (needs CSRF protection on `/auth/refresh` and cookie-aware CORS; mobile keeps secure storage); (2) `X-Forwarded-For` handling for the auth rate limiter behind the hosting proxy.
+- **yfinance hides network failures as "no data":** when Yahoo is unreachable it logs `possibly delisted; no price data found` and returns an empty frame, so callers cannot tell "offline" from "unknown ticker" (seen 2026-10-09 with the machine offline). Any data-source check must distinguish these (Phase 2 re-audit, §4).
 - **Dev-only account:** `phase0.check@example.com` (role `admin`, local DB only) was created on 2026-10-09 for automated browser checks. It is for local testing only — never seed it into staging/production and never use or show it in a demo or the defense.
 - A previous demo of this project existed and is _not_ the baseline — if any old code, screenshots, or decisions surface from that demo, verify against these docs before trusting them (§2).
 
@@ -273,7 +295,7 @@ _(Fill in as historical data is acquired — critical for both model training an
 
 | Dataset                                        | Source              | Date range covered | Companies/tickers included | Rows/size | Status           |
 | ---------------------------------------------- | ------------------- | ------------------ | -------------------------- | --------- | ---------------- |
-| PSX historical prices                          | Yahoo Finance / PSX | —                  | —                          | —         | Not yet acquired |
+| PSX historical prices                          | Yahoo Finance (`yfinance`, `.KA`, auto-adjusted daily OHLCV) | 2021-10-08 → 2026-10-07 (downloaded 2026-10-08) | 12: SYS, HUBC, OGDC, PPL, MCB, UBL, HBL, MEBL, FFC, EFERT, LUCK, PSO | 15,409 rows (`services/api/ml/data/raw/`, `manifest.json`) | Acquired — pending Phase 2/3 re-audit |
 | PSX company fundamentals                       | —                   | —                  | —                          | —         | Not yet acquired |
 | Financial news corpus (for sentiment)          | —                   | —                  | —                          | —         | Not yet acquired |
 | KSE-100 index history (for backtest benchmark) | —                   | —                  | N/A                        | —         | Not yet acquired |
