@@ -217,6 +217,9 @@ _(Fill in once Phase 3/4 training actually happens — this table becomes primar
 - PSX/news scraping is likely to hit rate limits under real use — build the Redis caching layer (Architecture.md §10) early, don't treat it as a later optimization.
 - Floating-point math on fees/tax will produce off-by-a-paisa errors that look fine in testing and embarrassing in a live demo — `Decimal` is mandatory, not a nice-to-have (Rules.md §3.4).
 - Urdu UI text tends to overflow components sized for English string lengths — see Design.md §24, test with real Urdu strings early, not lorem-ipsum placeholders.
+- **Auth rate limiter fails open when Redis is down** (`core/rate_limit.py`): login/register keep working but are NOT rate-limited while Redis is unavailable. Deliberate for the FYP (availability over strictness); every skipped check logs a WARNING "Auth rate limit SKIPPED".
+- **Auth rate limiter limits by direct client IP:** behind Railway's proxy all users may share one IP (one user's failed logins could lock everyone out), so `X-Forwarded-For` handling (trusting only the platform proxy) is needed at deployment. Not implemented yet.
+- **Passwords are capped at 72 bytes** because bcrypt ignores everything after byte 72 (Urdu letters are 2 bytes each, so ~36 Urdu characters). The register screens need an en/ur message for the API's "Password is too long" 422.
 - **Dev-only account:** `phase0.check@example.com` (role `admin`, local DB only) was created on 2026-10-09 for automated browser checks. It is for local testing only — never seed it into staging/production and never use or show it in a demo or the defense.
 - A previous demo of this project existed and is _not_ the baseline — if any old code, screenshots, or decisions surface from that demo, verify against these docs before trusting them (§2).
 

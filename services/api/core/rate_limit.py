@@ -22,7 +22,12 @@ def auth_rate_limit(request: Request) -> None:
         if count == 1:
             redis_client.expire(key, settings.AUTH_RATE_LIMIT_WINDOW_SECONDS)
     except Exception as e:
-        logger.warning(f"Rate limiter unavailable, allowing request: {e}")
+        # Deliberate fail-open (Memory.md §11): auth stays available, but the skip is visible
+        logger.warning(
+            "Auth rate limit SKIPPED for %s (Redis unavailable: %s)",
+            request.url.path,
+            type(e).__name__,
+        )
         return
 
     if count > settings.AUTH_RATE_LIMIT:
