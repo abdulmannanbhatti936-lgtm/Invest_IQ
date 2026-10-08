@@ -19,3 +19,7 @@ celerybeat-schedule*
 *.pkl
 *.joblib
 services/api/ml/artifacts/
+
+# Personal notes / n8n experiments - kept locally, not part of the architecture
+Prompt.txt
+InvestIQ_Daily_Stock_Alert_n8n-Model.json

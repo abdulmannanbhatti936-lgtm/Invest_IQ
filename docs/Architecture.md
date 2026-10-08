@@ -140,6 +140,8 @@ users
   email VARCHAR UNIQUE
   password_hash VARCHAR
   full_name VARCHAR
+  role ENUM('user','admin') DEFAULT 'user'   -- added early (planned for Step 9.1): admin route guard needs it
+  onboarding_progress JSONB NULL             -- partial questionnaire answers + step, for resume (PRD FR6)
   created_at TIMESTAMP
 
 risk_profiles
