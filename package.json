@@ -7,7 +7,8 @@
   ],
   "scripts": {
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "e2e": "npm run e2e -w @investiq/web"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^6.21.0",

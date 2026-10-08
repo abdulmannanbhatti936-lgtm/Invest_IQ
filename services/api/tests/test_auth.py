@@ -195,14 +195,14 @@ def test_register_validates_input(client):
     assert (
         client.post(
             "/auth/register",
-            json={"email": "not-an-email", "full_name": "X", "password": "password123"},
+            json={"email": "not-an-email", "full_name": "Test User", "password": "password123"},
         ).status_code
         == 422
     )
     assert (
         client.post(
             "/auth/register",
-            json={"email": f"{uuid.uuid4()}@example.com", "full_name": "X", "password": "short"},
+            json={"email": f"{uuid.uuid4()}@example.com", "full_name": "Tu", "password": "short"},
         ).status_code
         == 422
     )
@@ -212,7 +212,7 @@ def test_password_limited_to_72_bytes(client):
     def register(password):
         return client.post(
             "/auth/register",
-            json={"email": f"{uuid.uuid4()}@example.com", "full_name": "X", "password": password},
+            json={"email": f"{uuid.uuid4()}@example.com", "full_name": "Tu", "password": password},
         )
 
     assert register("a" * 72).status_code == 201
@@ -239,7 +239,7 @@ def test_register_rate_limited(client, fake_redis, monkeypatch):  # Rules.md §6
             "/auth/register",
             json={
                 "email": f"{uuid.uuid4()}@example.com",
-                "full_name": "X",
+                "full_name": "Test User",
                 "password": "password123",
             },
         ).status_code
@@ -562,18 +562,20 @@ def test_deleting_a_user_deletes_their_refresh_tokens(client, db):
     assert db.get(RefreshToken, jti) is None  # ON DELETE CASCADE
 
 
-def test_full_name_is_trimmed_and_must_not_be_blank(client):
+def test_full_name_is_trimmed_and_needs_two_characters(client):
     def register(name):
         email = f"name_{uuid.uuid4().hex[:8]}@example.com"
         return client.post(
             "/auth/register", json={"email": email, "full_name": name, "password": "password123"}
         )
 
-    for blank in ("", "   ", "\t\n "):
-        response = register(blank)
-        assert response.status_code == 422, repr(blank)
+    # Blank, whitespace-only and one character (also after trimming): same rule as the web form
+    for too_short in ("", "   ", "\t\n ", "A", "  A  "):
+        response = register(too_short)
+        assert response.status_code == 422, repr(too_short)
         assert response.json()["detail"][0]["loc"] == ["body", "full_name"]
 
+    assert register(" Al ").json()["full_name"] == "Al"  # 2 characters is the minimum
     response = register("  Ahmed Khan \n")
     assert response.status_code == 201
     assert response.json()["full_name"] == "Ahmed Khan"

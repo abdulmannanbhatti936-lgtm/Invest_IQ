@@ -13,14 +13,14 @@ def normalize_email(value: str) -> str:
 
 class UserBase(BaseModel):
     email: EmailStr
-    full_name: str = Field(min_length=1, max_length=120)
+    full_name: str = Field(max_length=120)
 
     @field_validator("email", mode="before")
     @classmethod
     def email_lowercase(cls, v: object) -> object:
         return normalize_email(v) if isinstance(v, str) else v
 
-    # Runs before the length check, so a blank or whitespace-only name is rejected (422)
+    # Runs before the length check, so whitespace never counts towards the minimum
     @field_validator("full_name", mode="before")
     @classmethod
     def full_name_trimmed(cls, v: object) -> object:
@@ -30,9 +30,13 @@ class UserBase(BaseModel):
 # bcrypt only uses the first 72 bytes of a password; anything longer would be silently
 # ignored, so two long passwords sharing their first 72 bytes would both log in.
 MAX_PASSWORD_BYTES = 72
+MIN_FULL_NAME_LENGTH = 2
 
 
 class UserCreate(UserBase):
+    # Same rule as the web register form: at least 2 characters after trimming.
+    # Input only: stored names are returned as they are.
+    full_name: str = Field(min_length=MIN_FULL_NAME_LENGTH, max_length=120)
     password: str = Field(min_length=8)
 
     @field_validator("password")

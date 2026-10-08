@@ -190,6 +190,27 @@ python -m pytest
 
 Tests never touch the dev database: `pytest` creates and migrates a separate `<db>_test` database (e.g. `investiq_test`, or `TEST_DATABASE_URL`) and rolls every test back afterwards.
 
+### End-to-end tests (Playwright, local only)
+
+Browser smoke tests of the Phase 1 flow (register → onboarding with resume → dashboard → logout → login) and an Urdu right-to-left run. They are not part of CI yet.
+
+One-time setup, from the repo root:
+
+```bash
+npm install                                      # installs @playwright/test
+npm exec -w @investiq/web -- playwright install chromium   # Chromium only
+```
+
+Each run:
+
+1. Start Postgres and Redis (`docker compose -f infra/docker-compose.yml up -d`).
+2. Make sure the backend venv exists in `services/api/venv` with `requirements.txt` installed (step 2 above).
+3. From the repo root: `npm run e2e`
+
+`npm run e2e` starts its **own** API on port 8001 (pointed at the `<db>_test` database; it refuses any database not named `*_test`) and its own web dev server on port 5174, so it never touches your dev servers or the dev database. Ports 8001 and 5174 must be free. Every account the tests create (`e2e_…@example.com`) is deleted before and after the run; the last line of output reports how many users are left in the test database.
+
+On failure, screenshots and traces are saved to `apps/web/e2e-results/` and an HTML report to `apps/web/e2e-report/` (both git-ignored). Open a trace with `npx playwright show-trace <path-to-trace.zip>`.
+
 ## 👥 Team
 
 | Name                | Role         |

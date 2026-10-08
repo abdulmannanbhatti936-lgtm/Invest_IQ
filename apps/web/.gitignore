@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Playwright E2E failure artefacts (traces, screenshots) and HTML report
+e2e-results/
+e2e-report/

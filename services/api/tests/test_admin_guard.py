@@ -30,7 +30,7 @@ def probe():
 def _token(client, db, role: UserRole) -> str:
     email = f"role_{role.value}_{uuid.uuid4()}@example.com"
     client.post(
-        "/auth/register", json={"email": email, "full_name": "R", "password": "password123"}
+        "/auth/register", json={"email": email, "full_name": "Role Test", "password": "password123"}
     )
     if role == UserRole.admin:
         db.query(User).filter(User.email == email).update({"role": UserRole.admin})

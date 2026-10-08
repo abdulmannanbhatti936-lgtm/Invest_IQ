@@ -328,7 +328,7 @@ def test_retake_replaces_profile_and_bumps_updated_at(client, auth_headers, db):
 def test_onboarding_save_resume_complete(client):  # FR6
     email = f"resume_{uuid.uuid4()}@example.com"
     client.post(
-        "/auth/register", json={"email": email, "full_name": "R", "password": "password123"}
+        "/auth/register", json={"email": email, "full_name": "Re", "password": "password123"}
     )
 
     def login():
