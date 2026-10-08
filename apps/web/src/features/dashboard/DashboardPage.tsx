@@ -5,6 +5,7 @@ import { riskProfileApi } from '@investiq/api-client';
 import { useTranslation } from '@investiq/i18n';
 import { useAuth } from '../auth/AuthContext';
 import { RiskBadge } from '../onboarding/RiskBadge';
+import { RETAKE_PATH } from '../auth/guardRules';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { DisclaimerBanner, ErrorState, Skeleton } from '../../components/ui/Feedback';
@@ -51,7 +52,7 @@ export const DashboardPage = () => {
                 })}
               </p>
             </div>
-            <Button variant="secondary" onClick={() => navigate('/onboarding')}>
+            <Button variant="secondary" onClick={() => navigate(RETAKE_PATH)}>
               {t('dashboard.retake')}
             </Button>
           </div>

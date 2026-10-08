@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, type Location } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useTranslation } from '@investiq/i18n';
 import { useAuth } from './AuthContext';
 import { ErrorState } from '../../components/ui/Feedback';
+import { adminRedirect, guestRedirect, protectedRouteRedirect } from './guardRules';
 
 const FullPageSpinner = () => (
   <div className="flex min-h-screen items-center justify-center bg-gray-50">
@@ -35,21 +36,29 @@ export const RequireAuth = ({ children }: { children: ReactNode }) => {
  */
 export const RequireRiskProfile = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
-  if (user && !user.has_risk_profile) return <Navigate to="/onboarding" replace />;
+  const redirect = user ? protectedRouteRedirect(user) : null; // RequireAuth handles logged-out
+  if (redirect) return <Navigate to={redirect} replace />;
   return <>{children}</>;
 };
 
 /** Admin-only screens (Architecture.md §11). The API enforces this too. */
 export const RequireAdmin = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
-  if (user?.role !== 'admin') return <Navigate to="/dashboard" replace />;
+  const redirect = adminRedirect(user);
+  if (redirect) return <Navigate to={redirect} replace />;
   return <>{children}</>;
 };
 
-/** Login/register pages: send already-logged-in users onwards. */
+/**
+ * Login/register pages: send already-logged-in users onwards — to the page they originally
+ * asked for (RequireAuth passes it as `state.from`) when their profile is complete.
+ */
 export const GuestOnly = ({ children }: { children: ReactNode }) => {
   const { user, isLoading } = useAuth();
+  const location = useLocation();
   if (isLoading) return <FullPageSpinner />;
-  if (user) return <Navigate to={user.has_risk_profile ? '/dashboard' : '/onboarding'} replace />;
+  const from = (location.state as { from?: Location } | null)?.from;
+  const redirect = guestRedirect(user, from ? from.pathname + from.search : null);
+  if (redirect) return <Navigate to={redirect} replace />;
   return <>{children}</>;
 };

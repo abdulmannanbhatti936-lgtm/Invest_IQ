@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Check } from 'lucide-react';
 import { riskProfileApi } from '@investiq/api-client';
@@ -11,6 +11,7 @@ import {
   type RiskProfile,
 } from '@investiq/shared-types';
 import { useAuth } from '../auth/AuthContext';
+import { onboardingRedirect, RETAKE_PARAM } from '../auth/guardRules';
 import { Button } from '../../components/ui/Button';
 import { DisclaimerBanner, ErrorState, Notice, Skeleton } from '../../components/ui/Feedback';
 import { LanguageToggle } from '../../components/LanguageToggle';
@@ -23,7 +24,8 @@ export const OnboardingPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, refreshUser } = useAuth();
-  const isRetake = !!user?.has_risk_profile;
+  const [searchParams] = useSearchParams();
+  const isRetake = !!user?.has_risk_profile && searchParams.get(RETAKE_PARAM) === '1';
   const queryClient = useQueryClient();
 
   const [step, setStep] = useState(0);
@@ -32,12 +34,19 @@ export const OnboardingPage = () => {
   const [resumed, setResumed] = useState(false);
   const [result, setResult] = useState<RiskProfile | null>(null);
 
+  // A completed profile only reopens the questionnaire as an explicit retake (FR5)
+  const redirect = onboardingRedirect(user, {
+    retake: searchParams.get(RETAKE_PARAM) === '1',
+    showingResult: result !== null,
+  });
+
   // FR6: pick up where the user left off
   const progress = useQuery({
     queryKey: ['onboarding-progress'],
     queryFn: riskProfileApi.getProgress,
     staleTime: Infinity,
     retry: 1,
+    enabled: !redirect,
   });
 
   useEffect(() => {
@@ -71,8 +80,10 @@ export const OnboardingPage = () => {
       // The server clears the draft once the profile is saved
       queryClient.removeQueries({ queryKey: ['onboarding-progress'] });
       queryClient.setQueryData(['risk-profile'], profile);
-      await refreshUser();
+      // Show the result before the user refresh marks the profile complete, so the
+      // onboarding guard keeps this screen instead of redirecting to the dashboard
       setResult(profile);
+      await refreshUser();
     },
   });
 
@@ -94,6 +105,8 @@ export const OnboardingPage = () => {
     setStep(step - 1);
     draftSender.send({ answers, current_step: step - 1 });
   };
+
+  if (redirect) return <Navigate to={redirect} replace />;
 
   if (result) {
     return (

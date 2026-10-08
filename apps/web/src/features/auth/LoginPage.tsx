@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Link, useLocation, useNavigate, type Location } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { getErrorStatus } from '@investiq/api-client';
 import { useTranslation } from '@investiq/i18n';
 import { useAuth } from './AuthContext';
@@ -21,8 +21,6 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export const LoginPage = () => {
   const { t } = useTranslation();
   const { login, sessionExpired } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
   const [serverError, setServerError] = useState<string | null>(null);
 
   const {
@@ -37,9 +35,8 @@ export const LoginPage = () => {
   const onSubmit = async (data: LoginFormValues) => {
     try {
       setServerError(null);
+      // GuestOnly redirects once the user is loaded (to the originally requested page if any)
       await login({ username: data.email, password: data.password });
-      const from = (location.state as { from?: Location } | null)?.from?.pathname;
-      navigate(from && from !== '/login' ? from : '/dashboard', { replace: true });
     } catch (error) {
       const status = getErrorStatus(error);
       setServerError(

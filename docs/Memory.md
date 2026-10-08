@@ -53,6 +53,8 @@ Carried over from PRD.md §17 and Architecture.md §21 — resolve these before/
 - [ ] OAuth (Google login) — in scope for v1 onboarding or deferred?
 - [ ] Specific financial news sources for the sentiment scraper — to be finalized before Phase 4
 - [ ] iOS support for mobile — Android is the committed target; iOS is a stretch goal only
+- [ ] **Phase 5 must enforce the risk profile on the server:** the Phase 1 route guard is screen-only (PRD §7.1 acceptance criteria are about screens). Every Phase 5 portfolio endpoint (`/portfolio/*`) must reject a user without a completed risk profile server-side (e.g. a `require_risk_profile` dependency → 403/409), since recommendations depend on the profile (FR4). Decided 2026-10-09, not built yet.
+- [ ] **Admin endpoints (Phase 9):** `require_admin` (`core/deps.py`) exists and was probed on 2026-10-09 (admin 200, non-admin 403, no token 401), and is covered by `tests/test_admin_guard.py` on a test-only route (admin 200, non-admin 403, no token 401). No real endpoint uses it yet — Step 9.4 must still test every real admin endpoint.
 
 ## 5. Known Constraints
 
