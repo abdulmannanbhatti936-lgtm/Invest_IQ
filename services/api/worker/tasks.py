@@ -13,10 +13,11 @@ from ml.features import price_points_to_frame
 from ml.inference import ModelNotFoundError
 from ml.training import InsufficientDataError, new_model_version, train_ticker
 from models.sentiment import NewsSentiment
-from models.stock import PricePoint, Stock, StockSplit
+from models.stock import PricePoint, Stock, StockDividend, StockSplit
+from services import dividend_adjustment
 from services.prediction_service import InsufficientHistoryError, generate_prediction
 from services.split_adjustment import METHOD_VERSION, SUSPECT_FLAG, Split, adjust
-from services.stock_service import StockService
+from services.stock_service import PriceDataUnavailable, StockService
 
 logger = logging.getLogger(__name__)
 
@@ -165,6 +166,74 @@ def apply_split_adjustment(db, stock: Stock) -> None:
         split.history_adjusted = decision.history_adjusted_by_us
         split.decision_note = decision.note
         split.method_version = METHOD_VERSION
+    db.commit()
+
+
+@celery_app.task(name="worker.tasks.refresh_dividends")
+def refresh_dividends(tickers: list | None = None):
+    """
+    Fetch every stock's dividend history, store new events and re-assess all of them
+    against the served closes (services/dividend_adjustment.py). Runs after the price
+    refresh, since a split re-adjustment changes the closes the decision is based on.
+    """
+    universe = [t.upper() for t in tickers] if tickers else list(CATALOG_BY_TICKER)
+    db = SessionLocal()
+    try:
+        assessed, failed = [], []
+        for ticker in universe:
+            stock = db.query(Stock).filter(Stock.ticker == ticker).first()
+            if not stock:
+                failed.append(ticker)
+                continue
+            try:
+                record_dividends(db, stock, MarketDataClient.get_dividends(ticker))
+            except MarketDataUnavailable as e:
+                logger.error(f"Dividend refresh failed for {ticker}: {e}")
+                failed.append(ticker)
+                continue
+            try:
+                apply_dividend_adjustment(db, stock)
+            except PriceDataUnavailable:
+                failed.append(ticker)
+                continue
+            assessed.append(ticker)
+        return {"status": "completed", "assessed": len(assessed), "failed": failed}
+    finally:
+        db.close()
+
+
+def record_dividends(db, stock: Stock, dividends: list[tuple[datetime.date, float]]) -> None:
+    """Store provider dividend events; a later fetch with the same date updates the amount."""
+    if not dividends:
+        return
+    stmt = insert(StockDividend).values(
+        [{"stock_id": stock.id, "ex_date": day, "amount": amount} for day, amount in dividends]
+    )
+    db.execute(
+        stmt.on_conflict_do_update(
+            constraint="uq_stock_dividends_stock_date", set_={"amount": stmt.excluded.amount}
+        )
+    )
+    db.commit()
+
+
+def apply_dividend_adjustment(db, stock: Stock) -> None:
+    """Store, per dividend, the closes around its ex-date and the factor applied (or why not)."""
+    history = StockService.get_history(db, stock.ticker, period="max")
+    dividends = db.query(StockDividend).filter(StockDividend.stock_id == stock.id).all()
+    decisions = dividend_adjustment.assess(
+        [bar["timestamp"].astimezone(PSX_TIMEZONE).date() for bar in history],
+        [bar["close"] for bar in history],
+        [dividend_adjustment.Dividend(d.ex_date, float(d.amount)) for d in dividends],
+    )
+    by_day = {d.ex_date: d for d in dividends}
+    for decision in decisions:
+        row = by_day[decision.day]
+        row.previous_close = decision.previous_close
+        row.ex_close = decision.ex_close
+        row.adjustment_factor = decision.factor
+        row.review_flag = decision.flag
+        row.method_version = dividend_adjustment.METHOD_VERSION
     db.commit()
 
 

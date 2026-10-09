@@ -4,7 +4,7 @@ from .prediction import Prediction
 from .refresh_token import RefreshToken
 from .risk_profile import RiskCategory, RiskProfile
 from .sentiment import NewsSentiment
-from .stock import PricePoint, Stock, StockSplit
+from .stock import PricePoint, Stock, StockDividend, StockSplit
 from .user import User, UserRole
 
 # This allows alembic to import Base from models with all models attached
@@ -18,6 +18,7 @@ __all__ = [
     "Stock",
     "PricePoint",
     "StockSplit",
+    "StockDividend",
     "NewsSentiment",
     "Prediction",
 ]

@@ -33,12 +33,15 @@ class Settings(BaseSettings):
     AUTH_RATE_LIMIT: int = 10
     AUTH_RATE_LIMIT_WINDOW_SECONDS: int = 60
 
-    # PSX tickers the background jobs ingest, train on and predict for
-    TRACKED_TICKERS: str = "SYS,HUBC,OGDC,PPL,MCB,UBL,HBL,MEBL,FFC,EFERT,LUCK,PSO"
+    # The 18 liquid KSE-100 stocks the model is trained on and forecasts for (approved
+    # 2026-10-10, DetailedReport Phase 3). Every other stock shows "no forecast yet".
+    TRACKED_TICKERS: str = (
+        "OGDC,PPL,MARI,HBL,UBL,MEBL,NBP,PSO,FFC,EFERT,LUCK,MLCF,DGKC,HUBC,ATRL,SYS,PAEL,SAZEW"
+    )
 
     # ML
     MODEL_DIR: str = str(API_ROOT / "ml" / "artifacts")
-    DATASET_DIR: str = str(API_ROOT / "ml" / "data" / "raw")
+    DATASET_DIR: str = str(API_ROOT / "ml" / "data")
     LOW_CONFIDENCE_THRESHOLD: float = 0.6  # PRD.md FR16
     MIN_HISTORY_DAYS: int = 120  # below this we refuse to predict (PRD.md FR10)
 

@@ -32,6 +32,7 @@ class Stock(Base):
     sentiments = relationship("NewsSentiment", back_populates="stock", cascade="all, delete-orphan")
     predictions = relationship("Prediction", back_populates="stock", cascade="all, delete-orphan")
     splits = relationship("StockSplit", back_populates="stock", cascade="all, delete-orphan")
+    dividends = relationship("StockDividend", back_populates="stock", cascade="all, delete-orphan")
 
 
 class PricePoint(Base):
@@ -80,3 +81,30 @@ class StockSplit(Base):
     method_version = Column(String, nullable=True)
 
     stock = relationship("Stock", back_populates="splits")
+
+
+class StockDividend(Base):
+    """A provider dividend event and InvestIQ's decision about adjusting for it."""
+
+    __tablename__ = "stock_dividends"
+    __table_args__ = (
+        UniqueConstraint("stock_id", "ex_date", name="uq_stock_dividends_stock_date"),
+    )
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    stock_id = Column(
+        UUID(as_uuid=True), ForeignKey("stocks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    ex_date = Column(Date, nullable=False)
+    amount = Column(Numeric, nullable=False)  # Rs. per share, split-adjusted by the provider
+    source = Column(String, nullable=False, default="yahoo", server_default="yahoo")
+
+    # Set by services/dividend_adjustment.py from the served closes around the ex-date.
+    # Only the model's training/inference series uses the factor; served prices never do.
+    previous_close = Column(Numeric, nullable=True)
+    ex_close = Column(Numeric, nullable=True)
+    adjustment_factor = Column(Numeric, nullable=True)  # None: not applied
+    review_flag = Column(String, nullable=True)
+    method_version = Column(String, nullable=True)
+
+    stock = relationship("Stock", back_populates="dividends")

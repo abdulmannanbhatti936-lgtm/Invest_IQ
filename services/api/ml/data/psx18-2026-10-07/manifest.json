@@ -1,0 +1,573 @@
+{
+  "version": "psx18-2026-10-07",
+  "created_at": "2026-10-09T22:10:20.141534+00:00",
+  "source": "price_points (Yahoo Finance .KA daily bars, auto_adjust=False)",
+  "series": "served bars: split-adjusted, quality-flagged bars excluded",
+  "split_method": "split-v1",
+  "dividend_method": "div-v1",
+  "columns": {
+    "open/high/low/close/volume": "as served (not dividend-adjusted)",
+    "dividend_factor": "multiply prices by this for the model's series"
+  },
+  "tickers": {
+    "OGDC": {
+      "sector": "Oil & Gas Exploration Companies",
+      "rows": 1226,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "dividends_in_range": 20,
+      "dividends_applied": 13,
+      "dividends_held_back": [
+        {
+          "ex_date": "2023-05-08",
+          "amount": 1.8,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2023-11-10",
+          "amount": 1.6,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2024-10-16",
+          "amount": 4.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2025-03-10",
+          "amount": 4.05,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2025-05-09",
+          "amount": 3.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2025-10-21",
+          "amount": 5.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2026-03-06",
+          "amount": 4.25,
+          "flag": "drop_mismatch"
+        }
+      ],
+      "sha256": "09640196ce4ba184d06a11d496fd740808acd8660f8bb1a81f5ba711ab8bdd8a"
+    },
+    "PPL": {
+      "sector": "Oil & Gas Exploration Companies",
+      "rows": 1226,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "dividends_in_range": 15,
+      "dividends_applied": 6,
+      "dividends_held_back": [
+        {
+          "ex_date": "2021-10-15",
+          "amount": 2.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2022-10-17",
+          "amount": 0.5,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2024-03-05",
+          "amount": 2.5,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2024-10-16",
+          "amount": 2.5,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2024-11-08",
+          "amount": 2.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2025-05-09",
+          "amount": 1.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2025-11-10",
+          "amount": 2.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2026-02-26",
+          "amount": 2.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2026-05-13",
+          "amount": 2.0,
+          "flag": "drop_mismatch"
+        }
+      ],
+      "sha256": "1409633fae952da7042cab78997297b2e0474439a104448a6cdc8df9f84c7b4a"
+    },
+    "MARI": {
+      "sector": "Oil & Gas Exploration Companies",
+      "rows": 1225,
+      "date_start": "2021-10-11",
+      "date_end": "2026-10-07",
+      "dividends_in_range": 10,
+      "dividends_applied": 6,
+      "dividends_held_back": [
+        {
+          "ex_date": "2022-02-02",
+          "amount": 6.888889,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2024-09-16",
+          "amount": 14.88888,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2025-09-18",
+          "amount": 21.7,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2026-01-30",
+          "amount": 8.3,
+          "flag": "drop_mismatch"
+        }
+      ],
+      "sha256": "fcc245ffc5bca945376fea1231bd857099fbedf2d620d401896848577faab442"
+    },
+    "HBL": {
+      "sector": "Commercial Banks",
+      "rows": 1225,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "dividends_in_range": 20,
+      "dividends_applied": 14,
+      "dividends_held_back": [
+        {
+          "ex_date": "2022-03-21",
+          "amount": 2.25,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2022-08-04",
+          "amount": 1.5,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2023-08-04",
+          "amount": 2.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2023-11-02",
+          "amount": 2.25,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2024-10-24",
+          "amount": 4.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2025-10-31",
+          "amount": 5.0,
+          "flag": "drop_mismatch"
+        }
+      ],
+      "sha256": "bb2194abe127abdb7eba7833b14333c335dddd52673583e9fe07565327ecfd10"
+    },
+    "UBL": {
+      "sector": "Commercial Banks",
+      "rows": 1224,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "dividends_in_range": 20,
+      "dividends_applied": 15,
+      "dividends_held_back": [
+        {
+          "ex_date": "2022-08-15",
+          "amount": 2.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2024-04-25",
+          "amount": 5.5,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2024-11-01",
+          "amount": 5.5,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2025-04-28",
+          "amount": 5.5,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2025-07-18",
+          "amount": 8.0,
+          "flag": "drop_mismatch"
+        }
+      ],
+      "sha256": "beb8beeca890ff7f506a247ec2ef28a84de8ca96d68a7510b91a8b7e8bc97190"
+    },
+    "MEBL": {
+      "sector": "Commercial Banks",
+      "rows": 1225,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "dividends_in_range": 20,
+      "dividends_applied": 13,
+      "dividends_held_back": [
+        {
+          "ex_date": "2022-04-28",
+          "amount": 1.590909,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2022-08-22",
+          "amount": 1.75,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2023-04-27",
+          "amount": 3.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2023-10-30",
+          "amount": 5.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2026-03-16",
+          "amount": 7.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2026-05-05",
+          "amount": 7.5,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2026-08-18",
+          "amount": 8.0,
+          "flag": "drop_mismatch"
+        }
+      ],
+      "sha256": "c7ebd4ebaec739cd92ed21a92e6c244b674cf65fc9714814da23090f034615f0"
+    },
+    "NBP": {
+      "sector": "Commercial Banks",
+      "rows": 1225,
+      "date_start": "2021-10-11",
+      "date_end": "2026-10-07",
+      "dividends_in_range": 3,
+      "dividends_applied": 3,
+      "dividends_held_back": [],
+      "sha256": "b394f44bf7b6e23e8ba36817912886374178970191d3288bc3bcd0567845a1d2"
+    },
+    "PSO": {
+      "sector": "Oil & Gas Marketing Companies",
+      "rows": 1226,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "dividends_in_range": 5,
+      "dividends_applied": 5,
+      "dividends_held_back": [],
+      "sha256": "8c17632114e98b1bacd6ce69b1833161e3c89aefcc81e5dfef5e5561f5199d0a"
+    },
+    "FFC": {
+      "sector": "Fertilizer",
+      "rows": 1226,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "dividends_in_range": 19,
+      "dividends_applied": 14,
+      "dividends_held_back": [
+        {
+          "ex_date": "2022-08-04",
+          "amount": 2.1,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2023-03-22",
+          "amount": 3.15,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2025-05-08",
+          "amount": 7.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2025-11-03",
+          "amount": 9.5,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2026-03-06",
+          "amount": 8.5,
+          "flag": "drop_mismatch"
+        }
+      ],
+      "sha256": "9ae11bd75b250f4be743b4aa2fe2c12cbbf5299030f183c75cf6a7d29e8a03a0"
+    },
+    "EFERT": {
+      "sector": "Fertilizer",
+      "rows": 1227,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "dividends_in_range": 19,
+      "dividends_applied": 14,
+      "dividends_held_back": [
+        {
+          "ex_date": "2022-03-14",
+          "amount": 5.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2022-10-24",
+          "amount": 3.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2024-10-25",
+          "amount": 2.5,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2025-04-30",
+          "amount": 2.25,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2025-08-08",
+          "amount": 4.25,
+          "flag": "drop_mismatch"
+        }
+      ],
+      "sha256": "bd7d0aedc594577d5153245b949386ea397b0bc6757f30febfb8d3640f78e936"
+    },
+    "LUCK": {
+      "sector": "Cement",
+      "rows": 1219,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "dividends_in_range": 4,
+      "dividends_applied": 2,
+      "dividends_held_back": [
+        {
+          "ex_date": "2025-09-17",
+          "amount": 4.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2026-09-17",
+          "amount": 5.0,
+          "flag": "drop_mismatch"
+        }
+      ],
+      "sha256": "25dcfb8e078923898cd0418491f0e7e7118b39ed1b43cc7d06f26332f2636ffa"
+    },
+    "MLCF": {
+      "sector": "Cement",
+      "rows": 1225,
+      "date_start": "2021-10-11",
+      "date_end": "2026-10-07",
+      "dividends_in_range": 0,
+      "dividends_applied": 0,
+      "dividends_held_back": [],
+      "sha256": "0d65a7b0a488458634d427f4d926a817a9366663a1cdaf64153a91151a637633"
+    },
+    "DGKC": {
+      "sector": "Cement",
+      "rows": 1224,
+      "date_start": "2021-10-11",
+      "date_end": "2026-10-07",
+      "dividends_in_range": 3,
+      "dividends_applied": 1,
+      "dividends_held_back": [
+        {
+          "ex_date": "2021-10-18",
+          "amount": 1.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2025-10-13",
+          "amount": 2.0,
+          "flag": "drop_mismatch"
+        }
+      ],
+      "sha256": "26b7c8984ce226f2d68de4e781a4b55382c3fe433602a88a3d1a369024451793"
+    },
+    "HUBC": {
+      "sector": "Power Generation & Distribution",
+      "rows": 1225,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "dividends_in_range": 14,
+      "dividends_applied": 11,
+      "dividends_held_back": [
+        {
+          "ex_date": "2023-11-03",
+          "amount": 5.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2025-03-07",
+          "amount": 5.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2026-03-06",
+          "amount": 5.0,
+          "flag": "drop_mismatch"
+        }
+      ],
+      "sha256": "a25f2ccd48c213f92161c3dc5c3010776351247451724739798186ef62a8fbb2"
+    },
+    "ATRL": {
+      "sector": "Refinery",
+      "rows": 1222,
+      "date_start": "2021-10-11",
+      "date_end": "2026-10-07",
+      "dividends_in_range": 7,
+      "dividends_applied": 2,
+      "dividends_held_back": [
+        {
+          "ex_date": "2023-09-29",
+          "amount": 12.5,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2024-02-15",
+          "amount": 2.5,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2024-10-09",
+          "amount": 12.5,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2025-02-06",
+          "amount": 5.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2026-03-06",
+          "amount": 2.5,
+          "flag": "drop_mismatch"
+        }
+      ],
+      "sha256": "51eacc08bc2a893451bac8d3c6bf0f4252a144b87535cf3b1db8e47c8bebd6f7"
+    },
+    "SYS": {
+      "sector": "Technology & Communication",
+      "rows": 1217,
+      "date_start": "2021-10-08",
+      "date_end": "2026-10-07",
+      "dividends_in_range": 5,
+      "dividends_applied": 1,
+      "dividends_held_back": [
+        {
+          "ex_date": "2022-03-31",
+          "amount": 0.5,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2023-05-15",
+          "amount": 1.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2025-04-18",
+          "amount": 1.2,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2026-04-30",
+          "amount": 2.0,
+          "flag": "drop_mismatch"
+        }
+      ],
+      "sha256": "e9603694c4319dfae1cb0654b955c029af709460214b7f58f61ec42f4f1f8de8"
+    },
+    "PAEL": {
+      "sector": "Cable & Electrical Goods",
+      "rows": 1226,
+      "date_start": "2021-10-11",
+      "date_end": "2026-10-07",
+      "dividends_in_range": 0,
+      "dividends_applied": 0,
+      "dividends_held_back": [],
+      "sha256": "4f50ed2ff517dbe2a7921c6cc8b48eb1270aafc8e730c1b77945351b5575af07"
+    },
+    "SAZEW": {
+      "sector": "Automobile Assembler",
+      "rows": 1224,
+      "date_start": "2021-10-11",
+      "date_end": "2026-10-07",
+      "dividends_in_range": 11,
+      "dividends_applied": 2,
+      "dividends_held_back": [
+        {
+          "ex_date": "2024-04-29",
+          "amount": 8.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2024-11-05",
+          "amount": 10.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2025-03-06",
+          "amount": 10.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2025-04-29",
+          "amount": 12.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2025-09-17",
+          "amount": 20.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2025-10-27",
+          "amount": 15.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2026-02-09",
+          "amount": 15.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2026-04-30",
+          "amount": 20.0,
+          "flag": "drop_mismatch"
+        },
+        {
+          "ex_date": "2026-09-18",
+          "amount": 20.0,
+          "flag": "drop_mismatch"
+        }
+      ],
+      "sha256": "4c49ac4d8d93a0f9eaf56b6397b44c66c69ebf801efa364e1855d2cb29f17d7d"
+    }
+  }
+}
