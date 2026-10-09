@@ -28,12 +28,13 @@ class StockQuote(BaseModel):
     change: float | None = None
     change_percent: float | None = None
     volume: int
+    # Latest stored trading day; the provider is ~1 trading day behind PSX (Memory.md §3)
     timestamp: UTCDateTime
-    # Key statistics (PRD.md FR8)
+    # Key statistics (PRD.md FR8). P/E is not served: Yahoo's figure for PSX symbols is
+    # unreliable and there is no other source yet (Memory.md §3).
     fifty_two_week_high: float | None = None
     fifty_two_week_low: float | None = None
     market_cap: float | None = None
-    pe_ratio: float | None = None
 
 
 class PricePointResponse(BaseModel):
