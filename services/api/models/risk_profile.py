@@ -34,7 +34,11 @@ class RiskProfile(Base):
         nullable=False,
     )
 
-    # passive_deletes: deleting a User leaves its profile to the DB's ON DELETE CASCADE
+    # Deleting a User deletes its profile: the ORM cascade handles a profile already loaded
+    # in the session; passive_deletes leaves an unloaded one to the DB's ON DELETE CASCADE.
     user = relationship(
-        "User", backref=backref("risk_profile", uselist=False, passive_deletes=True)
+        "User",
+        backref=backref(
+            "risk_profile", uselist=False, cascade="all, delete-orphan", passive_deletes=True
+        ),
     )

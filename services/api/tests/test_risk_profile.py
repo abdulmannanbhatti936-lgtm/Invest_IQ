@@ -401,9 +401,13 @@ def test_users_cannot_access_each_others_data(client):
     )
 
 
-def test_deleting_user_via_orm_removes_their_profile(db):
-    # passive_deletes=True leaves the child rows to the DB's ON DELETE CASCADE; without it the
-    # ORM would try to set risk_profiles.user_id to NULL and fail the NOT NULL constraint.
+@pytest.mark.parametrize(
+    "profile_loaded", [False, True], ids=["profile_not_loaded", "profile_loaded"]
+)
+def test_deleting_user_via_orm_removes_their_profile(db, profile_loaded):
+    # The User -> RiskProfile backref cascades deletes in the ORM (covers a profile already
+    # loaded in the session) and uses passive_deletes, so an unloaded profile is left to the
+    # DB's ON DELETE CASCADE instead of being fetched first.
     from models.risk_profile import RiskProfile
     from models.user import User
 
@@ -416,7 +420,10 @@ def test_deleting_user_via_orm_removes_their_profile(db):
     user_id = user.id
     db.expire_all()
 
-    db.delete(db.get(User, user_id))
+    user = db.get(User, user_id)
+    if profile_loaded:
+        assert user.risk_profile is not None
+    db.delete(user)
     db.commit()
 
     assert db.query(RiskProfile).filter(RiskProfile.user_id == user_id).count() == 0
