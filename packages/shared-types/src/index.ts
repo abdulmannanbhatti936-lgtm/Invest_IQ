@@ -137,7 +137,4 @@ export interface Prediction {
 
 /** `detail` of a 404 from GET /stocks/{ticker}/prediction */
 export type PredictionUnavailableCode =
-  | 'stock_not_found'
-  | 'not_covered'
-  | 'insufficient_data'
-  | 'not_ready';
+  'stock_not_found' | 'not_covered' | 'insufficient_data' | 'not_ready';
