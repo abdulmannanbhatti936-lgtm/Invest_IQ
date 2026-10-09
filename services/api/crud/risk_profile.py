@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -22,7 +22,7 @@ def upsert_risk_profile(db: Session, user: User, profile_in: RiskProfileUpdate) 
         profile.category = category
         # FR5: a retake always counts as an update, even with identical answers
         # (onupdate only fires when a column actually changes)
-        profile.updated_at = datetime.utcnow()
+        profile.updated_at = datetime.now(timezone.utc)
     else:
         profile = RiskProfile(user_id=user.id, category=category, answers=profile_in.answers)
         db.add(profile)

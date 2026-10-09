@@ -7,7 +7,8 @@ from pydantic import AfterValidator
 
 
 def _as_utc(value: datetime) -> datetime:
-    # Naive values in the database were written with datetime.utcnow(), so they are UTC.
+    # All stored timestamps are TIMESTAMPTZ; a naive value can only come from code, and the
+    # codebase treats naive datetimes as UTC.
     if value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc)

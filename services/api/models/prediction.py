@@ -30,6 +30,11 @@ class Prediction(Base):
     signal = Column(String, nullable=False)
     confidence_score = Column(Numeric(5, 4), nullable=False)
 
-    generated_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False, index=True)
+    generated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.datetime.now(datetime.timezone.utc),
+        nullable=False,
+        index=True,
+    )
 
     stock = relationship("Stock", back_populates="predictions")

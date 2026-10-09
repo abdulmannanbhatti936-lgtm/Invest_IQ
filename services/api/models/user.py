@@ -1,6 +1,6 @@
 import enum
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime, Enum, Index, String, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -28,7 +28,9 @@ class User(Base):
     )
     # Partially-completed questionnaire answers, so onboarding can resume (PRD.md FR6)
     onboarding_progress = Column(JSONB, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+    )
 
     # `risk_profile` is attached as a one-to-one backref by models.risk_profile
 
