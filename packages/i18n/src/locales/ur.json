@@ -161,7 +161,7 @@
   },
   "stocks": {
     "title": "PSX کمپنیاں",
-    "subtitle": "ٹکر، کمپنی کے نام یا شعبے سے تلاش کریں۔",
+    "subtitle": "KSE-100 انڈیکس کی کمپنیاں۔ ٹکر، کمپنی کے نام یا شعبے سے تلاش کریں۔",
     "searchLabel": "تلاش",
     "searchPlaceholder": "مثلاً SYS، Meezan، Cement",
     "resultCount": "{{count}} کمپنیاں",
@@ -170,12 +170,12 @@
   },
   "stockDetail": {
     "backToSearch": "اسٹاکس پر واپس",
-    "notFound": "{{ticker}} کا مارکیٹ ڈیٹا نہیں ملا۔",
+    "notFound": "{{ticker}} اُن KSE-100 اسٹاکس میں شامل نہیں جن کا InvestIQ جائزہ لیتا ہے۔",
     "unavailable": "مارکیٹ ڈیٹا عارضی طور پر دستیاب نہیں۔ براہ کرم چند منٹ بعد دوبارہ کوشش کریں۔",
     "summaryUp": "▲ پچھلے {{period}} میں {{pct}} اضافہ",
     "summaryDown": "▼ پچھلے {{period}} میں {{pct}} کمی",
     "summaryFlat": "پچھلے {{period}} میں کوئی تبدیلی نہیں",
-    "dayChange": "آج",
+    "dayChange": "پچھلی بند قیمت سے تبدیلی",
     "chartTitle": "قیمت کی تاریخ",
     "chartActual": "بند ہونے کی قیمت",
     "chartForecast": "AI پیش گوئی (اگلا کاروباری دن)",
@@ -202,10 +202,13 @@
       "volume": "حجم",
       "week52High": "52 ہفتوں کی بلند ترین",
       "week52Low": "52 ہفتوں کی کم ترین",
-      "peRatio": "P/E تناسب",
       "marketCap": "مارکیٹ کیپ"
     },
-    "asOf": "بتاریخ {{date}}"
+    "asOf": "بتاریخ {{date}}",
+    "closeAsOf": "{{date}} کی بند قیمت",
+    "delayNote": "قیمتیں دن کے اختتام کی ہیں اور PSX سے ایک کاروباری دن پیچھے ہو سکتی ہیں۔",
+    "chartAsOf": "{{date}} تک کی روزانہ بند قیمتیں",
+    "volumeTitle": "روزانہ حجم (شیئرز)"
   },
   "prediction": {
     "title": "AI پیش گوئی",

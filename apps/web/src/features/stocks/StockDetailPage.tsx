@@ -13,7 +13,7 @@ import {
   Notice,
   Skeleton,
 } from '../../components/ui/Feedback';
-import { formatPrice, formatSignedPct } from '../../lib/format';
+import { formatDate, formatPrice, formatSignedPct } from '../../lib/format';
 import { KeyStats } from './KeyStats';
 import { PredictionPanel } from './PredictionPanel';
 import { PriceChart } from './PriceChart';
@@ -29,7 +29,7 @@ const periodChange = (history: PricePoint[]): number | null => {
 
 export const StockDetailPage = () => {
   const { ticker = '' } = useParams<{ ticker: string }>();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [period, setPeriod] = useState<HistoryPeriod>('1y');
 
   const quote = useQuery({
@@ -125,6 +125,11 @@ export const StockDetailPage = () => {
                   : '—'}
               </Figure>
             </p>
+            <p className="mt-1 text-xs text-gray-500">
+              {t('stockDetail.closeAsOf', {
+                date: formatDate(quote.data.timestamp, i18n.language),
+              })}
+            </p>
           </div>
         </div>
       )}
@@ -167,7 +172,16 @@ export const StockDetailPage = () => {
           // PRD.md FR10
           <Notice tone="warning">{t('stockDetail.insufficientHistory')}</Notice>
         ) : (
-          <PriceChart history={history.data} prediction={prediction.data} />
+          <>
+            <PriceChart history={history.data} prediction={prediction.data} />
+            <p className="mt-3 text-xs text-gray-500">
+              {t('stockDetail.chartAsOf', {
+                date: formatDate(history.data[history.data.length - 1].timestamp, i18n.language),
+              })}
+              {' · '}
+              {t('stockDetail.delayNote')}
+            </p>
+          </>
         )}
       </Card>
 

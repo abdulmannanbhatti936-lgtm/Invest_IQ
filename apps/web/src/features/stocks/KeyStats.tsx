@@ -18,7 +18,6 @@ export const KeyStats = ({ quote }: { quote: StockQuote }) => {
     ['volume', formatCompact(quote.volume)],
     ['week52High', formatPrice(quote.fifty_two_week_high)],
     ['week52Low', formatPrice(quote.fifty_two_week_low)],
-    ['peRatio', quote.pe_ratio != null ? quote.pe_ratio.toFixed(2) : '—'],
     ['marketCap', quote.market_cap != null ? `Rs. ${formatCompact(quote.market_cap)}` : '—'],
   ];
 

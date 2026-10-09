@@ -1,4 +1,6 @@
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
   Legend,
   Line,
@@ -10,13 +12,17 @@ import {
 } from 'recharts';
 import { useTranslation } from '@investiq/i18n';
 import type { Prediction, PricePoint } from '@investiq/shared-types';
-import { formatDate, formatPrice } from '../../lib/format';
+import { formatCompact, formatDate, formatPrice } from '../../lib/format';
 
 interface ChartRow {
   date: string;
   close?: number;
   forecast?: number;
+  volume?: number;
 }
+
+// Shared by the price and volume charts so hovering one highlights the same day in both
+const SYNC_ID = 'stock-detail';
 
 const nextBusinessDay = (iso: string): string => {
   const d = new Date(iso);
@@ -28,7 +34,7 @@ const nextBusinessDay = (iso: string): string => {
 
 /**
  * Closing-price line plus the next-day forecast as a dashed continuation, so a
- * forecast is never drawn like real data (Design.md §18).
+ * forecast is never drawn like real data (Design.md §18), with daily volume below (FR8).
  */
 export const PriceChart = ({
   history,
@@ -39,7 +45,11 @@ export const PriceChart = ({
 }) => {
   const { t, i18n } = useTranslation();
 
-  const rows: ChartRow[] = history.map((p) => ({ date: p.timestamp, close: p.close }));
+  const rows: ChartRow[] = history.map((p) => ({
+    date: p.timestamp,
+    close: p.close,
+    volume: p.volume,
+  }));
   if (prediction && rows.length > 0) {
     const last = rows[rows.length - 1];
     last.forecast = last.close; // joins the dashed line to the real one
@@ -48,54 +58,79 @@ export const PriceChart = ({
 
   return (
     // Time always runs left-to-right, even in the Urdu layout
-    <div className="h-[360px] w-full" dir="ltr">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={rows} margin={{ top: 5, right: 16, left: 8, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-          <XAxis
-            dataKey="date"
-            tickFormatter={(v: string) => formatDate(v, i18n.language)}
-            tick={{ fontSize: 12 }}
-            tickMargin={10}
-            minTickGap={40}
-            stroke="#9ca3af"
-          />
-          <YAxis
-            domain={['auto', 'auto']}
-            tick={{ fontSize: 12 }}
-            tickFormatter={(v: number) => v.toFixed(0)}
-            stroke="#9ca3af"
-            width={56}
-          />
-          <Tooltip
-            labelFormatter={(v) => formatDate(String(v), i18n.language)}
-            formatter={(value, name) => [formatPrice(Number(value)), name]}
-          />
-          <Legend />
-          <Line
-            name={t('stockDetail.chartActual')}
-            type="monotone"
-            dataKey="close"
-            stroke="#2563eb"
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 5 }}
-            connectNulls={false}
-          />
-          {prediction && (
-            <Line
-              name={t('stockDetail.chartForecast')}
-              type="linear"
-              dataKey="forecast"
-              stroke="#9333ea"
-              strokeWidth={2}
-              strokeDasharray="6 4"
-              dot={{ r: 3 }}
-              connectNulls
+    <div className="w-full" dir="ltr">
+      <div className="h-[320px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={rows}
+            syncId={SYNC_ID}
+            margin={{ top: 5, right: 16, left: 8, bottom: 5 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+            <XAxis
+              dataKey="date"
+              tickFormatter={(v: string) => formatDate(v, i18n.language)}
+              tick={{ fontSize: 12 }}
+              tickMargin={10}
+              minTickGap={40}
+              stroke="#9ca3af"
             />
-          )}
-        </LineChart>
-      </ResponsiveContainer>
+            <YAxis
+              domain={['auto', 'auto']}
+              tick={{ fontSize: 12 }}
+              tickFormatter={(v: number) => v.toFixed(0)}
+              stroke="#9ca3af"
+              width={56}
+            />
+            <Tooltip
+              labelFormatter={(v) => formatDate(String(v), i18n.language)}
+              formatter={(value, name) => [formatPrice(Number(value)), name]}
+            />
+            <Legend />
+            <Line
+              name={t('stockDetail.chartActual')}
+              type="monotone"
+              dataKey="close"
+              stroke="#2563eb"
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 5 }}
+              connectNulls={false}
+            />
+            {prediction && (
+              <Line
+                name={t('stockDetail.chartForecast')}
+                type="linear"
+                dataKey="forecast"
+                stroke="#9333ea"
+                strokeWidth={2}
+                strokeDasharray="6 4"
+                dot={{ r: 3 }}
+                connectNulls
+              />
+            )}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      <p className="mt-2 ps-16 text-xs text-gray-500">{t('stockDetail.volumeTitle')}</p>
+      <div className="h-[96px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={rows} syncId={SYNC_ID} margin={{ top: 4, right: 16, left: 8, bottom: 0 }}>
+            <XAxis dataKey="date" hide />
+            <YAxis
+              tick={{ fontSize: 11 }}
+              tickFormatter={(v: number) => formatCompact(v)}
+              stroke="#9ca3af"
+              width={56}
+            />
+            <Tooltip
+              labelFormatter={(v) => formatDate(String(v), i18n.language)}
+              formatter={(value) => [formatCompact(Number(value)), t('stockDetail.stats.volume')]}
+            />
+            <Bar dataKey="volume" fill="#d1d5db" isAnimationActive={false} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 };
