@@ -22,6 +22,8 @@ class Stock(Base):
     ticker = Column(String, unique=True, index=True, nullable=False)
     name = Column(String, nullable=False)
     sector = Column(String, nullable=True)
+    # From the data provider; market cap = latest stored close x shares (PRD.md FR8)
+    shares_outstanding = Column(BigInteger, nullable=True)
 
     # Relationship to price points
     price_points = relationship("PricePoint", back_populates="stock", cascade="all, delete-orphan")
