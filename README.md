@@ -126,26 +126,27 @@ celery -A core.celery_app beat --loglevel=info
 
 Beat runs on Asia/Karachi time. It schedules:
 
-| Job                      | When                                                                |
-| ------------------------ | ------------------------------------------------------------------- |
-| Price refresh            | 18:00 Mon-Fri (last month); full 5-year resync Sundays at 06:00     |
-| Dividend refresh         | 18:15 Mon-Fri (dividend events and their adjustment decision)       |
-| News fetch and sentiment | Hourly                                                              |
-| Predictions              | 18:30 Mon-Fri                                                       |
-| Model retraining         | Saturdays at 22:00 (new dataset version, no walk-forward or report) |
+| Job                      | When                                                                             |
+| ------------------------ | -------------------------------------------------------------------------------- |
+| Price refresh            | 18:00 Mon-Fri (last month); full 5-year resync Sundays at 06:00                  |
+| Dividend refresh         | 18:15 Mon-Fri (dividend events and their adjustment decision)                    |
+| News fetch and sentiment | Hourly                                                                           |
+| Predictions              | 18:30 Mon-Fri                                                                    |
+| Model retraining         | Saturdays at 22:00 (a candidate with its full report; never goes live by itself) |
 
 ### 4. ML models (first run only)
 
-Model artifacts are not in git. Rebuild them from the committed dataset (`services/api/ml/data/psx18-2026-10-07/`, 18 KSE-100 stocks); this reproduces model `lstm-rf-20261009T222331Z`'s data, split and seeds under a new timestamped version:
+Model artifacts are not in git. Rebuild them from the committed dataset (`services/api/ml/data/psx18-2026-10-07/`, 18 KSE-100 stocks); this reproduces model `lstm-rf-20261009T233529Z`'s data, split, seeds and results under a new timestamped version:
 
 ```bash
 cd services/api
 alembic upgrade head
-python -m ml.train --dataset psx18-2026-10-07   # ~8 min on CPU, including the walk-forward check
+python -m ml.train --dataset psx18-2026-10-07   # ~11 min on CPU; prints the candidate's version
+python -m ml.promote <model_version>            # makes that candidate the live model
 python -c "from worker.tasks import run_predictions; print(run_predictions.run())"
 ```
 
-Artifacts go to `ml/artifacts/<model_version>/` (gitignored) and `ml/artifacts/latest.json` points at the newest. The evaluation report is written to `ml/reports/evaluation_<model_version>.md` (committed). To build a newer dataset from the prices in your database first (needs the price and dividend jobs to have run), use `python -m ml.dataset` and pass the folder name it prints to `--dataset`. Tests never train the real model: they load the frozen MOCK model in `tests/fixtures/model/` (rebuild it with `python -m tests.fixtures.build_model_fixture` if the pipeline changes).
+Training never changes the live model: `ml.train` and the weekly job write a candidate (artifacts plus `report.md`) to `ml/candidates/` (gitignored). `ml.promote` refuses a candidate without a complete evaluation report; on success it copies the candidate to `ml/artifacts/<model_version>/`, points `ml/artifacts/latest.json` at it, copies the report to `ml/reports/evaluation_<model_version>.md` (commit it) and logs the promotion in `ml/artifacts/promotions.jsonl`. To build a newer dataset from the prices in your database first (needs the price and dividend jobs to have run), use `python -m ml.dataset` (it writes to `ml/candidates/data/`) and pass the folder name it prints to `--dataset`. Tests never train the real model: they load the frozen MOCK model in `tests/fixtures/model/` (rebuild it with `python -m tests.fixtures.build_model_fixture` if the pipeline changes).
 
 ### 5. Web app
 
