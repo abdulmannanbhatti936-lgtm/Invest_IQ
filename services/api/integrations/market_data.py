@@ -117,6 +117,17 @@ class MarketDataClient:
         return cls._bars(cls._download(ticker, **kwargs))
 
     @classmethod
+    def get_dividend_dates(cls, ticker: str) -> list[datetime.date]:
+        """Ex-dividend dates; on those days unadjusted closes drop by the dividend."""
+        symbol = cls.to_provider_symbol(ticker)
+        try:
+            dividends = yf.Ticker(symbol).dividends
+        except Exception as e:
+            logger.error(f"Market data provider error for {symbol}: {e}")
+            raise MarketDataUnavailable(str(e)) from e
+        return [] if dividends is None else [index.date() for index in dividends.index]
+
+    @classmethod
     def get_history_and_splits(
         cls, ticker: str, period: str = "1y"
     ) -> tuple[list[dict[str, Any]], list[tuple[datetime.date, float]]]:
