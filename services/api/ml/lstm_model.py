@@ -17,11 +17,14 @@ class LSTMForecaster(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.head = nn.Linear(hidden_2, 1)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def encode(self, x: torch.Tensor) -> torch.Tensor:
+        """The last LSTM state for each window (the input to Dropout -> Dense)."""
         out, _ = self.lstm1(x)
         out, _ = self.lstm2(out)
-        out = self.dropout(out[:, -1, :])
-        return self.head(out).squeeze(-1)
+        return out[:, -1, :]
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.head(self.dropout(self.encode(x))).squeeze(-1)
 
 
 def make_sequences(features: np.ndarray, seq_length: int, end_indices: np.ndarray) -> np.ndarray:
@@ -92,3 +95,23 @@ def predict(model: LSTMForecaster, X: np.ndarray) -> np.ndarray:
     model.eval()
     with torch.no_grad():
         return model(torch.from_numpy(X.astype(np.float32))).numpy()
+
+
+def mc_dropout_std(model: LSTMForecaster, X: np.ndarray, passes: int, seed: int) -> np.ndarray:
+    """
+    Spread of the forecast under Monte-Carlo dropout (Architecture.md §15.1: confidence
+    from prediction variance). Uses one fixed, seeded set of `passes` dropout masks for every
+    window, so a window's spread depends only on the window: the same in evaluation and in
+    live inference, and identical on every run.
+    """
+    model.eval()
+    keep = 1 - model.dropout.p
+    generator = torch.Generator().manual_seed(seed)
+    with torch.no_grad():
+        hidden = model.encode(torch.from_numpy(X.astype(np.float32)))
+        masks = (
+            torch.bernoulli(torch.full((passes, 1, hidden.shape[1]), keep), generator=generator)
+            / keep
+        )
+        samples = model.head(hidden.unsqueeze(0) * masks).squeeze(-1)
+    return samples.std(dim=0).numpy()
