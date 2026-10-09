@@ -144,14 +144,14 @@ users
   full_name VARCHAR
   role ENUM('user','admin') DEFAULT 'user'   -- added early (planned for Step 9.1): admin route guard needs it
   onboarding_progress JSONB NULL             -- partial questionnaire answers + step, for resume (PRD FR6)
-  created_at TIMESTAMP
+  created_at TIMESTAMPTZ
 
 risk_profiles
   id UUID PK
-  user_id UUID FK -> users.id
+  user_id UUID FK -> users.id ON DELETE CASCADE
   category ENUM('conservative','moderate','aggressive')
   answers JSONB
-  updated_at TIMESTAMP
+  updated_at TIMESTAMPTZ
 
 refresh_tokens                               -- one row per issued refresh token (rotation + revocation)
   jti UUID PK                                -- the JWT's jti claim
@@ -177,7 +177,7 @@ predictions
   model_version VARCHAR
   forecast_price NUMERIC
   confidence_score NUMERIC
-  generated_at TIMESTAMP
+  generated_at TIMESTAMPTZ
 
 sentiment_scores
   id UUID PK

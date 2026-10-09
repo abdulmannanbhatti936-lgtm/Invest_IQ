@@ -86,7 +86,7 @@ class NewsScraperClient:
                             stock_id=stock.id,
                             headline=headline,
                             sentiment_score=None,  # scored later by analyze_news_sentiment
-                            timestamp=datetime.datetime.utcnow(),
+                            timestamp=datetime.datetime.now(datetime.timezone.utc),
                         )
                     )
 

@@ -20,6 +20,10 @@ class NewsSentiment(Base):
     headline = Column(String, nullable=False)
     # -1.0 to 1.0; NULL means not yet scored (0.0 is a real "neutral" score)
     sentiment_score = Column(Float, nullable=True)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    timestamp = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.datetime.now(datetime.timezone.utc),
+        index=True,
+    )
 
     stock = relationship("Stock", back_populates="sentiments")
