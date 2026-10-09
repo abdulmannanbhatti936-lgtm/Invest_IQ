@@ -1,36 +1,35 @@
+import datetime
 import logging
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.dialects.postgresql import insert
 
 from core.celery_app import celery_app
 from core.config import settings
 from core.database import SessionLocal
-from integrations.market_data import MarketDataClient
+from integrations.market_data import MarketDataClient, MarketDataUnavailable
 from integrations.psx_catalog import CATALOG_BY_TICKER
 from ml.features import price_points_to_frame
 from ml.inference import ModelNotFoundError
 from ml.training import InsufficientDataError, new_model_version, train_ticker
 from models.sentiment import NewsSentiment
-from models.stock import PricePoint, Stock
+from models.stock import PricePoint, Stock, StockSplit
 from services.prediction_service import InsufficientHistoryError, generate_prediction
+from services.split_adjustment import METHOD_VERSION, SUSPECT_FLAG, Split, adjust
+from services.stock_service import StockService
 
 logger = logging.getLogger(__name__)
+
+PSX_TIMEZONE = ZoneInfo("Asia/Karachi")
+
+# Zero volume means no trades, so no new price. Yahoo emits such bars for PSX holidays and as
+# placeholders for days it has no data for yet, repeating the last close; serving them would
+# show a day with no change that never happened.
+NO_TRADES_FLAG = "no_trades"
 
 
 def _tickers(tickers: list[str] | None) -> list[str]:
     return [t.upper() for t in tickers] if tickers else settings.tracked_tickers
-
-
-def _get_or_create_stock(db, ticker: str) -> Stock:
-    stock = db.query(Stock).filter(Stock.ticker == ticker).first()
-    if stock:
-        return stock
-    name, sector = CATALOG_BY_TICKER.get(ticker, (ticker, None))
-    stock = Stock(ticker=ticker, name=name, sector=sector)
-    db.add(stock)
-    db.commit()
-    db.refresh(stock)
-    return stock
 
 
 def upsert_price_points(db, stock: Stock, history: list[dict]) -> int:
@@ -61,36 +60,123 @@ def upsert_price_points(db, stock: Stock, history: list[dict]) -> int:
 
 
 @celery_app.task(name="worker.tasks.refresh_stock_prices")
-def refresh_stock_prices(tickers: list | None = None, period: str = "5y"):
+def refresh_stock_prices(
+    tickers: list | None = None, period: str = "1mo", update_shares: bool = False
+):
     """
-    Fetch daily OHLCV for tracked tickers and upsert into price_points
-    (Architecture.md §9). A provider failure for one ticker is logged and skipped.
+    End-of-day refresh (Architecture.md §9): fetch daily OHLCV for every stock in the
+    universe, upsert it into price_points and drop the cached responses of the stocks that
+    changed. The API only reads the database, so a failed refresh means the "as of" date
+    stops moving, never a broken page. `update_shares` also refreshes shares outstanding.
     """
+    universe = [t.upper() for t in tickers] if tickers else list(CATALOG_BY_TICKER)
     db = SessionLocal()
     try:
-        upserted, failed = 0, []
-        for ticker in _tickers(tickers):
+        upserted, refreshed, no_data, failed = 0, [], [], []
+        for ticker in universe:
+            stock = db.query(Stock).filter(Stock.ticker == ticker).first()
+            if not stock:
+                logger.error(f"Price refresh skipped {ticker}: not in the stock universe")
+                failed.append(ticker)
+                continue
             try:
-                history = MarketDataClient.get_history(ticker, period=period)
-            except Exception as e:
+                history, splits = MarketDataClient.get_history_and_splits(ticker, period=period)
+            except MarketDataUnavailable as e:
                 logger.error(f"Price refresh failed for {ticker}: {e}")
                 failed.append(ticker)
                 continue
             if not history:
-                logger.warning(f"No history found for {ticker}")
-                failed.append(ticker)
+                logger.warning(f"No history returned for {ticker}")
+                no_data.append(ticker)
                 continue
-            stock = _get_or_create_stock(db, ticker)
             upserted += upsert_price_points(db, stock, history)
-        return {"status": "completed", "upserted_points": upserted, "failed": failed}
+            record_splits(db, stock, splits)
+            apply_split_adjustment(db, stock)
+            if update_shares:
+                _update_shares_outstanding(db, stock)
+            refreshed.append(ticker)
+
+        StockService.invalidate(refreshed)
+        # yfinance reports a network failure as "no data" for each symbol (Memory.md §11), so
+        # a run where nothing came back is treated as a provider outage
+        status = "completed" if refreshed else "provider_unavailable"
+        if not refreshed:
+            logger.error(f"Price refresh got no data for any of {len(universe)} stocks")
+        return {
+            "status": status,
+            "upserted_points": upserted,
+            "refreshed": len(refreshed),
+            "no_data": no_data,
+            "failed": failed,
+        }
     finally:
         db.close()
 
 
-# Kept so anything still calling the old task name keeps working
-fetch_market_data_for_tickers = celery_app.task(name="worker.tasks.fetch_market_data_for_tickers")(
-    refresh_stock_prices.run
-)
+def record_splits(db, stock: Stock, splits: list[tuple[datetime.date, float]]) -> None:
+    """Store provider split events; a later fetch with the same date updates the ratio."""
+    if not splits:
+        return
+    stmt = insert(StockSplit).values(
+        [{"stock_id": stock.id, "split_date": day, "ratio": ratio} for day, ratio in splits]
+    )
+    db.execute(
+        stmt.on_conflict_do_update(
+            constraint="uq_stock_splits_stock_date", set_={"ratio": stmt.excluded.ratio}
+        )
+    )
+    db.commit()
+
+
+def apply_split_adjustment(db, stock: Stock) -> None:
+    """
+    Recompute split_factor and quality_flag for all of a stock's bars from its raw closes and
+    recorded splits, and store each split's decision (services/split_adjustment.py).
+    Zero-volume bars are flagged and left out of the split rule.
+    """
+    points = (
+        db.query(PricePoint)
+        .filter(PricePoint.stock_id == stock.id)
+        .order_by(PricePoint.timestamp)
+        .all()
+    )
+    traded = [p for p in points if p.volume]
+    splits = db.query(StockSplit).filter(StockSplit.stock_id == stock.id).all()
+    result = adjust(
+        [p.timestamp.astimezone(PSX_TIMEZONE).date() for p in traded],
+        [float(p.close) for p in traded],
+        [Split(s.split_date, float(s.ratio)) for s in splits],
+    )
+    for point, factor, suspect in zip(traded, result.factors, result.suspect, strict=True):
+        point.split_factor = factor
+        point.quality_flag = SUSPECT_FLAG if suspect else None
+    # A no-trade bar keeps the factor of the last traded bar before it
+    factor = 1.0
+    for point in points:
+        if point.volume:
+            factor = point.split_factor
+        else:
+            point.split_factor = factor
+            point.quality_flag = NO_TRADES_FLAG
+        point.adjustment_version = METHOD_VERSION
+    by_day = {s.split_date: s for s in splits}
+    for decision in result.decisions:
+        split = by_day[decision.day]
+        split.history_adjusted = decision.history_adjusted_by_us
+        split.decision_note = decision.note
+        split.method_version = METHOD_VERSION
+    db.commit()
+
+
+def _update_shares_outstanding(db, stock: Stock) -> None:
+    try:
+        shares = MarketDataClient.get_shares_outstanding(stock.ticker)
+    except MarketDataUnavailable as e:
+        logger.warning(f"Shares outstanding not refreshed for {stock.ticker}: {e}")
+        return
+    if shares:
+        stock.shares_outstanding = shares
+        db.commit()
 
 
 @celery_app.task(name="worker.tasks.fetch_news_for_tickers")

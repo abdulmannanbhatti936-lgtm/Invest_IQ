@@ -10,8 +10,10 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
+      # Same official images as Docker Hub's postgres:15 / redis:7 (identical digests), pulled
+      # from Google's Docker Hub mirror: runners were timing out on auth.docker.io
       postgres:
-        image: postgres:15
+        image: mirror.gcr.io/library/postgres:15
         env:
           POSTGRES_USER: investiq
           POSTGRES_PASSWORD: investiq
@@ -25,7 +27,7 @@ jobs:
           --health-retries 5
 
       redis:
-        image: redis:7
+        image: mirror.gcr.io/library/redis:7
         ports:
           - 6379:6379
         options: >-

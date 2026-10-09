@@ -25,9 +25,10 @@ def _clean(value: Any) -> float | None:
 
 class MarketDataClient:
     """
-    Isolated client wrapper for fetching market data (Workflow.md Step 2.2).
-    Currently wraps Yahoo Finance, but can be swapped out for official PSX APIs
-    later without touching calling code.
+    Isolated client for the market data provider (Workflow.md Step 2.2). Only the refresh
+    job calls it: the API serves prices from the database (Memory.md §3), so a provider
+    outage or rate limit never breaks a page. Wraps Yahoo Finance today; the PSX portal can
+    replace it without touching calling code.
     """
 
     @staticmethod
@@ -54,7 +55,9 @@ class MarketDataClient:
     def _download(cls, ticker: str, **kwargs) -> pd.DataFrame:
         symbol = cls.to_provider_symbol(ticker)
         try:
-            hist = yf.Ticker(symbol).history(**kwargs)
+            # auto_adjust=False: "Close" is split-adjusted but not dividend-adjusted, so stored
+            # prices match the prices PSX quotes for the same day
+            hist = yf.Ticker(symbol).history(auto_adjust=False, **kwargs)
         except Exception as e:
             logger.error(f"Market data provider error for {symbol}: {e}")
             raise MarketDataUnavailable(str(e)) from e
@@ -64,69 +67,22 @@ class MarketDataClient:
         return hist.dropna(subset=["Close"])
 
     @classmethod
-    def get_quote(cls, ticker: str) -> dict[str, Any] | None:
+    def get_shares_outstanding(cls, ticker: str) -> int | None:
         """
-        Latest quote plus key statistics (PRD.md FR8). Returns None when the
-        ticker has no data; raises MarketDataUnavailable on provider failure.
+        Shares outstanding, used to compute market cap from our stored close. Yahoo's own
+        marketCap and trailingPE for PSX symbols disagree with PSX by 2-4x, so they are not used.
         """
-        hist = cls._download(ticker, period="1y")
-        if hist.empty:
-            logger.warning(f"No price data found for {ticker}")
-            return None
-
-        latest = hist.iloc[-1]
-        previous_close = _clean(hist["Close"].iloc[-2]) if len(hist) > 1 else None
-        price = float(latest["Close"])
-        change = price - previous_close if previous_close else None
-
-        # `info` is slow and flaky; stats from it are optional extras
-        info: dict[str, Any] = {}
+        symbol = cls.to_provider_symbol(ticker)
         try:
-            info = yf.Ticker(cls.to_provider_symbol(ticker)).info or {}
+            info = yf.Ticker(symbol).info or {}
         except Exception as e:
-            logger.warning(f"Could not load fundamentals for {ticker}: {e}")
+            logger.error(f"Market data provider error for {symbol}: {e}")
+            raise MarketDataUnavailable(str(e)) from e
+        shares = _clean(info.get("sharesOutstanding"))
+        return int(shares) if shares else None
 
-        return {
-            "ticker": cls.normalize_ticker(ticker),
-            "name": info.get("longName") or cls.normalize_ticker(ticker),
-            "sector": info.get("sector"),
-            "currency": info.get("currency") or "PKR",
-            "price": price,
-            "open": _clean(latest.get("Open")),
-            "high": _clean(latest.get("High")),
-            "low": _clean(latest.get("Low")),
-            "previous_close": previous_close,
-            "change": change,
-            "change_percent": (change / previous_close * 100) if change is not None else None,
-            "volume": int(latest["Volume"]) if _clean(latest.get("Volume")) is not None else 0,
-            "timestamp": hist.index[-1].to_pydatetime(),
-            "fifty_two_week_high": float(hist["High"].max()),
-            "fifty_two_week_low": float(hist["Low"].min()),
-            "market_cap": _clean(info.get("marketCap")),
-            "pe_ratio": _clean(info.get("trailingPE")),
-        }
-
-    @classmethod
-    def get_history(
-        cls,
-        ticker: str,
-        period: str = "1y",
-        start: datetime.date | None = None,
-        end: datetime.date | None = None,
-    ) -> list[dict[str, Any]]:
-        """
-        Historical daily OHLCV. Returns [] when there is no data; raises
-        MarketDataUnavailable on provider failure.
-        """
-        kwargs: dict[str, Any] = {}
-        if start:
-            kwargs["start"] = start.strftime("%Y-%m-%d")
-        if end:
-            kwargs["end"] = end.strftime("%Y-%m-%d")
-        if not start and not end:
-            kwargs["period"] = period
-
-        hist = cls._download(ticker, **kwargs)
+    @staticmethod
+    def _bars(hist: pd.DataFrame) -> list[dict[str, Any]]:
         return [
             {
                 "timestamp": index.to_pydatetime(),
@@ -138,3 +94,50 @@ class MarketDataClient:
             }
             for index, row in hist.iterrows()
         ]
+
+    @classmethod
+    def get_history(
+        cls,
+        ticker: str,
+        period: str = "1y",
+        start: datetime.date | None = None,
+        end: datetime.date | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Raw daily OHLCV as the provider returns it. Returns [] when there is no data;
+        raises MarketDataUnavailable on provider failure.
+        """
+        kwargs: dict[str, Any] = {}
+        if start:
+            kwargs["start"] = start.strftime("%Y-%m-%d")
+        if end:
+            kwargs["end"] = end.strftime("%Y-%m-%d")
+        if not start and not end:
+            kwargs["period"] = period
+        return cls._bars(cls._download(ticker, **kwargs))
+
+    @classmethod
+    def get_dividend_dates(cls, ticker: str) -> list[datetime.date]:
+        """Ex-dividend dates; on those days unadjusted closes drop by the dividend."""
+        symbol = cls.to_provider_symbol(ticker)
+        try:
+            dividends = yf.Ticker(symbol).dividends
+        except Exception as e:
+            logger.error(f"Market data provider error for {symbol}: {e}")
+            raise MarketDataUnavailable(str(e)) from e
+        return [] if dividends is None else [index.date() for index in dividends.index]
+
+    @classmethod
+    def get_history_and_splits(
+        cls, ticker: str, period: str = "1y"
+    ) -> tuple[list[dict[str, Any]], list[tuple[datetime.date, float]]]:
+        """Raw daily OHLCV plus the split events (date, new shares per old share) in the period."""
+        hist = cls._download(ticker, period=period)
+        splits = []
+        if "Stock Splits" in hist.columns:
+            splits = [
+                (index.date(), float(ratio))
+                for index, ratio in hist["Stock Splits"].items()
+                if _clean(ratio)
+            ]
+        return cls._bars(hist), splits

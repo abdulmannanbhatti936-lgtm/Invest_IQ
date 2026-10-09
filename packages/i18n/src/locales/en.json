@@ -161,7 +161,7 @@
   },
   "stocks": {
     "title": "PSX companies",
-    "subtitle": "Search by ticker, company name or sector.",
+    "subtitle": "Companies in the KSE-100 index. Search by ticker, company name or sector.",
     "searchLabel": "Search",
     "searchPlaceholder": "e.g. SYS, Meezan, Cement",
     "resultCount": "{{count}} companies",
@@ -170,12 +170,12 @@
   },
   "stockDetail": {
     "backToSearch": "Back to stocks",
-    "notFound": "We couldn't find market data for {{ticker}}.",
+    "notFound": "{{ticker}} is not one of the KSE-100 stocks tracked by InvestIQ.",
     "unavailable": "Market data is temporarily unavailable. Please try again in a few minutes.",
     "summaryUp": "▲ Up {{pct}} over the last {{period}}",
     "summaryDown": "▼ Down {{pct}} over the last {{period}}",
     "summaryFlat": "Unchanged over the last {{period}}",
-    "dayChange": "Today",
+    "dayChange": "Change from previous close",
     "chartTitle": "Price history",
     "chartActual": "Closing price",
     "chartForecast": "AI forecast (next trading day)",
@@ -202,10 +202,14 @@
       "volume": "Volume",
       "week52High": "52-week high",
       "week52Low": "52-week low",
-      "peRatio": "P/E ratio",
       "marketCap": "Market cap"
     },
-    "asOf": "As of {{date}}"
+    "asOf": "As of {{date}}",
+    "closeAsOf": "Closing price on {{date}}",
+    "delayNote": "Prices are end-of-day and can be a day or two behind PSX.",
+    "chartAsOf": "Daily closing prices up to {{date}}",
+    "volumeTitle": "Daily volume (shares)",
+    "splitAdjusted": "Prices adjusted for stock splits"
   },
   "prediction": {
     "title": "AI forecast",

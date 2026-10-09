@@ -262,152 +262,86 @@ Guard decisions live in `apps/web/src/features/auth/guardRules.ts` (pure, unit-t
 
 ---
 
-## Phase 2: Stock Data & Market Analysis (⚠️ Needs re-audit)
+## Phase 2: Stock Data & Market Analysis (re-audited 2026-10-10)
 
-> **Needs re-audit:** marked complete earlier without checkpoint evidence; an offline test on 2026-10-09 showed the history/quote endpoints do not degrade gracefully (Memory.md §4), and the mobile screens (Step 2.9) were never built. The text below is the original record, kept as history.
+> The first pass was marked complete without checkpoint evidence and served live Yahoo data per request (pages broke when Yahoo was down; AAPL test rows sat in the database). The re-audit below replaces it. The news scraper and sentiment model that the first pass filed under Phase 2 belong to Phase 4 and are re-audited there.
 
-### Step 2.1 — Database Models
+### Data source (decision 2026-10-10)
 
-**Files:** `services/api/models/stock.py`
+Yahoo Finance (`yfinance`, PSX symbols with the `.KA` suffix) is the only source this semester, for both history and the latest price. PRD FR7 names "Yahoo Finance + PSX data source"; the PSX Data Portal (dps.psx.com.pk) has no public price API (its history and chart endpoints answer 404/403 to scripted requests), so a PSX quote scraper is next-semester work (Memory.md §3). Measured on 2026-10-10, Yahoo runs one to two trading days behind PSX, so every price, chart and statistic in the app carries an "as of" date.
 
-**Stock model:**
+### Step 2.1 — Stock universe and models
 
-- `id` — UUID
-- `ticker` — unique string (e.g. "AAPL", "OGDC.KA")
-- `name` — company name
-- `exchange` — string
+- **Universe:** a fixed, versioned KSE-100 snapshot, `services/api/integrations/data/kse100_snapshot_2026-10-10.csv` (ticker, name, sector, snapshot date, source URL, first Yahoo date, included, exclusion reason). The 100 constituents come from `dps.psx.com.pk/indices/KSE100` (the symbol is read from the cell's `data-order` attribute: the visible text also carries PSX's "XD" ex-dividend badge), sectors from each company page. 95 are included; 5 are excluded because Yahoo has no history (BML, ENGROH, GAL, TPLRF1) or less than 3 years (HGFA, from 2024-06-24).
+- **Migration `b6e3f0a2d915`** seeds the 95 and deletes stocks outside the snapshot with their rows: EPCL, NETSOL, NRL, UNITY (0 rows each), AAPL (251 price points, 18 news rows) and LOWCONF (0 rows). It adds `stocks.shares_outstanding`.
+- **Migration `d2a7c5e8f041`** adds `price_points.split_factor`, `quality_flag`, `adjustment_version` and the `stock_splits` table (additive only).
 
-**PricePoint model:**
+### Step 2.2 — Market data client
 
-- `id` — UUID
-- `stock_id` — FK → stocks.id
-- `timestamp` — datetime (indexed)
-- `open`, `high`, `low`, `close`, `volume` — Float/BigInt OHLCV data
+`integrations/market_data.py`, `MarketDataClient`. Only the refresh job and the data-quality report call it.
 
----
+- `get_history_and_splits(ticker, period)`: raw daily OHLCV (`auto_adjust=False`: not dividend-adjusted, so a stored close equals the price quoted that day) plus Yahoo's split events, from one download.
+- `get_shares_outstanding(ticker)`: used for market cap. Yahoo's own `marketCap` and `trailingPE` for PSX symbols disagree with PSX by 2-4x (HBL: P/E 3.10 vs PSX 6.71) and Yahoo returns no EPS, so **P/E is not shown** (an FR8 gap until the PSX source arrives) and **market cap = latest stored close x shares outstanding** (within 3.2% of PSX for 7 of 7 tickers checked; the gap is the price date).
+- `get_dividend_dates(ticker)`: used by the data-quality report.
 
-### Step 2.2 — External Data Client
+### Steps 2.3, 2.4, 2.6 — Endpoints, cache, graceful degradation
 
-**File:** `services/api/integrations/market_data.py`
+`services/stock_service.py`, `routers/stocks.py`. Prices are served from `price_points`, never fetched per request:
 
-**Class:** `MarketDataClient`
+| Method | Path                               | Behaviour                                                                                                                      |
+| ------ | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| GET    | `/stocks/search?q=`                | Ticker, name or sector; an empty query lists all 95                                                                            |
+| GET    | `/stocks/{ticker}`                 | Latest served trading day + key statistics (previous close, day range, volume, 52-week high/low, market cap)                   |
+| GET    | `/stocks/{ticker}/history?period=` | Daily OHLCV, oldest first; `period` counts back from the latest stored day; `start`/`end` are PSX (Asia/Karachi) trading dates |
 
-**Methods:**
+- Unknown ticker: **404**. A catalog stock with no stored prices (the refresh has not succeeded): **503** "temporarily unavailable". A Yahoo outage no longer affects pages: they keep serving stored rows (fixes both issues logged on 2026-10-09).
+- Responses are cached in Redis for 15 minutes (`stocks:quote:<T>`, `stocks:history:<T>:<params>`) and invalidated by the refresh job; with Redis down the API reads the database directly.
 
-- `get_quote(ticker)` → current price, company name, volume, market cap
-- `get_history(ticker, period)` → OHLCV DataFrame for the given period (1mo, 3mo, 1y, etc.)
+### Step 2.5 — End-of-day refresh (Celery)
 
-**Library:** `yfinance` — scrapes Yahoo Finance under the hood
+`worker.tasks.refresh_stock_prices`: for every stock in the universe, fetch bars and splits, upsert bars (raw values), record splits, recompute split factors and quality flags, optionally refresh shares outstanding, and drop the stock's cached responses. A run where no stock returns data is reported as `provider_unavailable` (yfinance reports a network failure as "no data").
 
-**Design principle:** Single class wrapping all external data. If Yahoo Finance breaks or we switch to an official PSX API, only this file changes.
+| Beat entry             | When (PKT)    | Arguments                    |
+| ---------------------- | ------------- | ---------------------------- |
+| `refresh-eod-prices`   | Mon-Fri 18:00 | last month                   |
+| `resync-prices-weekly` | Sunday 06:00  | 5 years + shares outstanding |
 
----
+Backfill on 2026-10-10: 95/95 stocks, 121,992 bars (2021-10-08 to 2026-10-08). Worker and beat start cleanly, and a task sent through the Redis broker succeeds.
 
-### Step 2.3 — Redis Caching Layer
+### Split adjustment (method `split-v1`)
 
-**File:** `services/api/services/stock_service.py`
+**Why:** Yahoo reflects older PSX splits in the history it returns (SYS 2:1 in 2022 and MTL 1.5:1 in 2023 show no level change), but not recent ones, and for about 35 trading days before such a split it mixes the two price levels bar by bar (LUCK 5:1 on 2025-04-21: 1456, 292, 1412, 1560, 320). Unadjusted, a 5-year chart shows a false 80% crash and the 52-week range is wrong.
 
-**Cache flow:**
+**Storage:** raw OHLCV is never rewritten. Each bar has `split_factor` (served price = raw / factor, served volume = raw x factor), `quality_flag` and `adjustment_version`; `stock_splits` stores each provider split and the decision taken for it. Recomputing from raw bars and splits always gives the same result, and setting the factors back to 1 undoes it.
 
-```
-Request comes in for ticker "AAPL"
-    ↓
-Check Redis key "quote:AAPL"
-    ↓
-Cache HIT? → Return instantly (< 5ms)
-Cache MISS? → Call yfinance → Store in Redis with 15-min TTL → Return
-```
+**Rule** (`services/split_adjustment.py`), splits processed from the latest to the earliest; bars after a split date already carry its price level:
 
-**Serialization:** Python `datetime` objects serialized to ISO strings for JSON storage in Redis, deserialized on retrieval.
+1. **Already adjusted by the provider:** if the raw series has no one-day jump beyond 20% from the start of the split's window to 5 bars after the split, nothing is applied ("continuous across the split").
+2. **Mixed window** (the 45 trading bars before the split date): walking backwards, each bar takes whichever reading (raw, or raw / ratio) is nearer to the next later accepted bar. A bar within 20% of neither is flagged `mixed_split_level` and not served (8 bars: 6 SYS, 2 PGLC).
+3. **Before the window:** one decision per split. The median of the 5 bars before the window is compared with the median of the first 5 accepted bars inside it; if that ratio is nearer the split ratio than 1, every earlier bar is divided by the split ratio, otherwise nothing is applied. There is no per-bar heuristic outside the window.
 
-**Fallback:** If Redis is unavailable → falls through to direct yfinance call (app doesn't crash)
+The first draft of this rule divided every bar before the window by the cumulative ratio; the data showed Yahoo had already adjusted older splits (that would have halved SYS's 2021-22 prices), so step 1 and the per-split decision in step 3 were added.
 
----
+Result on 2026-10-10: 13 splits applied (AHCL 10, BAFL 2, FHAM 0.5, KOHC 5, KTML 5, LCI 5, LUCK 5, MARI 9, MTL 2, SRVI 10, SYS 5, THCCL 5, UBL 2); every other split in the 5-year window was recorded as already adjusted.
 
-### Step 2.4 — Stock Endpoints
+**Zero-volume bars:** Yahoo fills PSX holidays, and days it has no data for yet, with zero-volume bars repeating the last close (9,635 bars; on 2026-10-10 every stock had one for 2026-10-08). They are flagged `no_trades`, left out of the split rule and not served, so a quote never shows a day that was not delivered.
 
-**File:** `services/api/routers/stocks.py`
+### Step 2.11 — Data quality and PSX cross-check
 
-| Method | Path                          | Description                                   |
-| ------ | ----------------------------- | --------------------------------------------- |
-| GET    | `/stocks/search?q={query}`    | Search stocks by ticker or name               |
-| GET    | `/stocks/{ticker}`            | Get latest quote for a specific stock         |
-| GET    | `/stocks/{ticker}/history`    | Get OHLCV history (passed to charts)          |
-| GET    | `/stocks/{ticker}/prediction` | Get ML prediction: BUY/SELL/HOLD + confidence |
+- `python -m services.data_quality` lists every one-day move beyond 10% in the served series with the reason the data shows. Report `docs/data-quality/2026-10-10-prices.md`: 343 moves in 52 stocks; 42 on Yahoo ex-dividend dates (closes are not dividend-adjusted), 15 near a recorded split, 94 spanning sessions without a usable bar, and the rest unexplained, all in 13 low-priced stocks (BNWM, BOP, CNERGY, FFL, IMAGE, KEL, PGLC, PIBTL, POWER, PSX, PTC, SSGC, YOUW). Phase 3 leaves these 13 out of training until checked against PSX.
+- **Cross-check against dps.psx.com.pk (2026-10-10):** the 52-week high/low matched PSX exactly for HBL, LUCK, SYS and OGDC (LUCK and SYS both include a 5:1 split, so this also confirms the adjustment). A same-day close comparison was not possible automatically: PSX's historical and chart endpoints refuse scripted requests (HTTP 403) and the company page only shows the two latest closes, which Yahoo does not have yet. Manual checks are listed in Memory.md §4.
 
-All routes protected by `Depends(get_current_user)`.
+### Step 2.7 — Tests
 
-**Tests:** `tests/test_stocks.py` — 3 passing tests
+`tests/test_stocks.py` (25), `tests/test_split_adjustment.py` (9), `tests/test_data_quality.py` (3): snapshot integrity, DB-served quote and history, 404/503, provider outage, Redis cache and invalidation, refresh job, the LUCK-shaped 5:1 flip, two splits (one already adjusted) and two compounding splits, no splits, volume scaling, flagged and zero-volume bars, data-quality reasons. An autouse fixture makes any unmocked Yahoo call fail the suite.
 
----
+### Steps 2.8, 2.10 — Web
 
-### Step 2.5 — Automated Market Data Fetch (Celery)
+Stock search lists the 95 KSE-100 companies. Stock detail shows the closing price with its date, "Change from previous close" (not "Today"), the price chart with daily volume bars below it (synced on hover), the caption "Daily closing prices up to <date> · Prices adjusted for stock splits · Prices are end-of-day and can be a day or two behind PSX", and key statistics with an "as of" date. All copy is in English and Urdu. Screenshots: `docs/screenshots/phase2/`.
 
-**File:** `services/api/worker/tasks.py`
+### Step 2.9 — Mobile
 
-**Task:** `fetch_market_data_for_tickers`
-
-- Accepts a list of ticker symbols
-- Calls `MarketDataClient.get_history()` for each
-- Bulk-inserts OHLCV rows into `price_points` table
-- Auto-creates `Stock` parent record if it doesn't exist
-
-**Scheduled:** `celery_app.conf.beat_schedule` → runs at 18:00 daily (end-of-trading-day)
-
----
-
-### Step 2.6 — Sentiment Database Model
-
-**File:** `services/api/models/sentiment.py`
-
-**NewsSentiment model:**
-
-- `id` — UUID
-- `stock_id` — FK → stocks.id (cascade delete)
-- `headline` — text of the news article title
-- `sentiment_score` — Float (-1.0 = very bearish, 0.0 = neutral, +1.0 = very bullish)
-- `timestamp` — when scraped
-
----
-
-### Step 2.7 — News Scraper
-
-**File:** `services/api/integrations/news_scraper.py`
-
-**How it works:**
-
-1. Builds Yahoo Finance RSS URL: `https://finance.yahoo.com/rss/headline?s={ticker}`
-2. Parses XML with `BeautifulSoup` using `lxml-xml` parser
-3. Extracts `<title>` tags (news headlines)
-4. Checks DB for existing headlines (deduplication)
-5. Bulk-inserts new headlines with `sentiment_score=0.0` (pending AI analysis)
-
-**Library:** `requests` + `beautifulsoup4` + `lxml`
-
-**Scheduled:** Every hour via Celery Beat
-
----
-
-### Step 2.8 — Celery Beat Schedule
-
-**File:** `services/api/core/celery_app.py`
-
-```python
-beat_schedule = {
-    'fetch-eod-market-data': {
-        'task': 'worker.tasks.fetch_market_data_for_tickers',
-        'schedule': crontab(hour=18, minute=0),  # 6 PM daily
-    },
-    'fetch-hourly-news': {
-        'task': 'worker.tasks.scrape_news_for_stocks',
-        'schedule': crontab(minute=0),  # Every hour
-    },
-    'analyze-hourly-news': {
-        'task': 'worker.tasks.analyze_news_sentiment',
-        'schedule': crontab(minute=5),  # 5 min after news scrape
-    },
-}
-```
+Deferred to Phase 10 (next semester), per the semester scope.
 
 ---
 
@@ -527,52 +461,65 @@ Code is organised by feature (Rules.md §4.2) under `apps/web/src/features/`.
 
 ---
 
-## Database Schema (current, Alembic head `f7a2c4e81b90`)
+## Database Schema (current, Alembic head `d2a7c5e8f041`)
 
 ```sql
 users
   id UUID PK | email UNIQUE | password_hash | full_name | role ENUM('user','admin')
-  | onboarding_progress JSONB NULL | created_at TIMESTAMP (UTC)
+  | onboarding_progress JSONB NULL | created_at TIMESTAMPTZ
 
 risk_profiles
-  id UUID PK | user_id UUID UNIQUE FK(users) | category ENUM('conservative','moderate','aggressive')
-  | answers JSONB | updated_at TIMESTAMP (UTC)
+  id UUID PK | user_id UUID UNIQUE FK(users) ON DELETE CASCADE
+  | category ENUM('conservative','moderate','aggressive') | answers JSONB | updated_at TIMESTAMPTZ
+
+refresh_tokens
+  jti UUID PK | user_id FK(users) ON DELETE CASCADE | expires_at TIMESTAMPTZ | revoked_at TIMESTAMPTZ NULL
 
 stocks
-  id UUID PK | ticker UNIQUE | name | sector
+  id UUID PK | ticker UNIQUE | name | sector | shares_outstanding BIGINT NULL
 
 price_points
-  id BIGSERIAL PK | stock_id FK(stocks) | timestamp TIMESTAMPTZ | open | high | low | close | volume
+  id BIGSERIAL PK | stock_id FK(stocks) | timestamp TIMESTAMPTZ
+  | open | high | low | close | volume           -- raw provider values, never rewritten
+  | split_factor NUMERIC DEFAULT 1 | quality_flag NULL | adjustment_version NULL
   UNIQUE (stock_id, timestamp)
 
+stock_splits
+  id BIGSERIAL PK | stock_id FK(stocks) | split_date DATE | ratio NUMERIC
+  | history_adjusted BOOLEAN NULL | decision_note | method_version
+  UNIQUE (stock_id, split_date)
+
 news_sentiments
-  id SERIAL PK | stock_id FK(stocks) | headline | sentiment_score FLOAT NULL (= not yet scored) | timestamp (UTC)
+  id SERIAL PK | stock_id FK(stocks) | headline | sentiment_score FLOAT NULL (= not yet scored) | timestamp TIMESTAMPTZ
 
 predictions
   id UUID PK | stock_id FK(stocks) | model_version | forecast_price NUMERIC(14,4) | last_close NUMERIC(14,4)
-  | signal | confidence_score NUMERIC(5,4) | generated_at TIMESTAMP (UTC)
+  | signal | confidence_score NUMERIC(5,4) | generated_at TIMESTAMPTZ
 ```
-
-The four naive `TIMESTAMP` columns hold UTC; migrating them to `TIMESTAMPTZ` is proposed and awaiting approval (Memory.md §4).
 
 ---
 
 ## Automated Tests
 
-| Suite                  | File                               | Tests                                                        |
-| ---------------------- | ---------------------------------- | ------------------------------------------------------------ |
-| Backend (pytest)       | `tests/test_auth.py`               | 15                                                           |
-|                        | `tests/test_admin_guard.py`        | 4                                                            |
-|                        | `tests/test_risk_profile.py`       | 33                                                           |
-|                        | `tests/test_datetimes.py`          | 4                                                            |
-|                        | `tests/test_health.py`             | 1                                                            |
-|                        | `tests/test_stocks.py`             | 14 (Phase 2, needs re-audit)                                 |
-|                        | `tests/test_predictions.py`        | 7 (Phase 3, needs re-audit)                                  |
-|                        | `tests/test_ml_pipeline.py`        | 13 (Phase 3, needs re-audit)                                 |
-| Web (Node test runner) | `apps/web/src/**/*.test.ts`        | 13 (draft-save ordering, route-guard rules, date formatting) |
-| i18n                   | `packages/i18n/scripts/*.test.mjs` | 3 (parity checker)                                           |
+| Suite                  | File                                | Tests                                                        |
+| ---------------------- | ----------------------------------- | ------------------------------------------------------------ |
+| Backend (pytest)       | `tests/test_auth.py`                | 25                                                           |
+|                        | `tests/test_config.py`              | 14                                                           |
+|                        | `tests/test_admin_guard.py`         | 4                                                            |
+|                        | `tests/test_risk_profile.py`        | 35                                                           |
+|                        | `tests/test_i18n_labels.py`         | 3                                                            |
+|                        | `tests/test_datetimes.py`           | 4                                                            |
+|                        | `tests/test_health.py`              | 1                                                            |
+|                        | `tests/test_stocks.py`              | 25                                                           |
+|                        | `tests/test_split_adjustment.py`    | 9                                                            |
+|                        | `tests/test_data_quality.py`        | 3                                                            |
+|                        | `tests/test_predictions.py`         | 7 (Phase 3, needs re-audit)                                  |
+|                        | `tests/test_ml_pipeline.py`         | 13 (Phase 3, needs re-audit)                                 |
+| Web (Node test runner) | `apps/web/src/**/*.test.ts`         | 13 (draft-save ordering, route-guard rules, date formatting) |
+| API client             | `packages/api-client/src/*.test.ts` | 6 (token refresh coordination)                               |
+| i18n                   | `packages/i18n/scripts/*.test.mjs`  | 3 (parity checker)                                           |
 
-Backend total: **91**. All run in CI on every push.
+Backend total: **143** (2026-10-10). All run in CI on every push; Playwright E2E runs locally.
 
 ```bash
 cd services/api && python -m pytest          # backend
@@ -592,7 +539,7 @@ The root [`README.md`](../README.md) "Local Setup" section is the maintained, st
 
 | Phase    | Item                                                                     | Status                                                                            |
 | -------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
-| Phase 2  | Stock data & market analysis                                             | ⚠️ Needs re-audit (graceful degradation gaps; mobile screens not built)           |
+| Phase 2  | Stock data & market analysis                                             | ✅ Re-audited 2026-10-10 (mobile screens deferred to Phase 10)                    |
 | Phase 3  | Prediction engine                                                        | ⚠️ Needs re-audit (KSE-100 data never acquired; PSX models below naive baselines) |
 | Phase 4  | FinBERT sentiment endpoint + "what's driving this" panel                 | Not started                                                                       |
 | Phase 5  | Portfolio generation + cost engine (server must require a risk profile)  | Not started                                                                       |

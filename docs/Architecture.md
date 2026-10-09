@@ -159,17 +159,27 @@ refresh_tokens                               -- one row per issued refresh token
   expires_at TIMESTAMPTZ
   revoked_at TIMESTAMPTZ NULL                -- set on use (rotation), logout, or reuse detection
 
-stocks
+stocks                                       -- seeded from a versioned KSE-100 snapshot file
   id UUID PK
   ticker VARCHAR UNIQUE
   name VARCHAR
   sector VARCHAR
+  shares_outstanding BIGINT NULL             -- market cap = latest close x shares (P/E not stored)
 
 price_points
   id BIGSERIAL PK
   stock_id UUID FK -> stocks.id
   timestamp TIMESTAMPTZ
-  open NUMERIC, high NUMERIC, low NUMERIC, close NUMERIC, volume BIGINT
+  open NUMERIC, high NUMERIC, low NUMERIC, close NUMERIC, volume BIGINT   -- raw provider values
+  split_factor NUMERIC DEFAULT 1             -- served price = raw / factor, volume x factor
+  quality_flag VARCHAR NULL                  -- 'no_trades' / 'mixed_split_level': not served
+  adjustment_version VARCHAR NULL            -- e.g. 'split-v1'
+
+stock_splits                                 -- provider split events + adjustment decision
+  id BIGSERIAL PK
+  stock_id UUID FK -> stocks.id
+  split_date DATE, ratio NUMERIC
+  history_adjusted BOOLEAN NULL, decision_note VARCHAR NULL, method_version VARCHAR NULL
 
 predictions
   id UUID PK
@@ -286,18 +296,18 @@ All endpoints documented automatically via FastAPI's built-in OpenAPI/Swagger �
 
 ## 9. Background Jobs (Celery + Redis)
 
-| Job                     | Trigger                                            | Purpose                                                                  |
-| ----------------------- | -------------------------------------------------- | ------------------------------------------------------------------------ |
-| `refresh_stock_prices`  | Scheduled (e.g., every 15 min during market hours) | Pull latest PSX prices into `price_points`                               |
-| `scrape_news_sentiment` | Scheduled (e.g., every few hours)                  | Pull news, run FinBERT/VADER, write `sentiment_scores`                   |
-| `run_predictions`       | Scheduled (e.g., daily) or on-demand               | Run LSTM/SVM/RF inference, write `predictions`                           |
-| `retrain_models`        | Scheduled (e.g., weekly) or admin-triggered        | Retrain LSTM/SVM/RF on latest data                                       |
-| `monitor_portfolios`    | Scheduled (e.g., every few min)                    | Check active portfolios against fresh predictions, trigger notifications |
-| `send_notification`     | Triggered by `monitor_portfolios`                  | Dispatch via FCM, target latency < 5s                                    |
+| Job                     | Trigger                                                                                    | Purpose                                                                                                                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `refresh_stock_prices`  | Scheduled: Mon-Fri 18:00 PKT (last month); Sunday 06:00 PKT (5 years + shares outstanding) | Pull end-of-day PSX prices and splits into `price_points`/`stock_splits`, recompute split factors, invalidate cached responses. The API never calls the provider (Memory.md §3) |
+| `scrape_news_sentiment` | Scheduled (e.g., every few hours)                                                          | Pull news, run FinBERT/VADER, write `sentiment_scores`                                                                                                                          |
+| `run_predictions`       | Scheduled (e.g., daily) or on-demand                                                       | Run LSTM/SVM/RF inference, write `predictions`                                                                                                                                  |
+| `retrain_models`        | Scheduled (e.g., weekly) or admin-triggered                                                | Retrain LSTM/SVM/RF on latest data                                                                                                                                              |
+| `monitor_portfolios`    | Scheduled (e.g., every few min)                                                            | Check active portfolios against fresh predictions, trigger notifications                                                                                                        |
+| `send_notification`     | Triggered by `monitor_portfolios`                                                          | Dispatch via FCM, target latency < 5s                                                                                                                                           |
 
 ## 10. Caching Strategy (Redis)
 
-- Cache Yahoo Finance/PSX API responses (short TTL, e.g., 5–15 min) to stay under rate limits and hit the < 2s API response target
+- Cache stock quote and history responses (15 min TTL), built from `price_points`; the refresh job invalidates a stock's entries when it stores new prices. The provider is only called by the refresh job, so rate limits and outages never reach a request (decided 2026-10-10)
 - Cache latest prediction + sentiment per stock (invalidated on `run_predictions`/`scrape_news_sentiment` completion)
 - Celery uses Redis as its message broker/result backend
 

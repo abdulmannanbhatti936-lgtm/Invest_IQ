@@ -15,17 +15,19 @@ celery_app.conf.enable_utc = True
 
 # Celery Beat Schedule (times are Pakistan Standard Time)
 celery_app.conf.beat_schedule = {
-    "refresh-intraday-prices": {
+    "refresh-eod-prices": {
         "task": "worker.tasks.refresh_stock_prices",
-        # Every 15 min during PSX market hours (Mon-Fri, 09:30-15:30 PKT)
-        "schedule": crontab(minute="*/15", hour="9-15", day_of_week="mon-fri"),
-        "kwargs": {"period": "5d"},
-    },
-    "fetch-eod-market-data": {
-        "task": "worker.tasks.refresh_stock_prices",
-        # End-of-day refresh of the full training window
+        # End of the PSX trading day (Mon-Fri). The last month is re-fetched so late
+        # provider corrections are picked up; the provider runs ~1 trading day behind PSX.
         "schedule": crontab(hour=18, minute=0, day_of_week="mon-fri"),
-        "kwargs": {"period": "5y"},
+        "kwargs": {"period": "1mo"},
+    },
+    "resync-prices-weekly": {
+        "task": "worker.tasks.refresh_stock_prices",
+        # Full 5-year window: re-applies split adjustments to stored history and refreshes
+        # shares outstanding (used for market cap)
+        "schedule": crontab(hour=6, minute=0, day_of_week="sun"),
+        "kwargs": {"period": "5y", "update_shares": True},
     },
     "fetch-hourly-news": {
         "task": "worker.tasks.fetch_news_for_tickers",

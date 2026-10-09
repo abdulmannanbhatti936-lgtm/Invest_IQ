@@ -77,7 +77,6 @@ export interface StockQuote {
   fifty_two_week_high: number | null;
   fifty_two_week_low: number | null;
   market_cap: number | null;
-  pe_ratio: number | null;
 }
 
 export interface PricePoint {
