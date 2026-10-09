@@ -86,6 +86,14 @@ class FakeRedis:
     def expire(self, key, seconds):
         return True
 
+    def scan_iter(self, pattern):
+        prefix = pattern.rstrip("*")
+        return [k for k in list(self.store) if k.startswith(prefix)]
+
+    def delete(self, *keys):
+        for key in keys:
+            self.store.pop(key, None)
+
 
 @pytest.fixture
 def fake_redis(monkeypatch):
