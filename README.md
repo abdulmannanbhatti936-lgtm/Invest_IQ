@@ -13,7 +13,7 @@ InvestIQ is an AI-powered investment advisory platform — web and mobile — bu
 ## 🚀 Features
 
 - **Risk Profiling** — guided onboarding classifies users as Conservative, Moderate, or Aggressive
-- **AI Price Prediction** — LSTM/BiLSTM deep learning models, supported by SVM/Random Forest buy-sell-hold signals
+- **AI Price Prediction** — an LSTM next-day forecast with a calibrated confidence score, supported by a Random Forest buy/sell/hold signal
 - **Sentiment Analysis** — FinBERT-powered financial news sentiment (VADER fallback)
 - **Personalized Portfolios** — risk-based allocations with fully transparent brokerage fee, Capital Gains Tax, and Withholding Tax breakdowns
 - **Backtesting** — simulate portfolio performance against 3+ years of historical PSX data
@@ -126,23 +126,26 @@ celery -A core.celery_app beat --loglevel=info
 
 Beat runs on Asia/Karachi time. It schedules:
 
-| Job                      | When                                                               |
-| ------------------------ | ------------------------------------------------------------------ |
-| Price refresh            | Every 15 min during market hours, plus an end-of-day pull at 18:00 |
-| News fetch and sentiment | Hourly                                                             |
-| Predictions              | 18:30                                                              |
-| Model retraining         | Saturdays at 22:00                                                 |
+| Job                      | When                                                                |
+| ------------------------ | ------------------------------------------------------------------- |
+| Price refresh            | 18:00 Mon-Fri (last month); full 5-year resync Sundays at 06:00     |
+| Dividend refresh         | 18:15 Mon-Fri (dividend events and their adjustment decision)       |
+| News fetch and sentiment | Hourly                                                              |
+| Predictions              | 18:30 Mon-Fri                                                       |
+| Model retraining         | Saturdays at 22:00 (new dataset version, no walk-forward or report) |
 
 ### 4. ML models (first run only)
 
-Predictions need trained models. Train them once from the committed PSX dataset, which is in `services/api/ml/data/raw`:
+Model artifacts are not in git. Rebuild them from the committed dataset (`services/api/ml/data/psx18-2026-10-07/`, 18 KSE-100 stocks); this reproduces model `lstm-rf-20261009T222331Z`'s data, split and seeds under a new timestamped version:
 
 ```bash
 cd services/api
-python -m ml.train                 # all tracked tickers; add --download to refresh the CSVs first
+alembic upgrade head
+python -m ml.train --dataset psx18-2026-10-07   # ~8 min on CPU, including the walk-forward check
+python -c "from worker.tasks import run_predictions; print(run_predictions.run())"
 ```
 
-This takes a few minutes on CPU. Models are written to `ml/artifacts/`, which is gitignored, and the evaluation report goes to `ml/reports/`.
+Artifacts go to `ml/artifacts/<model_version>/` (gitignored) and `ml/artifacts/latest.json` points at the newest. The evaluation report is written to `ml/reports/evaluation_<model_version>.md` (committed). To build a newer dataset from the prices in your database first (needs the price and dividend jobs to have run), use `python -m ml.dataset` and pass the folder name it prints to `--dataset`. Tests never train the real model: they load the frozen MOCK model in `tests/fixtures/model/` (rebuild it with `python -m tests.fixtures.build_model_fixture` if the pipeline changes).
 
 ### 5. Web app
 

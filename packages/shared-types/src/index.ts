@@ -92,30 +92,49 @@ export type HistoryPeriod = '1mo' | '3mo' | '6mo' | '1y' | '2y' | '5y' | 'max';
 
 // ---- Predictions
 
+/** This stock's results on the held-out test period (the model never trained on it). */
 export interface ModelEvaluation {
   test_start_date: string;
   test_end_date: string;
-  lstm_rmse_pct: number;
-  lstm_directional_accuracy: number;
+  test_rows: number;
+  directional_accuracy: number | null;
+  /** Accuracy of always guessing the most common direction, on the same days */
+  baseline_directional_accuracy: number | null;
+  baseline_direction: 'up' | 'down';
+  /** Forecast RMSE as % of price: the typical size of the forecast's error */
+  typical_error_pct: number;
+  /** Forecast RMSE / RMSE of "tomorrow = today"; below 1 beats it */
+  theil_u: number;
+  beats_naive: boolean;
   classifier_accuracy: number;
   classifier_baseline_accuracy: number;
   top_features: string[];
 }
 
+/** Why a forecast is flagged low-confidence (PRD FR16). */
+export type LowConfidenceReason = 'below_threshold' | 'models_disagree' | 'no_edge_over_baseline';
+
 export interface Prediction {
   ticker: string;
   model_version: string;
   generated_at: string;
+  /** Trading date of the close the forecast starts from */
+  as_of_date: string | null;
   last_close: number;
   forecast_price: number;
   expected_change_pct: number;
-  signal: Signal;
+  /** Calibrated probability (0-1) that the forecast direction is right */
   confidence_score: number;
   low_confidence: boolean;
+  low_confidence_reasons: LowConfidenceReason[];
   low_confidence_threshold: number;
+  /** Random Forest buy/sell/hold signal and its class probability */
+  signal: Signal;
+  signal_probability: number | null;
   models_agree: boolean;
   evaluation: ModelEvaluation | null;
 }
 
 /** `detail` of a 404 from GET /stocks/{ticker}/prediction */
-export type PredictionUnavailableCode = 'stock_not_found' | 'insufficient_data' | 'not_ready';
+export type PredictionUnavailableCode =
+  'stock_not_found' | 'not_covered' | 'insufficient_data' | 'not_ready';

@@ -2,9 +2,22 @@ import type { HTMLAttributes, KeyboardEvent, ReactNode } from 'react';
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
+  /** `warning`: the tinted treatment for low-confidence AI output (Design.md §6.4) */
+  tone?: 'default' | 'warning';
 }
 
-export const Card = ({ children, className = '', onClick, ...props }: CardProps) => {
+const TONES = {
+  default: 'bg-white border border-gray-100',
+  warning: 'bg-amber-50/40 border-2 border-amber-300',
+};
+
+export const Card = ({
+  children,
+  className = '',
+  tone = 'default',
+  onClick,
+  ...props
+}: CardProps) => {
   // Clickable cards behave like buttons for keyboard and screen-reader users
   const interactive = onClick
     ? {
@@ -20,7 +33,7 @@ export const Card = ({ children, className = '', onClick, ...props }: CardProps)
     : {};
   return (
     <div
-      className={`bg-white rounded-xl shadow-sm border border-gray-100 p-6 ${
+      className={`${TONES[tone]} rounded-xl shadow-sm p-6 ${
         onClick ? 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500' : ''
       } ${className}`}
       onClick={onClick}

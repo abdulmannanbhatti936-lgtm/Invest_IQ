@@ -1,9 +1,6 @@
 import os
 import uuid
-from types import SimpleNamespace
 
-import numpy as np
-import pandas as pd
 import pytest
 
 # Must be set before the app/settings are imported. Real env vars and .env win
@@ -25,6 +22,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from core.config import settings  # noqa: E402
 from core.database import SessionLocal, engine  # noqa: E402
 from main import app  # noqa: E402
+from tests.synthetic import make_ohlcv  # noqa: E402
 
 if not engine.url.database.endswith("_test"):
     raise RuntimeError(f"Test engine points at '{engine.url.database}', not a *_test database")
@@ -111,37 +109,6 @@ def fake_redis(monkeypatch):
     monkeypatch.setattr("services.stock_service.get_redis_client", lambda: fake)
     monkeypatch.setattr("core.rate_limit.get_redis_client", lambda: fake)
     return fake
-
-
-def make_ohlcv(days: int = 700, seed: int = 7, start_price: float = 100.0) -> pd.DataFrame:
-    """Deterministic synthetic daily OHLCV (geometric random walk)."""
-    rng = np.random.default_rng(seed)
-    returns = rng.normal(0.0004, 0.015, days)
-    close = start_price * np.cumprod(1 + returns)
-    open_ = close * (1 + rng.normal(0, 0.003, days))
-    high = np.maximum(open_, close) * (1 + np.abs(rng.normal(0, 0.005, days)))
-    low = np.minimum(open_, close) * (1 - np.abs(rng.normal(0, 0.005, days)))
-    dates = pd.bdate_range("2022-01-03", periods=days)
-    return pd.DataFrame(
-        {
-            "date": dates,
-            "open": open_,
-            "high": high,
-            "low": low,
-            "close": close,
-            "volume": rng.integers(100_000, 1_000_000, days),
-        }
-    )
-
-
-@pytest.fixture(scope="session")
-def trained_model_dir(tmp_path_factory):
-    """A small model trained once on synthetic data (fast, deterministic)."""
-    from ml.training import train_ticker
-
-    model_dir = tmp_path_factory.mktemp("models")
-    meta = train_ticker("SYNTH", make_ohlcv(), model_dir, version="test-v1", lstm_epochs=3)
-    return SimpleNamespace(path=model_dir, metadata=meta)
 
 
 def register_and_login(client) -> dict:

@@ -117,15 +117,27 @@ class MarketDataClient:
         return cls._bars(cls._download(ticker, **kwargs))
 
     @classmethod
-    def get_dividend_dates(cls, ticker: str) -> list[datetime.date]:
-        """Ex-dividend dates; on those days unadjusted closes drop by the dividend."""
+    def get_dividends(cls, ticker: str) -> list[tuple[datetime.date, float]]:
+        """
+        Every ex-dividend date with its cash amount per share. Yahoo scales the amounts by
+        every split it knows of, so they are on the same basis as our split-adjusted closes.
+        """
         symbol = cls.to_provider_symbol(ticker)
         try:
             dividends = yf.Ticker(symbol).dividends
         except Exception as e:
             logger.error(f"Market data provider error for {symbol}: {e}")
             raise MarketDataUnavailable(str(e)) from e
-        return [] if dividends is None else [index.date() for index in dividends.index]
+        if dividends is None:
+            return []
+        return [
+            (index.date(), float(amount)) for index, amount in dividends.items() if _clean(amount)
+        ]
+
+    @classmethod
+    def get_dividend_dates(cls, ticker: str) -> list[datetime.date]:
+        """Ex-dividend dates; on those days unadjusted closes drop by the dividend."""
+        return [day for day, _ in cls.get_dividends(ticker)]
 
     @classmethod
     def get_history_and_splits(

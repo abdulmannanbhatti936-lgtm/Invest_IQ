@@ -29,6 +29,11 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=6, minute=0, day_of_week="sun"),
         "kwargs": {"period": "5y", "update_shares": True},
     },
+    "refresh-dividends-daily": {
+        "task": "worker.tasks.refresh_dividends",
+        # After the EOD price refresh: new ex-dates and re-assessment against current closes
+        "schedule": crontab(hour=18, minute=15, day_of_week="mon-fri"),
+    },
     "fetch-hourly-news": {
         "task": "worker.tasks.fetch_news_for_tickers",
         "schedule": crontab(minute=0),

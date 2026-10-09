@@ -9,13 +9,18 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from core.config import settings
-from ml.features import build_feature_frame, price_points_to_frame
-from ml.inference import ModelNotFoundError, load_bundle, predict_next_day
+from ml.dataset import dividend_adjusted, served_frame
+from ml.features import build_feature_frame
+from ml.inference import ModelBundle, load_bundle, models_agree, predict_next_day
 from models.prediction import Prediction
-from models.sentiment import NewsSentiment
-from models.stock import PricePoint, Stock
+from models.stock import Stock
 
 logger = logging.getLogger(__name__)
+
+# Why a forecast is flagged low-confidence (PRD.md FR16, rules approved 2026-10-10)
+BELOW_THRESHOLD = "below_threshold"
+MODELS_DISAGREE = "models_disagree"
+NO_EDGE_OVER_BASELINE = "no_edge_over_baseline"
 
 
 class InsufficientHistoryError(Exception):
@@ -24,33 +29,37 @@ class InsufficientHistoryError(Exception):
         self.rows = rows
 
 
+class StockNotCoveredError(Exception):
+    """The current model was not trained or tested on this stock, so it gets no forecast."""
+
+
 def _decimal(value: float, places: str) -> Decimal:
     return Decimal(str(value)).quantize(Decimal(places))
 
 
-def generate_prediction(db: Session, stock: Stock) -> Prediction:
-    """Run the latest saved model for one stock and store the result."""
-    points = (
-        db.query(PricePoint)
-        .filter(PricePoint.stock_id == stock.id)
-        .order_by(PricePoint.timestamp.asc())
-        .all()
-    )
-    if len(points) < settings.MIN_HISTORY_DAYS:
-        raise InsufficientHistoryError(stock.ticker, len(points))
+def generate_prediction(db: Session, stock: Stock, bundle: ModelBundle | None = None) -> Prediction:
+    """
+    Run the current model for one stock and store the result. The model sees the same
+    series it was trained on: served bars only (split-adjusted, flagged bars left out),
+    dividend-adjusted backwards (ml/dataset.py).
+    """
+    bundle = bundle or load_bundle(settings.MODEL_DIR)
+    if not bundle.covers(stock.ticker):
+        raise StockNotCoveredError(f"{stock.ticker} is not covered by {bundle.version}")
+    frame = served_frame(db, stock)
+    if len(frame) < settings.MIN_HISTORY_DAYS:
+        raise InsufficientHistoryError(stock.ticker, len(frame))
 
-    sentiments = db.query(NewsSentiment).filter(NewsSentiment.stock_id == stock.id).all()
-    frame = build_feature_frame(price_points_to_frame(points), sentiments)
-    bundle = load_bundle(settings.MODEL_DIR, stock.ticker)
-    result = predict_next_day(bundle, frame)
-
+    result = predict_next_day(bundle, build_feature_frame(dividend_adjusted(frame)))
     prediction = Prediction(
         stock_id=stock.id,
         model_version=result["model_version"],
         forecast_price=_decimal(result["forecast_price"], "0.0001"),
         last_close=_decimal(result["last_close"], "0.0001"),
-        signal=result["signal"],
         confidence_score=_decimal(result["confidence"], "0.0001"),
+        signal=result["signal"],
+        signal_probability=_decimal(result["signal_probability"], "0.0001"),
+        as_of_date=result["as_of"],
     )
     db.add(prediction)
     db.commit()
@@ -58,29 +67,48 @@ def generate_prediction(db: Session, stock: Stock) -> Prediction:
     return prediction
 
 
-def latest_prediction(db: Session, stock: Stock) -> Prediction | None:
+def latest_prediction(db: Session, stock: Stock, model_version: str) -> Prediction | None:
+    """The newest forecast from the current model; older models' rows are history only."""
     return (
         db.query(Prediction)
-        .filter(Prediction.stock_id == stock.id)
+        .filter(Prediction.stock_id == stock.id, Prediction.model_version == model_version)
         .order_by(Prediction.generated_at.desc())
         .first()
     )
 
 
-def model_evaluation(ticker: str, version: str) -> dict | None:
-    """Headline test-set metrics of the model that produced a prediction."""
-    try:
-        meta = load_bundle(settings.MODEL_DIR, ticker, version).metadata
-    except (ModelNotFoundError, FileNotFoundError):
+def low_confidence_reasons(prediction: Prediction, bundle: ModelBundle, ticker: str) -> list[str]:
+    reasons = []
+    if float(prediction.confidence_score) < settings.LOW_CONFIDENCE_THRESHOLD:
+        reasons.append(BELOW_THRESHOLD)
+    expected_return = float(prediction.forecast_price) / float(prediction.last_close) - 1
+    if not models_agree(prediction.signal, expected_return):
+        reasons.append(MODELS_DISAGREE)
+    evaluation = bundle.ticker_evaluation(ticker)
+    if evaluation is None or not evaluation["beats_naive"]:
+        reasons.append(NO_EDGE_OVER_BASELINE)
+    return reasons
+
+
+def model_evaluation(bundle: ModelBundle, ticker: str) -> dict | None:
+    """This stock's test-period results, shown so a forecast is never taken as fact."""
+    evaluation = bundle.ticker_evaluation(ticker)
+    if evaluation is None:
         return None
-    lstm = meta["lstm"]["test_metrics"]
-    rf = meta["random_forest"]["test_metrics"]
+    pooled = bundle.metadata["evaluation"]
+    periods = bundle.metadata["data"]["periods"]
+    importances = bundle.metadata["random_forest"]["feature_importance"]
     return {
-        "test_start_date": meta["data"]["val_end_date"],
-        "test_end_date": meta["data"]["date_end"],
-        "lstm_rmse_pct": lstm["rmse_pct_of_price"],
-        "lstm_directional_accuracy": lstm["directional_accuracy"],
-        "classifier_accuracy": rf["accuracy"],
-        "classifier_baseline_accuracy": rf["baseline_majority_class_accuracy"],
-        "top_features": [f["feature"] for f in meta["random_forest"]["feature_importance"][:3]],
+        "test_start_date": periods["test"]["first_date"],
+        "test_end_date": periods["test"]["last_date"],
+        "test_rows": evaluation["test_rows"],
+        "directional_accuracy": evaluation["directional_accuracy"],
+        "baseline_directional_accuracy": evaluation["majority_direction_accuracy"],
+        "baseline_direction": pooled["baselines"]["majority_direction"]["direction"],
+        "typical_error_pct": evaluation["lstm_rmse_pct"],
+        "theil_u": evaluation["theil_u"],
+        "beats_naive": evaluation["beats_naive"],
+        "classifier_accuracy": evaluation["rf_accuracy"],
+        "classifier_baseline_accuracy": evaluation["rf_majority_class_accuracy"],
+        "top_features": [f["feature"] for f in importances[:3]],
     }

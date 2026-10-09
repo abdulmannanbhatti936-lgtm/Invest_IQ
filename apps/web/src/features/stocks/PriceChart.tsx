@@ -1,10 +1,11 @@
 import {
+  Area,
   Bar,
   BarChart,
   CartesianGrid,
+  ComposedChart,
   Legend,
   Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -13,11 +14,13 @@ import {
 import { useTranslation } from '@investiq/i18n';
 import type { Prediction, PricePoint } from '@investiq/shared-types';
 import { formatCompact, formatDate, formatPrice } from '../../lib/format';
+import { forecastBand } from './predictionView';
 
 interface ChartRow {
   date: string;
   close?: number;
   forecast?: number;
+  band?: [number, number];
   volume?: number;
 }
 
@@ -33,8 +36,9 @@ const nextBusinessDay = (iso: string): string => {
 };
 
 /**
- * Closing-price line plus the next-day forecast as a dashed continuation, so a
- * forecast is never drawn like real data (Design.md §18), with daily volume below (FR8).
+ * Closing-price line plus the next-day forecast as a dashed continuation, so a forecast is
+ * never drawn like real data, with a shaded band for the model's typical error on this stock
+ * (Design.md §18), and daily volume below (FR8).
  */
 export const PriceChart = ({
   history,
@@ -50,10 +54,16 @@ export const PriceChart = ({
     close: p.close,
     volume: p.volume,
   }));
+  const band = prediction ? forecastBand(prediction) : null;
   if (prediction && rows.length > 0) {
     const last = rows[rows.length - 1];
     last.forecast = last.close; // joins the dashed line to the real one
-    rows.push({ date: nextBusinessDay(last.date), forecast: prediction.forecast_price });
+    if (band && last.close != null) last.band = [last.close, last.close]; // band opens from 0
+    rows.push({
+      date: nextBusinessDay(last.date),
+      forecast: prediction.forecast_price,
+      band: band ?? undefined,
+    });
   }
 
   return (
@@ -61,7 +71,7 @@ export const PriceChart = ({
     <div className="w-full" dir="ltr">
       <div className="h-[320px]">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart
+          <ComposedChart
             data={rows}
             syncId={SYNC_ID}
             margin={{ top: 5, right: 16, left: 8, bottom: 5 }}
@@ -84,7 +94,12 @@ export const PriceChart = ({
             />
             <Tooltip
               labelFormatter={(v) => formatDate(String(v), i18n.language)}
-              formatter={(value, name) => [formatPrice(Number(value)), name]}
+              formatter={(value, name) => [
+                Array.isArray(value)
+                  ? `${formatPrice(Number(value[0]))} – ${formatPrice(Number(value[1]))}`
+                  : formatPrice(Number(value)),
+                name,
+              ]}
             />
             <Legend />
             <Line
@@ -97,6 +112,18 @@ export const PriceChart = ({
               activeDot={{ r: 5 }}
               connectNulls={false}
             />
+            {band && (
+              <Area
+                name={t('stockDetail.chartBand')}
+                type="linear"
+                dataKey="band"
+                stroke="none"
+                fill="#9333ea"
+                fillOpacity={0.12}
+                isAnimationActive={false}
+                connectNulls
+              />
+            )}
             {prediction && (
               <Line
                 name={t('stockDetail.chartForecast')}
@@ -109,7 +136,7 @@ export const PriceChart = ({
                 connectNulls
               />
             )}
-          </LineChart>
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
       <p className="mt-2 ps-16 text-xs text-gray-500">{t('stockDetail.volumeTitle')}</p>

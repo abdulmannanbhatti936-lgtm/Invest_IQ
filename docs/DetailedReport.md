@@ -345,103 +345,87 @@ Deferred to Phase 10 (next semester), per the semester scope.
 
 ---
 
-## Phase 3: Machine Learning (⚠️ Needs re-audit)
+## Phase 3: AI Prediction Engine (re-audited 2026-10-10)
 
-> **Needs re-audit:** the original models were trained on **AAPL (non-PSX)**, and Step 3.1 (3+ years of KSE-100 data) was never done. A 12-ticker PSX retrain exists (`services/api/ml/reports/`), but it has not been audited step by step and does not beat its naive baselines (Memory.md §10). The text below is the original record, kept as history; several files it names (`ml/predictor.py`, `ml/lstm_predictor.py`, `pandas-ta`) have since been replaced.
+> The first pass trained on **AAPL (non-PSX)** and a later 12-ticker PSX retrain used Yahoo's auto-adjusted CSVs from before split adjustment; both were deleted. The re-audit below rebuilds the data, features, evaluation and UI on real PSX data. FinBERT and the news job, which the first pass filed under Phase 3, belong to Phase 4 and are re-audited there. A plain-language walkthrough for the viva is in [`ml-explained.md`](ml-explained.md).
 
-### Step 3.1 — FinBERT Sentiment Analysis
+### Decisions approved before training (2026-10-10)
 
-**File:** `services/api/ml/sentiment.py`
+| Topic                  | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Training stocks        | 18 liquid KSE-100 stocks over 11 sectors: OGDC, PPL, MARI (E&P); HBL, UBL, MEBL, NBP (banks); PSO (oil marketing); FFC, EFERT (fertilizer); LUCK, MLCF, DGKC (cement); HUBC (power); ATRL (refinery); SYS (technology); PAEL (cable & electrical); SAZEW (autos). Ranked by median daily traded value over the last year; every stock flagged in the Phase 2 data-quality report is excluded, and NCPL until its manual check. Reserves: SNGP, TRG, NML |
+| Training series        | Served bars (split-adjusted, flagged bars excluded), dividend-adjusted backwards (`div-v1`). Display keeps the raw closes                                                                                                                                                                                                                                                                                                                               |
+| Evaluation             | One pooled LSTM and one pooled Random Forest; chronological 70/15/15 with the same cut dates for every stock, plus a 3-fold expanding walk-forward; baselines "tomorrow = today", 5-day moving average, 20-day trend rule, majority direction, majority class                                                                                                                                                                                           |
+| Metrics                | RMSE and MAPE as % of price, Theil's U, Diebold-Mariano vs naive, directional accuracy with a 95% Wilson interval; RF accuracy, balanced accuracy, macro-F1, per-class precision/recall, confusion matrix, Brier. Results are shown as target, result and baseline side by side                                                                                                                                                                         |
+| Confidence (FR14/FR16) | MC dropout (30 passes, fixed seed) gives each forecast a spread; certainty = forecast / spread is mapped to "chance the direction is right" by isotonic regression fitted on the validation period and checked on test. Threshold 0.60. A forecast is low-confidence if it is below 0.60, if the RF signal disagrees with the LSTM direction, or if the LSTM did not beat the naive forecast on that stock's test period                                |
+| Labels and horizon     | BUY above +1% next-day return, SELL below -1%, otherwise HOLD; next trading day only                                                                                                                                                                                                                                                                                                                                                                    |
+| Coverage               | Forecasts only for the 18 trained stocks; the other 77 show "no forecast for this stock yet"                                                                                                                                                                                                                                                                                                                                                            |
+| Classifier             | Random Forest only; SVM skipped (Memory.md §3)                                                                                                                                                                                                                                                                                                                                                                                                          |
 
-**Model:** `ProsusAI/finbert` from HuggingFace — a BERT model fine-tuned specifically on financial news (10,000+ financial articles)
+### Step 3.1 — Data acquisition
 
-**How it works:**
+- **Dividends:** migration `a4c9e1f7b302` adds `stock_dividends` (ex-date, amount, the closes around the ex-date, factor, review flag, method). `refresh_dividends` (Celery, 18:15 Mon-Fri, after the price refresh) stores Yahoo's dividend history and re-assesses every event. Yahoo's amounts are on the same split-adjusted basis as our served closes (HUBC 2022-10-11: Rs. 15.50 dividend, close fell Rs. 14.85).
+- **Method `div-v1`** (`services/dividend_adjustment.py`): factor = 1 - dividend / last close before the ex-date; every earlier bar is multiplied by the product of the later factors. A dividend whose ex-date drop is more than twice the amount or less than half of it (a rise counts as no drop) is **held back** and flagged `drop_mismatch` (team rule, 2026-10-10).
+- **Result for the 18 stocks:** 195 dividends fall inside the price history; 122 applied, 73 held back by the 2x rule. Most held-back ones are small (1-3% of the price), where a normal day's move is larger than the dividend, so the drop does not line up; the full list is in the dataset manifest. Two dividends exceed 15% of the previous close, and both are applied:
 
-```python
-pipeline("sentiment-analysis", model="ProsusAI/finbert")
-→ Output: {"label": "positive", "score": 0.92}
-→ Normalized: +0.92 (bullish)
-```
+  | Stock | Ex-date    |  Dividend | Previous close | Ex-date close | Yield | Drop / dividend |
+  | ----- | ---------- | --------: | -------------: | ------------: | ----: | --------------: |
+  | HUBC  | 2022-10-11 | Rs. 15.50 |      Rs. 79.03 |     Rs. 64.18 | 19.6% |            0.96 |
+  | NBP   | 2026-03-17 | Rs. 35.00 |     Rs. 228.42 |    Rs. 190.00 | 15.3% |            1.10 |
 
-**Score normalization:**
+- **Dataset `psx18-2026-10-07`** (`python -m ml.dataset`, `ml/dataset.py`): one CSV per stock built from `price_points` (served bars plus a `dividend_factor` column), 22,037 bars from 2021-10-08 to 2026-10-07, and a manifest with methods, ranges, held-back dividends and a SHA-256 per file. Training refuses a file whose hash has changed. The old 12 Yahoo CSVs and their report were deleted (approved).
 
-- `positive` → `+score` (bullish)
-- `negative` → `-score` (bearish)
-- `neutral` → `0.0`
+### Step 3.2 — Feature engineering
 
-**Architecture:** Singleton instance loaded once at server start to avoid loading 400MB+ weights on every request.
+- RSI, MACD, Bollinger Bands and SMA stay hand-written in pandas; **TA-Lib is not a dependency** (Architecture.md §3). The audit found two differences from TA-Lib: RSI and MACD smoothing was seeded with the first value instead of a simple average, and MACD's fast EMA started on its own first bar. Both now match TA-Lib exactly. One deliberate difference remains: RSI of a completely flat window is 50 (TA-Lib returns 0, which would make an untraded stock look oversold).
+- `tests/test_indicators.py` compares all nine indicator columns with **TA-Lib 0.8.1 output on 90 real OGDC closes** (generated once in a throwaway environment) and RSI with the **published Wilder/StockCharts example** (19 values, exact to 2 decimals). TA-Lib itself reproduces that published example exactly.
+- **No lookahead:** every feature uses trailing windows. A test rebuilds the features from history cut at day t and requires the row for day t to exist and every earlier row to be unchanged; it was checked by injecting a centered window and a full-sample mean, and fails on both. A second test shows the backward dividend adjustment changes no feature row (the inputs are scale-free returns and ratios).
 
----
+### Step 3.3 — Split utility
 
-### Step 3.2 — Sentiment Background Job
+`ml/splits.py`: `shared_cut_dates` takes the 70% and 85% points of the union of all trading dates, so every stock's test period is the same stretch of market; `walk_forward_folds` builds three expanding folds over the last 30%; `assign_periods` **purges** the row at each boundary, because its label is the next day's close, which belongs to the next period. Tests check ordering, purging, a late-starting stock and fold expansion.
 
-**File:** `services/api/worker/tasks.py`
+### Steps 3.4-3.5 — Training and evaluation
 
-**Task:** `analyze_news_sentiment`
+`ml/training.py` trains one LSTM (Architecture.md §15.1: LSTM 64 -> LSTM 32 -> Dropout 0.2 -> Dense 1, 60-day windows, next-day return target scaled by its training std, Adam, early stopping on validation loss) and one Random Forest (300 trees, depth 6, at least 20 rows per leaf, balanced class weights) on all 18 stocks together. The scaler and target scale are fitted on the training period only (a test checks the stored scaler's mean against the training rows). The RF is fitted on train + validation with fixed hyperparameters. Seed 42 everywhere. Every artifact (`lstm.pt`, `preprocess.joblib`, `random_forest.joblib`, `calibrator.joblib`, `metadata.json`) carries the `model_version`; the metadata logs the dataset version and hashes, cut dates, row counts, hyperparameters, all metrics, the walk-forward folds, training time and library versions. SVM code and artifacts were removed.
 
-1. Queries DB for `news_sentiments` rows where `sentiment_score == 0.0`
-2. Runs each headline through `FinBERTSentimentModel.analyze_headline()`
-3. Updates the row with the real score
-4. Commits to DB
+### Step 3.6 — Results (model `lstm-rf-20261009T222331Z`)
 
-**Scheduled:** 5 minutes past every hour (after news scraper runs at minute 0)
+Report: [`services/api/ml/reports/evaluation_lstm-rf-20261009T222331Z.md`](../services/api/ml/reports/evaluation_lstm-rf-20261009T222331Z.md). Test period 2026-01-14 to 2026-10-06, 3,151 forecasts (18 stocks x ~175 days). Training: LSTM 124 s (best epoch 8), RF 3.6 s, whole run with walk-forward 480 s, CPU only.
 
----
+**Measured against:** the PRD §11 targets (RMSE < 5%, directional accuracy > 80%) are quoted unchanged. Each result is shown next to a simple baseline on the same test days, because a target that a baseline also meets proves nothing.
 
-### Step 3.3 — Price Prediction (Random Forest Baseline)
+| Metric                                     | PRD target | Result                                  | Baseline                           |
+| ------------------------------------------ | ---------- | --------------------------------------- | ---------------------------------- |
+| LSTM RMSE, % of price                      | < 5%       | 2.70% (met)                             | 2.65%, tomorrow = today (also met) |
+| LSTM Theil's U (RMSE / naive RMSE)         | —          | 1.019                                   | 1.000                              |
+| LSTM directional accuracy                  | > 80%      | 48.9% (95% CI 47.2-50.7%), not met      | 55.0%, always "down"               |
+| RF accuracy / balanced accuracy / macro-F1 | —          | 42.8% / 40.9% / 0.410                   | 44.0% / 33.3% / 0.204, always HOLD |
+| Confidence Brier score (lower is better)   | —          | 0.2536                                  | 0.2515, a constant 53%             |
+| Forecasts at or above the 60% threshold    | —          | 2.5%, right 44.9% of the time           | —                                  |
+| Walk-forward (3 folds)                     | —          | U 1.006 ± 0.010, direction 50.1% ± 1.6% | majority direction 52.7%           |
 
-**Files:** `services/api/ml/features.py`, `ml/predictor.py`
+**In plain words:** neither model beats its simple baseline. The LSTM's error is about the same as assuming tomorrow's close equals today's (Diebold-Mariano p = 0.084), and it gets the next-day direction right about half the time. The Random Forest separates BUY, HOLD and SELL days slightly better than chance (balanced accuracy), but its plain accuracy is below always answering HOLD. The confidence score did not hold up on the test period. This is consistent with weak-form market efficiency: next-day moves of liquid stocks are close to unpredictable from past prices alone. Only SAZEW has a per-stock Theil's U below 1 (0.999, a tie in practice). The app therefore flags every live forecast as low-confidence and says why. Sentiment (Phase 4) is the next planned input.
 
-**Feature Engineering** (`features.py`):
+### Steps 3.7-3.9 — Inference, endpoint and tests
 
-- Pulls historical `PricePoint` records from DB
-- Computes technical indicators using `pandas-ta`:
-  - **RSI(14)** — momentum oscillator (overbought/oversold)
-  - **MACD** — trend-following momentum indicator
-  - **SMA(20)** & **SMA(50)** — short and medium moving averages
-  - **Bollinger Bands** — volatility measure
-- Joins the latest `sentiment_score` from `news_sentiments`
-- Returns a clean Pandas DataFrame ready for ML
+- `ml/inference.py` loads one pooled bundle (`latest.json`) and refuses a file whose `model_version` differs. Forecast = last served close x (1 + predicted return); the newest bar's dividend factor is always 1.
+- **Bug fixed:** `generate_prediction` read raw closes from `price_points`, including flagged bars and without split adjustment. It now uses the same served, dividend-adjusted series as training (`served_frame`). Regression test: a 2:1 split factor and a flagged bar with a close of 99,999 give the correct split-adjusted last close and as-of date.
+- Migration `c81f3d5a9e64` adds `predictions.signal_probability` (RF class probability) and `as_of_date`; `confidence_score` now holds the calibrated LSTM probability. Older rows are kept but never served (the endpoint reads only the current `model_version`).
+- `GET /stocks/{ticker}/prediction` adds `as_of_date`, `low_confidence_reasons`, `signal_probability` and a per-stock evaluation (direction vs baseline, typical error, Theil's U, beats naive, RF vs baseline, top features). 404 codes: `stock_not_found`, `not_covered`, `insufficient_data`, `not_ready`.
+- Tests load a **frozen MOCK model** (`tests/fixtures/model/`, 185 KB, the real pipeline on synthetic prices, never used for results); CI never trains the real model. Rebuild: `python -m tests.fixtures.build_model_fixture`.
+- Real predictions: `run_predictions` made 18 forecasts on the dev database (as of 2026-10-07; e.g. HBL Rs. 302.02 -> Rs. 302.17).
 
-**Prediction** (`predictor.py`):
+### Step 3.10 — Frontend
 
-- `RandomForestClassifier` from scikit-learn
-- Target variable: next day's price direction (UP=BUY, DOWN=SELL, FLAT=HOLD)
-- Outputs: `signal` (BUY/SELL/HOLD) + `confidence` (0.0–1.0) + `accuracy` (test set accuracy)
+On the stock detail page: an "as of" line with the close the forecast starts from; the forecast in Rs. with a plain sentence ("forecasts a 0.05% rise"); a 3-segment "chance the direction is right" meter; a warning-tinted card (new `tone="warning"` on the shared `Card`, since passed classes lost to its own border and background) with one sentence per low-confidence reason; the RF signal as a second opinion with its probability; an expandable "How accurate has this model been for {stock}?" with the per-stock baseline comparison; the disclaimer banner. The chart draws the forecast as a dashed continuation with a shaded band of the model's typical error on that stock (the MC-dropout spread is far narrower than the real error, so it is not used for the band). Stocks outside the 18 show "No forecast for this stock yet". All copy in en + ur. Screenshots: `docs/screenshots/phase3/` (05 is a MOCK forced high-confidence response, used only to show the two states look different).
 
-**Why Random Forest first:** Fast to train on-the-fly, interpretable, works well with tabular data. Used as a prototype baseline before LSTM.
+### Deviations from the docs
 
----
-
-### Step 3.4 — LSTM Price Prediction (Advanced)
-
-**File:** `services/api/ml/lstm_predictor.py`
-
-**Architecture:** PyTorch LSTM neural network
-
-- Input: sequence of last 60 days of OHLCV + technical indicators
-- Hidden layers: 2 LSTM layers, 128 hidden units each
-- Output: next day's closing price prediction
-- Loss function: MSE (Mean Squared Error)
-- Optimizer: Adam
-
-**Advantage over Random Forest:** Captures long-range temporal dependencies in time-series data that tree-based models miss (e.g. a pattern that takes 30 days to unfold).
-
----
-
-### Step 3.5 — Prediction UI (Frontend)
-
-**File:** `apps/web/src/pages/StockDetail.tsx`
-
-**What it shows:**
-
-- Real-time stock quote (price, change %, volume)
-- Historical price chart using `recharts` (LineChart)
-- ML Prediction panel:
-  - Signal badge: **BUY** (green) / **SELL** (red) / **HOLD** (yellow)
-  - Confidence percentage
-  - Model accuracy percentage
-- Sentiment score bar (-1.0 to +1.0 visual gauge)
+- PRD FR13 / Workflow 3.2 say "via TA-Lib": indicators are hand-written with TA-Lib's definitions and verified against it (Architecture.md §3 updated).
+- Workflow 3.1/3.7 name `services/ml-engine/`; the code lives in `services/api/ml/` (Architecture.md §5, decided 2026-10-09).
+- PRD §11 targets are not met for direction and are met only trivially for RMSE; documented above, PRD unchanged.
+- SVM skipped (Memory.md §3).
 
 ---
 
@@ -449,19 +433,19 @@ pipeline("sentiment-analysis", model="ProsusAI/finbert")
 
 Code is organised by feature (Rules.md §4.2) under `apps/web/src/features/`.
 
-| Route                                                | Component                                     | Access                                                         |
-| ---------------------------------------------------- | --------------------------------------------- | -------------------------------------------------------------- |
-| `/`                                                  | redirect                                      | → `/dashboard`                                                 |
-| `/login`, `/register`                                | `auth/LoginPage`, `auth/RegisterPage`         | Logged-out only                                                |
-| `/onboarding`                                        | `onboarding/OnboardingPage`                   | Logged in; with a completed profile only as `?retake=1`        |
-| `/dashboard`                                         | `dashboard/DashboardPage`                     | Logged in + completed risk profile                             |
-| `/stocks`, `/stocks/:ticker`                         | `stocks/StocksPage`, `stocks/StockDetailPage` | Logged in + completed risk profile (Phase 2/3, needs re-audit) |
-| `/portfolio`, `/backtest`, `/chat`, `/notifications` | `common/ComingSoonPage`                       | Logged in + completed risk profile (Phases 5–8)                |
-| `/admin`                                             | `common/ComingSoonPage`                       | Admin role only (Phase 9)                                      |
+| Route                                                | Component                                     | Access                                                  |
+| ---------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------- |
+| `/`                                                  | redirect                                      | → `/dashboard`                                          |
+| `/login`, `/register`                                | `auth/LoginPage`, `auth/RegisterPage`         | Logged-out only                                         |
+| `/onboarding`                                        | `onboarding/OnboardingPage`                   | Logged in; with a completed profile only as `?retake=1` |
+| `/dashboard`                                         | `dashboard/DashboardPage`                     | Logged in + completed risk profile                      |
+| `/stocks`, `/stocks/:ticker`                         | `stocks/StocksPage`, `stocks/StockDetailPage` | Logged in + completed risk profile (Phases 2-3)         |
+| `/portfolio`, `/backtest`, `/chat`, `/notifications` | `common/ComingSoonPage`                       | Logged in + completed risk profile (Phases 5–8)         |
+| `/admin`                                             | `common/ComingSoonPage`                       | Admin role only (Phase 9)                               |
 
 ---
 
-## Database Schema (current, Alembic head `d2a7c5e8f041`)
+## Database Schema (current, Alembic head `c81f3d5a9e64`)
 
 ```sql
 users
@@ -489,37 +473,49 @@ stock_splits
   | history_adjusted BOOLEAN NULL | decision_note | method_version
   UNIQUE (stock_id, split_date)
 
+stock_dividends
+  id BIGSERIAL PK | stock_id FK(stocks) | ex_date DATE | amount NUMERIC | source
+  | previous_close NULL | ex_close NULL | adjustment_factor NULL (= not applied)
+  | review_flag NULL | method_version
+  UNIQUE (stock_id, ex_date)
+
 news_sentiments
   id SERIAL PK | stock_id FK(stocks) | headline | sentiment_score FLOAT NULL (= not yet scored) | timestamp TIMESTAMPTZ
 
 predictions
   id UUID PK | stock_id FK(stocks) | model_version | forecast_price NUMERIC(14,4) | last_close NUMERIC(14,4)
-  | signal | confidence_score NUMERIC(5,4) | generated_at TIMESTAMPTZ
+  | confidence_score NUMERIC(5,4)  -- calibrated chance the LSTM direction is right
+  | signal | signal_probability NUMERIC(5,4) NULL | as_of_date DATE NULL | generated_at TIMESTAMPTZ
 ```
 
 ---
 
 ## Automated Tests
 
-| Suite                  | File                                | Tests                                                        |
-| ---------------------- | ----------------------------------- | ------------------------------------------------------------ |
-| Backend (pytest)       | `tests/test_auth.py`                | 25                                                           |
-|                        | `tests/test_config.py`              | 14                                                           |
-|                        | `tests/test_admin_guard.py`         | 4                                                            |
-|                        | `tests/test_risk_profile.py`        | 35                                                           |
-|                        | `tests/test_i18n_labels.py`         | 3                                                            |
-|                        | `tests/test_datetimes.py`           | 4                                                            |
-|                        | `tests/test_health.py`              | 1                                                            |
-|                        | `tests/test_stocks.py`              | 25                                                           |
-|                        | `tests/test_split_adjustment.py`    | 9                                                            |
-|                        | `tests/test_data_quality.py`        | 3                                                            |
-|                        | `tests/test_predictions.py`         | 7 (Phase 3, needs re-audit)                                  |
-|                        | `tests/test_ml_pipeline.py`         | 13 (Phase 3, needs re-audit)                                 |
-| Web (Node test runner) | `apps/web/src/**/*.test.ts`         | 13 (draft-save ordering, route-guard rules, date formatting) |
-| API client             | `packages/api-client/src/*.test.ts` | 6 (token refresh coordination)                               |
-| i18n                   | `packages/i18n/scripts/*.test.mjs`  | 3 (parity checker)                                           |
+| Suite                  | File                                | Tests                                                             |
+| ---------------------- | ----------------------------------- | ----------------------------------------------------------------- |
+| Backend (pytest)       | `tests/test_auth.py`                | 25                                                                |
+|                        | `tests/test_config.py`              | 14                                                                |
+|                        | `tests/test_admin_guard.py`         | 4                                                                 |
+|                        | `tests/test_risk_profile.py`        | 35                                                                |
+|                        | `tests/test_i18n_labels.py`         | 3                                                                 |
+|                        | `tests/test_datetimes.py`           | 4                                                                 |
+|                        | `tests/test_health.py`              | 1                                                                 |
+|                        | `tests/test_stocks.py`              | 25                                                                |
+|                        | `tests/test_split_adjustment.py`    | 9                                                                 |
+|                        | `tests/test_data_quality.py`        | 3                                                                 |
+|                        | `tests/test_dividend_adjustment.py` | 10                                                                |
+|                        | `tests/test_ml_dataset.py`          | 3                                                                 |
+|                        | `tests/test_indicators.py`          | 14                                                                |
+|                        | `tests/test_splits.py`              | 5                                                                 |
+|                        | `tests/test_ml_metrics.py`          | 8                                                                 |
+|                        | `tests/test_ml_pipeline.py`         | 17                                                                |
+|                        | `tests/test_predictions.py`         | 18                                                                |
+| Web (Node test runner) | `apps/web/src/**/*.test.ts`         | 17 (draft-save ordering, route guards, formatting, forecast view) |
+| API client             | `packages/api-client/src/*.test.ts` | 6 (token refresh coordination)                                    |
+| i18n                   | `packages/i18n/scripts/*.test.mjs`  | 3 (parity checker)                                                |
 
-Backend total: **143** (2026-10-10). All run in CI on every push; Playwright E2E runs locally.
+Backend total: **198** (2026-10-10, Phase 3). All run in CI on every push; Playwright E2E runs locally.
 
 ```bash
 cd services/api && python -m pytest          # backend
@@ -537,18 +533,18 @@ The root [`README.md`](../README.md) "Local Setup" section is the maintained, st
 
 ## What Still Needs to Be Built / Re-audited
 
-| Phase    | Item                                                                     | Status                                                                            |
-| -------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
-| Phase 2  | Stock data & market analysis                                             | ✅ Re-audited 2026-10-10 (mobile screens deferred to Phase 10)                    |
-| Phase 3  | Prediction engine                                                        | ⚠️ Needs re-audit (KSE-100 data never acquired; PSX models below naive baselines) |
-| Phase 4  | FinBERT sentiment endpoint + "what's driving this" panel                 | Not started                                                                       |
-| Phase 5  | Portfolio generation + cost engine (server must require a risk profile)  | Not started                                                                       |
-| Phase 6  | Backtesting vs KSE-100                                                   | Not started                                                                       |
-| Phase 7  | Autonomous agent & notifications                                         | Not started                                                                       |
-| Phase 8  | LLM chatbot (bilingual)                                                  | Not started                                                                       |
-| Phase 9  | Admin panel                                                              | Not started                                                                       |
-| Phase 10 | Mobile app parity                                                        | Not started                                                                       |
-| Phase 11 | Testing, polish, defense prep (incl. hardening backlog in Memory.md §11) | Not started                                                                       |
+| Phase    | Item                                                                     | Status                                                                    |
+| -------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| Phase 2  | Stock data & market analysis                                             | ✅ Re-audited 2026-10-10 (mobile screens deferred to Phase 10)            |
+| Phase 3  | Prediction engine                                                        | ✅ Re-audited 2026-10-10 (models do not beat their baselines; documented) |
+| Phase 4  | FinBERT sentiment endpoint + "what's driving this" panel                 | Not started                                                               |
+| Phase 5  | Portfolio generation + cost engine (server must require a risk profile)  | Not started                                                               |
+| Phase 6  | Backtesting vs KSE-100                                                   | Not started                                                               |
+| Phase 7  | Autonomous agent & notifications                                         | Not started                                                               |
+| Phase 8  | LLM chatbot (bilingual)                                                  | Not started                                                               |
+| Phase 9  | Admin panel                                                              | Not started                                                               |
+| Phase 10 | Mobile app parity                                                        | Not started                                                               |
+| Phase 11 | Testing, polish, defense prep (incl. hardening backlog in Memory.md §11) | Not started                                                               |
 
 ---
 

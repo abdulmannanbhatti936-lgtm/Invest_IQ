@@ -9,14 +9,19 @@ from core.config import settings
 from core.database import SessionLocal
 from integrations.market_data import MarketDataClient, MarketDataUnavailable
 from integrations.psx_catalog import CATALOG_BY_TICKER
-from ml.features import price_points_to_frame
-from ml.inference import ModelNotFoundError
-from ml.training import InsufficientDataError, new_model_version, train_ticker
+from ml.dataset import build_dataset, load_dataset
+from ml.inference import ModelNotFoundError, load_bundle
+from ml.training import InsufficientDataError, train_and_save
 from models.sentiment import NewsSentiment
-from models.stock import PricePoint, Stock, StockSplit
-from services.prediction_service import InsufficientHistoryError, generate_prediction
+from models.stock import PricePoint, Stock, StockDividend, StockSplit
+from services import dividend_adjustment
+from services.prediction_service import (
+    InsufficientHistoryError,
+    StockNotCoveredError,
+    generate_prediction,
+)
 from services.split_adjustment import METHOD_VERSION, SUSPECT_FLAG, Split, adjust
-from services.stock_service import StockService
+from services.stock_service import PriceDataUnavailable, StockService
 
 logger = logging.getLogger(__name__)
 
@@ -168,6 +173,74 @@ def apply_split_adjustment(db, stock: Stock) -> None:
     db.commit()
 
 
+@celery_app.task(name="worker.tasks.refresh_dividends")
+def refresh_dividends(tickers: list | None = None):
+    """
+    Fetch every stock's dividend history, store new events and re-assess all of them
+    against the served closes (services/dividend_adjustment.py). Runs after the price
+    refresh, since a split re-adjustment changes the closes the decision is based on.
+    """
+    universe = [t.upper() for t in tickers] if tickers else list(CATALOG_BY_TICKER)
+    db = SessionLocal()
+    try:
+        assessed, failed = [], []
+        for ticker in universe:
+            stock = db.query(Stock).filter(Stock.ticker == ticker).first()
+            if not stock:
+                failed.append(ticker)
+                continue
+            try:
+                record_dividends(db, stock, MarketDataClient.get_dividends(ticker))
+            except MarketDataUnavailable as e:
+                logger.error(f"Dividend refresh failed for {ticker}: {e}")
+                failed.append(ticker)
+                continue
+            try:
+                apply_dividend_adjustment(db, stock)
+            except PriceDataUnavailable:
+                failed.append(ticker)
+                continue
+            assessed.append(ticker)
+        return {"status": "completed", "assessed": len(assessed), "failed": failed}
+    finally:
+        db.close()
+
+
+def record_dividends(db, stock: Stock, dividends: list[tuple[datetime.date, float]]) -> None:
+    """Store provider dividend events; a later fetch with the same date updates the amount."""
+    if not dividends:
+        return
+    stmt = insert(StockDividend).values(
+        [{"stock_id": stock.id, "ex_date": day, "amount": amount} for day, amount in dividends]
+    )
+    db.execute(
+        stmt.on_conflict_do_update(
+            constraint="uq_stock_dividends_stock_date", set_={"amount": stmt.excluded.amount}
+        )
+    )
+    db.commit()
+
+
+def apply_dividend_adjustment(db, stock: Stock) -> None:
+    """Store, per dividend, the closes around its ex-date and the factor applied (or why not)."""
+    history = StockService.get_history(db, stock.ticker, period="max")
+    dividends = db.query(StockDividend).filter(StockDividend.stock_id == stock.id).all()
+    decisions = dividend_adjustment.assess(
+        [bar["timestamp"].astimezone(PSX_TIMEZONE).date() for bar in history],
+        [bar["close"] for bar in history],
+        [dividend_adjustment.Dividend(d.ex_date, float(d.amount)) for d in dividends],
+    )
+    by_day = {d.ex_date: d for d in dividends}
+    for decision in decisions:
+        row = by_day[decision.day]
+        row.previous_close = decision.previous_close
+        row.ex_close = decision.ex_close
+        row.adjustment_factor = decision.factor
+        row.review_flag = decision.flag
+        row.method_version = dividend_adjustment.METHOD_VERSION
+    db.commit()
+
+
 def _update_shares_outstanding(db, stock: Stock) -> None:
     try:
         shares = MarketDataClient.get_shares_outstanding(stock.ticker)
@@ -217,65 +290,63 @@ def analyze_news_sentiment():
 @celery_app.task(name="worker.tasks.train_models")
 def train_models(tickers: list | None = None):
     """
-    Retrain LSTM + classifiers for each ticker from the price_points table
-    (PRD.md FR15: schedulable retraining). Saves a new model_version.
+    Weekly retrain (PRD.md FR15): write a new dataset version from price_points, train the
+    pooled models on it and point latest.json at the new model_version. The walk-forward
+    check is left to the CLI (`python -m ml.train`), which also writes the report.
     """
     db = SessionLocal()
-    version = new_model_version()
-    trained, skipped = [], []
     try:
-        for ticker in _tickers(tickers):
-            stock = db.query(Stock).filter(Stock.ticker == ticker).first()
-            if not stock:
-                skipped.append(ticker)
-                continue
-            points = (
-                db.query(PricePoint)
-                .filter(PricePoint.stock_id == stock.id)
-                .order_by(PricePoint.timestamp.asc())
-                .all()
-            )
-            try:
-                train_ticker(
-                    ticker, price_points_to_frame(points), settings.MODEL_DIR, version=version
-                )
-                trained.append(ticker)
-            except InsufficientDataError as e:
-                logger.warning(str(e))
-                skipped.append(ticker)
-        return {
-            "status": "completed",
-            "model_version": version,
-            "trained": trained,
-            "skipped": skipped,
-        }
+        dataset_path = build_dataset(db, _tickers(tickers), settings.DATASET_DIR)
     finally:
         db.close()
+    manifest, raw = load_dataset(dataset_path)
+    dataset = {
+        "version": manifest["version"],
+        "sha256": {t: e["sha256"] for t, e in manifest["tickers"].items()},
+    }
+    try:
+        meta = train_and_save(raw, dataset, settings.MODEL_DIR, run_walk_forward=False)
+    except InsufficientDataError as e:
+        logger.error(f"Retrain skipped: {e}")
+        return {"status": "insufficient_data", "detail": str(e)}
+    return {
+        "status": "completed",
+        "model_version": meta["model_version"],
+        "dataset": manifest["version"],
+        "tickers": meta["tickers"],
+    }
 
 
 @celery_app.task(name="worker.tasks.run_predictions")
 def run_predictions(tickers: list | None = None):
-    """
-    Generate next-day predictions from the latest saved models and store them.
-    """
+    """Next-day forecasts from the current model for every stock it covers."""
+    try:
+        bundle = load_bundle(settings.MODEL_DIR)
+    except ModelNotFoundError as e:
+        logger.error(f"No predictions made: {e}")
+        return {"status": "no_model", "predictions_made": 0, "skipped": {}}
     db = SessionLocal()
     made, skipped = 0, {}
     try:
-        for ticker in _tickers(tickers):
+        for ticker in [t.upper() for t in tickers] if tickers else bundle.metadata["tickers"]:
             stock = db.query(Stock).filter(Stock.ticker == ticker).first()
             if not stock:
                 skipped[ticker] = "unknown stock"
                 continue
             try:
-                p = generate_prediction(db, stock)
+                p = generate_prediction(db, stock, bundle)
                 made += 1
                 logger.info(
-                    f"{ticker}: {p.signal} ({float(p.confidence_score):.2f}) -> {p.forecast_price}"
+                    f"{ticker}: {p.forecast_price} (confidence {float(p.confidence_score):.2f}), "
+                    f"signal {p.signal}"
                 )
-            except InsufficientHistoryError as e:
+            except (InsufficientHistoryError, StockNotCoveredError) as e:
                 skipped[ticker] = str(e)
-            except ModelNotFoundError as e:
-                skipped[ticker] = str(e)
-        return {"status": "completed", "predictions_made": made, "skipped": skipped}
+        return {
+            "status": "completed",
+            "model_version": bundle.version,
+            "predictions_made": made,
+            "skipped": skipped,
+        }
     finally:
         db.close()

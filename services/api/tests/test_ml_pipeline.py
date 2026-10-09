@@ -1,6 +1,8 @@
-from pathlib import Path
+import json
+import shutil
 from types import SimpleNamespace
 
+import joblib
 import numpy as np
 import pandas as pd
 import pytest
@@ -10,66 +12,23 @@ from ml.features import (
     WARMUP_ROWS,
     add_sentiment_feature,
     add_targets,
-    bollinger,
     build_feature_frame,
-    macd,
-    rsi,
     training_rows,
 )
-from ml.inference import load_bundle, models_agree, predict_next_day
-from ml.lstm_model import make_sequences
-from ml.splits import chronological_split
-from ml.training import InsufficientDataError, train_ticker
-from tests.conftest import make_ohlcv
+from ml.inference import ModelNotFoundError, load_bundle, models_agree, predict_next_day
+from ml.lstm_model import make_sequences, mc_dropout_std
+from ml.splits import assign_periods, chronological_split, shared_cut_dates
+from ml.training import (
+    RF_PARAMS,
+    SEQ_LENGTH,
+    InsufficientDataError,
+    prepare_frames,
+    train_and_save,
+)
+from tests.fixtures.build_model_fixture import FIXTURE_DIR, FIXTURE_VERSION, MOCK_TICKERS
+from tests.synthetic import make_ohlcv
 
-# ---- Indicators (Workflow.md Step 3.2)
-
-
-def test_rsi_extremes():
-    up = pd.Series(np.arange(1, 40, dtype=float))
-    down = up[::-1].reset_index(drop=True)
-    assert rsi(up).iloc[-1] == pytest.approx(100.0)
-    assert rsi(down).iloc[-1] == pytest.approx(0.0)
-    assert rsi(up).iloc[:13].isna().all()
-
-
-def test_rsi_matches_wilder_reference():
-    # Classic Wilder example series; RSI(14) at row 14 ~= 70.53 (simple-average seed)
-    closes = pd.Series(
-        [
-            44.34,
-            44.09,
-            44.15,
-            43.61,
-            44.33,
-            44.83,
-            45.10,
-            45.42,
-            45.84,
-            46.08,
-            45.89,
-            46.03,
-            45.61,
-            46.28,
-            46.28,
-            46.00,
-            46.03,
-            46.41,
-            46.22,
-            45.64,
-        ]
-    )
-    value = rsi(closes).iloc[-1]
-    assert 40 < value < 80
-
-
-def test_macd_and_bollinger_on_constant_series():
-    flat = pd.Series([50.0] * 60)
-    line, signal, hist = macd(flat)
-    assert line.dropna().abs().max() == pytest.approx(0.0)
-    assert hist.dropna().abs().max() == pytest.approx(0.0)
-    upper, mid, lower = bollinger(flat)
-    assert upper.iloc[-1] == mid.iloc[-1] == lower.iloc[-1] == 50.0
+# ---- Feature frame (Workflow.md Step 3.2; indicator values: tests/test_indicators.py)
 
 
 def test_feature_frame_drops_only_warmup_and_keeps_latest_row():
@@ -103,20 +62,12 @@ def test_sentiment_merge_ignores_unscored():
     assert out["sentiment_score"].tolist() == [0.5, 0.0]
 
 
-# ---- Split utility (Workflow.md Step 3.3)
-
-
 def test_chronological_split_never_leaks_future_dates():
     df = make_ohlcv(300).sample(frac=1, random_state=1)  # deliberately shuffled input
     split = chronological_split(df)
     assert len(split.train) == 210 and len(split.val) == 45 and len(split.test) == 45
     assert split.train["date"].max() < split.val["date"].min()
     assert split.val["date"].max() < split.test["date"].min()
-
-
-def test_chronological_split_rejects_bad_fractions():
-    with pytest.raises(ValueError):
-        chronological_split(make_ohlcv(100), train_frac=0.9, val_frac=0.2)
 
 
 def test_sequences_only_look_backwards():
@@ -126,44 +77,130 @@ def test_sequences_only_look_backwards():
     assert seqs[1].ravel().tolist() == [7, 8, 9]
 
 
-# ---- Training + inference against a frozen synthetic artifact (Step 3.9)
-
-
-def test_training_writes_versioned_artifacts(trained_model_dir):
-    root = Path(trained_model_dir.path) / "SYNTH"
-    assert (root / "latest.json").exists()
-    for name in (
-        "lstm.pt",
-        "preprocess.joblib",
-        "random_forest.joblib",
-        "svm.joblib",
-        "metadata.json",
-    ):
-        assert (root / "test-v1" / name).exists()
-    meta = trained_model_dir.metadata
-    assert meta["model_version"] == "test-v1"
-    for key in ("rmse_pct_of_price", "directional_accuracy", "baseline_naive_rmse_pct_of_price"):
-        assert key in meta["lstm"]["test_metrics"]
-    assert 0 <= meta["random_forest"]["test_metrics"]["accuracy"] <= 1
-    assert meta["data"]["train_end_date"] < meta["data"]["val_end_date"] < meta["data"]["date_end"]
-
-
-def test_training_refuses_short_history(tmp_path):
+def test_prepare_refuses_short_history():
     with pytest.raises(InsufficientDataError):
-        train_ticker("TINY", make_ohlcv(200), tmp_path, lstm_epochs=1)
+        prepare_frames({"MOCKSHORT": make_ohlcv(200).assign(dividend_factor=1.0)})
 
 
-def test_inference_is_valid_and_deterministic(trained_model_dir):
-    bundle = load_bundle(trained_model_dir.path, "SYNTH")
-    frame = build_feature_frame(make_ohlcv(700))
+# ---- Training run (tiny, on MOCK data) (Workflow.md Steps 3.4-3.5)
+
+
+@pytest.fixture(scope="module")
+def trained(tmp_path_factory):
+    raw = {
+        "MOCKA": make_ohlcv(600, seed=1).assign(dividend_factor=1.0),
+        "MOCKB": make_ohlcv(600, seed=2).assign(dividend_factor=1.0),
+    }
+    model_dir = tmp_path_factory.mktemp("models")
+    meta = train_and_save(
+        raw,
+        {"version": "MOCK", "sha256": {}},
+        model_dir,
+        version="MOCK-run-v1",
+        lstm_epochs=1,
+        rf_params={**RF_PARAMS, "n_estimators": 5, "max_depth": 3},
+    )
+    return SimpleNamespace(dir=model_dir, meta=meta, raw=raw)
+
+
+def test_every_artifact_carries_the_model_version(trained):
+    root = trained.dir / "MOCK-run-v1"
+    for name in ("preprocess.joblib", "random_forest.joblib", "calibrator.joblib"):
+        assert joblib.load(root / name)["model_version"] == "MOCK-run-v1"
+    assert (root / "lstm.pt").exists()
+    assert json.loads((root / "metadata.json").read_text())["model_version"] == "MOCK-run-v1"
+    assert json.loads((trained.dir / "latest.json").read_text())["model_version"] == "MOCK-run-v1"
+
+
+def test_metadata_logs_data_range_hyperparameters_metrics_and_timing(trained):
+    meta = trained.meta
+    assert meta["seed"] == 42 and meta["tickers"] == ["MOCKA", "MOCKB"]
+    cuts = meta["data"]["cut_dates"]
+    periods = meta["data"]["periods"]
+    assert periods["train"]["last_date"] < cuts["val_start"] <= periods["val"]["first_date"]
+    assert periods["val"]["last_date"] < cuts["test_start"] <= periods["test"]["first_date"]
+    assert meta["lstm"]["hyperparameters"]["mc_dropout_passes"] == 30
+    assert meta["random_forest"]["hyperparameters"]["n_estimators"] == 5
+    assert meta["lstm"]["training"]["lstm_seconds"] >= 0
+    assert meta["training_seconds_total"] > 0
+    ev = meta["evaluation"]
+    assert set(ev) >= {"lstm", "baselines", "confidence", "random_forest", "per_ticker"}
+    assert ev["baselines"]["naive"]["theil_u"] == 1.0
+    assert set(ev["per_ticker"]) == {"MOCKA", "MOCKB"}
+    assert len(meta["walk_forward"]["folds"]) == 3
+
+
+def test_scaler_is_fitted_on_the_training_period_only(trained):
+    frames = prepare_frames(trained.raw)
+    cuts = shared_cut_dates(pd.concat([f["date"] for f in frames.values()]))
+    train_rows = []
+    for frame in frames.values():
+        labelled = frame[frame["target_return"].notna()]
+        train_rows.append(labelled[assign_periods(labelled["date"], cuts) == "train"])
+    expected = pd.concat(train_rows)[FEATURE_COLUMNS].mean().to_numpy()
+    scaler = joblib.load(trained.dir / "MOCK-run-v1" / "preprocess.joblib")["scaler"]
+    np.testing.assert_allclose(scaler.mean_, expected, rtol=1e-9)
+
+
+# ---- Inference against the frozen MOCK fixture (Workflow.md Steps 3.7, 3.9)
+
+
+@pytest.fixture(scope="module")
+def bundle():
+    return load_bundle(FIXTURE_DIR)
+
+
+def test_fixture_matches_the_current_pipeline(bundle):
+    # If this fails, rebuild it: python -m tests.fixtures.build_model_fixture
+    assert bundle.version == FIXTURE_VERSION
+    assert bundle.features == FEATURE_COLUMNS and bundle.seq_length == SEQ_LENGTH
+    assert bundle.metadata["tickers"] == MOCK_TICKERS
+
+
+def test_inference_is_valid_and_deterministic(bundle):
+    frame = build_feature_frame(make_ohlcv(400, seed=9))
     first = predict_next_day(bundle, frame)
-    second = predict_next_day(bundle, frame)
+    second = predict_next_day(load_bundle(FIXTURE_DIR, FIXTURE_VERSION), frame)
     assert first == second
+    assert first["model_version"] == FIXTURE_VERSION
+    assert first["as_of"] == frame["date"].iloc[-1].date()
+    assert first["forecast_price"] == pytest.approx(
+        frame["close"].iloc[-1] * (1 + first["forecast_return"])
+    )
+    assert 0 <= first["confidence"] <= 1 and first["spread"] > 0
     assert first["signal"] in {"BUY", "SELL", "HOLD"}
-    assert 0 <= first["confidence"] <= 1
     assert sum(first["class_probabilities"].values()) == pytest.approx(1.0)
-    assert first["forecast_price"] > 0
-    assert first["last_close"] == pytest.approx(frame["close"].iloc[-1])
+    assert first["signal_probability"] == max(first["class_probabilities"].values())
+
+
+def test_inference_needs_a_full_window(bundle):
+    with pytest.raises(ValueError):
+        predict_next_day(bundle, build_feature_frame(make_ohlcv(80)))
+
+
+def test_mc_dropout_spread_is_fixed_and_independent_of_the_batch(bundle):
+    windows = np.random.default_rng(0).normal(size=(5, SEQ_LENGTH, len(FEATURE_COLUMNS)))
+    together = mc_dropout_std(bundle.lstm, windows, passes=30, seed=42)
+    alone = np.array([mc_dropout_std(bundle.lstm, w[None], passes=30, seed=42)[0] for w in windows])
+    np.testing.assert_allclose(together, alone, rtol=1e-5)
+    np.testing.assert_array_equal(together, mc_dropout_std(bundle.lstm, windows, 30, 42))
+
+
+def test_coverage_is_the_trained_tickers(bundle):
+    assert bundle.covers("mocka") and not bundle.covers("HBL")
+
+
+def test_artifact_from_another_version_is_refused(tmp_path):
+    copy = tmp_path / FIXTURE_VERSION
+    shutil.copytree(FIXTURE_DIR / FIXTURE_VERSION, copy)
+    joblib.dump({"model_version": "MOCK-other", "model": None}, copy / "calibrator.joblib")
+    with pytest.raises(ModelNotFoundError):
+        load_bundle(tmp_path, FIXTURE_VERSION)
+
+
+def test_missing_model_is_reported(tmp_path):
+    with pytest.raises(ModelNotFoundError):
+        load_bundle(tmp_path)
 
 
 def test_models_agree():

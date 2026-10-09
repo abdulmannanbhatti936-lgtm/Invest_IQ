@@ -130,10 +130,12 @@
 
 **Exit criteria:**
 
-- [ ] LSTM model trained and evaluated; RMSE and directional accuracy documented (target: RMSE < 5%, accuracy > 80% — if not met, documented and explained, not hidden)
-- [ ] Prediction endpoint returns real model output, not a placeholder
-- [ ] Confidence score displayed and low-confidence predictions visibly flagged in UI
-- [ ] `model_version` tracked per Architecture.md Section 15.4
+- [x] LSTM model trained and evaluated; RMSE and directional accuracy documented (target: RMSE < 5%, accuracy > 80% — if not met, documented and explained, not hidden)
+- [x] Prediction endpoint returns real model output, not a placeholder
+- [x] Confidence score displayed and low-confidence predictions visibly flagged in UI
+- [x] `model_version` tracked per Architecture.md Section 15.4
+
+> **Re-audited 2026-10-10:** all four criteria verified on real PSX data (DetailedReport.md Phase 3). Targets: RMSE < 5% met (as is the naive baseline); directional accuracy 48.9%, not met — documented and explained, not hidden.
 
 ---
 
