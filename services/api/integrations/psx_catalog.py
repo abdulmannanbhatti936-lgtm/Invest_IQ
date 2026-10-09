@@ -24,7 +24,9 @@ def load_snapshot(path: Path = SNAPSHOT_FILE) -> list[Company]:
     """Included companies from a snapshot file, ordered by ticker."""
     with path.open(newline="", encoding="utf-8") as f:
         rows = [row for row in csv.DictReader(f) if row["included"] == "true"]
-    return sorted((Company(r["ticker"], r["name"], r["sector"]) for r in rows), key=lambda c: c.ticker)
+    return sorted(
+        (Company(r["ticker"], r["name"], r["sector"]) for r in rows), key=lambda c: c.ticker
+    )
 
 
 PSX_COMPANIES = load_snapshot()
