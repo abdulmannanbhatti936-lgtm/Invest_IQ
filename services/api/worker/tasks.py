@@ -22,6 +22,11 @@ logger = logging.getLogger(__name__)
 
 PSX_TIMEZONE = ZoneInfo("Asia/Karachi")
 
+# Zero volume means no trades, so no new price. Yahoo emits such bars for PSX holidays and as
+# placeholders for days it has no data for yet, repeating the last close; serving them would
+# show a day with no change that never happened.
+NO_TRADES_FLAG = "no_trades"
+
 
 def _tickers(tickers: list[str] | None) -> list[str]:
     return [t.upper() for t in tickers] if tickers else settings.tracked_tickers
@@ -127,6 +132,7 @@ def apply_split_adjustment(db, stock: Stock) -> None:
     """
     Recompute split_factor and quality_flag for all of a stock's bars from its raw closes and
     recorded splits, and store each split's decision (services/split_adjustment.py).
+    Zero-volume bars are flagged and left out of the split rule.
     """
     points = (
         db.query(PricePoint)
@@ -134,15 +140,24 @@ def apply_split_adjustment(db, stock: Stock) -> None:
         .order_by(PricePoint.timestamp)
         .all()
     )
+    traded = [p for p in points if p.volume]
     splits = db.query(StockSplit).filter(StockSplit.stock_id == stock.id).all()
     result = adjust(
-        [p.timestamp.astimezone(PSX_TIMEZONE).date() for p in points],
-        [float(p.close) for p in points],
+        [p.timestamp.astimezone(PSX_TIMEZONE).date() for p in traded],
+        [float(p.close) for p in traded],
         [Split(s.split_date, float(s.ratio)) for s in splits],
     )
-    for point, factor, suspect in zip(points, result.factors, result.suspect, strict=True):
+    for point, factor, suspect in zip(traded, result.factors, result.suspect, strict=True):
         point.split_factor = factor
         point.quality_flag = SUSPECT_FLAG if suspect else None
+    # A no-trade bar keeps the factor of the last traded bar before it
+    factor = 1.0
+    for point in points:
+        if point.volume:
+            factor = point.split_factor
+        else:
+            point.split_factor = factor
+            point.quality_flag = NO_TRADES_FLAG
         point.adjustment_version = METHOD_VERSION
     by_day = {s.split_date: s for s in splits}
     for decision in result.decisions:

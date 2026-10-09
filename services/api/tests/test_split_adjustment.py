@@ -201,3 +201,34 @@ def test_api_leaves_out_flagged_bars(client, db, fake_redis, authenticated):
     db.commit()
     history = client.get("/stocks/LUCK/history?period=max").json()
     assert len(history) == len(points) - 1
+
+
+def test_zero_volume_bars_are_not_served(client, db, fake_redis, authenticated):
+    # Yahoo's placeholder for a day it has no data for yet: no trades, last close repeated
+    stock = _store_luck(db)
+    last = max(p.timestamp for p in stock.price_points)
+    placeholder_time = last + datetime.timedelta(days=1)
+    db.add(
+        PricePoint(
+            stock_id=stock.id,
+            timestamp=placeholder_time,
+            open=999.0,
+            high=999.0,
+            low=999.0,
+            close=999.0,
+            volume=0,
+        )
+    )
+    db.commit()
+    record_splits(db, stock, [(LUCK_SPLIT, 5.0)])
+    apply_split_adjustment(db, stock)
+
+    placeholder = (
+        db.query(PricePoint)
+        .filter(PricePoint.stock_id == stock.id, PricePoint.timestamp == placeholder_time)
+        .one()
+    )
+    assert placeholder.quality_flag == "no_trades" and float(placeholder.close) == 999.0
+    quote = client.get("/stocks/LUCK").json()
+    assert quote["timestamp"].startswith(last.astimezone(datetime.timezone.utc).date().isoformat())
+    assert quote["price"] != 999.0

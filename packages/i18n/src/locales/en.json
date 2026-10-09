@@ -206,7 +206,7 @@
     },
     "asOf": "As of {{date}}",
     "closeAsOf": "Closing price on {{date}}",
-    "delayNote": "Prices are end-of-day and can be one trading day behind PSX.",
+    "delayNote": "Prices are end-of-day and can be a day or two behind PSX.",
     "chartAsOf": "Daily closing prices up to {{date}}",
     "volumeTitle": "Daily volume (shares)",
     "splitAdjusted": "Prices adjusted for stock splits"
