@@ -208,7 +208,8 @@
     "closeAsOf": "Closing price on {{date}}",
     "delayNote": "Prices are end-of-day and can be one trading day behind PSX.",
     "chartAsOf": "Daily closing prices up to {{date}}",
-    "volumeTitle": "Daily volume (shares)"
+    "volumeTitle": "Daily volume (shares)",
+    "splitAdjusted": "Prices adjusted for stock splits"
   },
   "prediction": {
     "title": "AI forecast",

@@ -179,6 +179,8 @@ export const StockDetailPage = () => {
                 date: formatDate(history.data[history.data.length - 1].timestamp, i18n.language),
               })}
               {' · '}
+              {t('stockDetail.splitAdjusted')}
+              {' · '}
               {t('stockDetail.delayNote')}
             </p>
           </>
