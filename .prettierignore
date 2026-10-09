@@ -3,3 +3,9 @@ dist/
 build/
 venv/
 .expo/
+
+# Generated output (test reports, training data and evaluation reports)
+apps/web/e2e-report/
+apps/web/e2e-results/
+services/api/ml/data/
+services/api/ml/reports/

@@ -6,6 +6,7 @@ rules), Phases.md (order), Design.md (UI), Workflow.md (step-by-step run sheet),
 Memory.md (current state). Code must match the docs, not the other way around.
 
 ## Start of session
+
 1. Read docs/Memory.md §2 (Current Status), §4 (Open Questions), §11 (Pitfalls).
 2. Read ONLY the Workflow.md section for the current phase/step. Open other docs
    only at the specific section you need (e.g. "Architecture.md §7"). Do not
@@ -14,6 +15,7 @@ Memory.md (current state). Code must match the docs, not the other way around.
    sections you'll follow, then continue (see Pace).
 
 ## Scope for this semester (evaluation in ~20 days, target ~70%)
+
 - Order: Phase 2 → 3 → 4 → 5 → 6 → 8 (Chatbot). Next semester: Phases 7, 9,
   10, 11 and Tasks 3B/3D (Memory.md §4).
 - Random Forest is the only classifier (SVM skipped, documented).
@@ -24,6 +26,7 @@ Memory.md (current state). Code must match the docs, not the other way around.
   testing and demos use real PSX (KSE-100) data.
 
 ## Pace
+
 - Work through a WHOLE phase without stopping after each step. Fix issues
   immediately, within the phase. Stop ONLY when:
   (a) a spec/decision is missing (data source, rates, thresholds, algorithm),
@@ -33,6 +36,7 @@ Memory.md (current state). Code must match the docs, not the other way around.
 - Use Sonnet for routine work; say when something really needs Opus.
 
 ## Git
+
 - Commit locally after each step (conventional commits, Rules §2.2).
 - Push only when the phase is complete, after running the FULL CI checks
   locally: ruff, black, pytest, eslint, prettier, all type-checks,
@@ -41,6 +45,7 @@ Memory.md (current state). Code must match the docs, not the other way around.
 - Never push to main, never force-push, never rewrite history.
 
 ## Hard rules (never break these)
+
 - Never build anything not described in PRD.md / Workflow.md. No "bonus"
   features, no extra endpoints, no extra libraries, no refactors outside the
   current phase. If you think something is missing, PROPOSE it.
@@ -60,9 +65,11 @@ Memory.md (current state). Code must match the docs, not the other way around.
   stop and report. Do not work around it with fake data or skipped tests.
 
 ## Quality (never compromised)
+
 The product must look professionally hand-built, not like generic AI output.
 
 Code:
+
 - Tests for all business logic; en + ur i18n for all UI text; docs updated
   with any deviation.
 - No commented-out code, no TODOs left behind, no placeholder or "lorem"
@@ -75,6 +82,7 @@ Code:
 - No emojis in UI, code or commits.
 
 UI:
+
 - Follow Design.md strictly: 8px spacing scale, the type scale, tabular
   numbers with Rs./PKR for all financial figures, one icon set (lucide),
   consistent cards, buttons and badges.
@@ -87,6 +95,7 @@ UI:
   history, no default library styling left untouched.
 
 ## Phase report (once per phase, then STOP and wait for my "go")
+
 - Per-step PASS/FAIL table with evidence (exact commands + real output).
 - Issues found and how they were fixed.
 - Deviations from docs (and whether the doc was updated); assumptions made.
@@ -96,6 +105,7 @@ UI:
 - The PR link.
 
 ## End of session (when I say "wrap up")
+
 Update Memory.md §2 and append a §7 entry using the §17 template. Update §9 /
 §10 / §15 trackers if anything changed. Keep entries short and truthful —
 record failures and gaps honestly.

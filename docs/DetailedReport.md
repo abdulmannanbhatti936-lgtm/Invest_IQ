@@ -20,7 +20,7 @@ InvestIQ is a bilingual (English/Urdu) AI-powered investment advisory platform b
 - Machine Learning (Random Forest + LSTM) price prediction
 - A user risk profile questionnaire to personalize every recommendation
 
-**Key principle:** Advisory only — no trade execution. The system tells users *what to consider*, never places orders.
+**Key principle:** Advisory only — no trade execution. The system tells users _what to consider_, never places orders.
 
 ---
 
@@ -71,33 +71,33 @@ InvestIQ is a bilingual (English/Urdu) AI-powered investment advisory platform b
 
 ## Technology Stack Summary
 
-| Layer | Technology | Version | Purpose |
-|-------|-----------|---------|---------|
-| Backend Framework | FastAPI | latest | High-performance async REST API |
-| ASGI Server | Uvicorn | latest | Runs FastAPI in production/dev |
-| ORM | SQLAlchemy | latest | Database models & queries |
-| Migrations | Alembic | latest | Database schema version control |
-| Database | PostgreSQL 15 | Docker | Persistent relational data storage |
-| Cache / Queue | Redis 7 | Docker | Response caching + Celery broker |
-| Task Queue | Celery | latest | Async background jobs |
-| Auth | python-jose + passlib | latest | JWT tokens + bcrypt password hashing |
-| Validation | Pydantic v2 | latest | Request/response schema validation |
-| Market Data | yfinance | latest | Yahoo Finance OHLCV data |
-| News Scraping | BeautifulSoup4 + requests | latest | Financial news RSS parsing |
-| AI Sentiment | HuggingFace Transformers + FinBERT | latest | NLP-based news sentiment scoring |
-| ML Prediction | scikit-learn | latest | Random Forest BUY/SELL/HOLD signal |
-| Technical Indicators | pandas (own implementation) | — | RSI, MACD, Bollinger Bands, SMA (pandas-ta was removed) |
-| Deep Learning | PyTorch + LSTM | latest | Advanced time-series price prediction |
-| Frontend | React 19 + TypeScript | latest | Web UI |
-| Build Tool | Vite 8 | latest | Ultra-fast frontend dev server |
-| Routing | react-router-dom v7 | latest | SPA page routing |
-| Forms | react-hook-form + zod | latest | Type-safe form validation |
-| Charts | recharts | latest | Stock price charts |
-| HTTP Client | axios | latest | API calls from frontend |
-| i18n | i18next + react-i18next | latest | English/Urdu bilingual support |
-| Testing | pytest | latest | Backend integration tests |
-| CI/CD | GitHub Actions | - | Auto-run tests on every push |
-| Containerization | Docker + docker-compose | - | Postgres + Redis local infra |
+| Layer                | Technology                         | Version | Purpose                                                 |
+| -------------------- | ---------------------------------- | ------- | ------------------------------------------------------- |
+| Backend Framework    | FastAPI                            | latest  | High-performance async REST API                         |
+| ASGI Server          | Uvicorn                            | latest  | Runs FastAPI in production/dev                          |
+| ORM                  | SQLAlchemy                         | latest  | Database models & queries                               |
+| Migrations           | Alembic                            | latest  | Database schema version control                         |
+| Database             | PostgreSQL 15                      | Docker  | Persistent relational data storage                      |
+| Cache / Queue        | Redis 7                            | Docker  | Response caching + Celery broker                        |
+| Task Queue           | Celery                             | latest  | Async background jobs                                   |
+| Auth                 | python-jose + passlib              | latest  | JWT tokens + bcrypt password hashing                    |
+| Validation           | Pydantic v2                        | latest  | Request/response schema validation                      |
+| Market Data          | yfinance                           | latest  | Yahoo Finance OHLCV data                                |
+| News Scraping        | BeautifulSoup4 + requests          | latest  | Financial news RSS parsing                              |
+| AI Sentiment         | HuggingFace Transformers + FinBERT | latest  | NLP-based news sentiment scoring                        |
+| ML Prediction        | scikit-learn                       | latest  | Random Forest BUY/SELL/HOLD signal                      |
+| Technical Indicators | pandas (own implementation)        | —       | RSI, MACD, Bollinger Bands, SMA (pandas-ta was removed) |
+| Deep Learning        | PyTorch + LSTM                     | latest  | Advanced time-series price prediction                   |
+| Frontend             | React 19 + TypeScript              | latest  | Web UI                                                  |
+| Build Tool           | Vite 8                             | latest  | Ultra-fast frontend dev server                          |
+| Routing              | react-router-dom v7                | latest  | SPA page routing                                        |
+| Forms                | react-hook-form + zod              | latest  | Type-safe form validation                               |
+| Charts               | recharts                           | latest  | Stock price charts                                      |
+| HTTP Client          | axios                              | latest  | API calls from frontend                                 |
+| i18n                 | i18next + react-i18next            | latest  | English/Urdu bilingual support                          |
+| Testing              | pytest                             | latest  | Backend integration tests                               |
+| CI/CD                | GitHub Actions                     | -       | Auto-run tests on every push                            |
+| Containerization     | Docker + docker-compose            | -       | Postgres + Redis local infra                            |
 
 ---
 
@@ -176,28 +176,28 @@ Implements PRD.md FR1–FR6 on the web. Each step was audited one at a time agai
 
 **Scoring (team-approved 2026-10-09):** 7 questions, each option 3 / 2 / 1 points → total 7–21.
 
-| Question (id) | 3 points | 2 points | 1 point |
-|---|---|---|---|
-| Age (`age_band`) | Under 30 | 30 to 50 | Over 50 |
-| Income stability (`income_stability`) | Very steady | Mostly steady | Irregular |
-| When money is needed (`investment_horizon`) | More than 5 years | 1–5 years | Within 1 year |
-| Reaction to a 15% drop (`loss_tolerance`) | Buy more | Wait | Sell |
-| Share-market experience (`market_experience`) | Several years | A little / mutual fund | None |
-| Goal (`investment_goal`) | Growth | Steady income | Preserve value |
-| Emergency savings (`emergency_savings`) | More than 6 months | 3–6 months | Less than 3 months |
+| Question (id)                                 | 3 points           | 2 points               | 1 point            |
+| --------------------------------------------- | ------------------ | ---------------------- | ------------------ |
+| Age (`age_band`)                              | Under 30           | 30 to 50               | Over 50            |
+| Income stability (`income_stability`)         | Very steady        | Mostly steady          | Irregular          |
+| When money is needed (`investment_horizon`)   | More than 5 years  | 1–5 years              | Within 1 year      |
+| Reaction to a 15% drop (`loss_tolerance`)     | Buy more           | Wait                   | Sell               |
+| Share-market experience (`market_experience`) | Several years      | A little / mutual fund | None               |
+| Goal (`investment_goal`)                      | Growth             | Steady income          | Preserve value     |
+| Emergency savings (`emergency_savings`)       | More than 6 months | 3–6 months             | Less than 3 months |
 
 - Score → category: **7–11 Conservative, 12–16 Moderate, 17–21 Aggressive**.
 - Safety caps after scoring (a cap can only lower the category): money needed within 1 year → at most **Conservative**; would sell after a drop, or emergency savings under 3 months → at most **Moderate**.
 
 **Endpoints** (all scoped to the logged-in user — no user-id routes):
 
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/users/me` | Current user incl. `role` and `has_risk_profile` |
-| GET | `/users/risk-questionnaire` | Public: question ids + option values only (scores stay server-side) |
-| GET | `/users/me/risk-profile` | Current profile incl. `score` and `caps_applied` |
-| PATCH | `/users/me/risk-profile` | Create or retake (FR5); always bumps `updated_at`; clears the draft |
-| GET / PUT | `/users/me/onboarding-progress` | Save / read partial answers + step (FR6) |
+| Method    | Path                            | Purpose                                                             |
+| --------- | ------------------------------- | ------------------------------------------------------------------- |
+| GET       | `/users/me`                     | Current user incl. `role` and `has_risk_profile`                    |
+| GET       | `/users/risk-questionnaire`     | Public: question ids + option values only (scores stay server-side) |
+| GET       | `/users/me/risk-profile`        | Current profile incl. `score` and `caps_applied`                    |
+| PATCH     | `/users/me/risk-profile`        | Create or retake (FR5); always bumps `updated_at`; clears the draft |
+| GET / PUT | `/users/me/onboarding-progress` | Save / read partial answers + step (FR6)                            |
 
 - Validation returns **422** (never 500) for unknown question ids, unknown options, missing answers, non-text answers, **duplicate answers** (a JSON key sent twice) and an out-of-range draft step.
 - Every API datetime is timezone-aware UTC with a trailing `Z`; the web shows dates in Asia/Karachi time.
@@ -206,18 +206,18 @@ Implements PRD.md FR1–FR6 on the web. Each step was audited one at a time agai
 
 `services/api/tests/test_auth.py` (15 tests) and `tests/test_admin_guard.py` (4). They prove:
 
-| Test | What it proves |
-|---|---|
-| `test_register_and_login` | Register (201, no password hash returned) → login → protected endpoint; duplicate email 400, wrong password / unknown email 401, no or garbage token 401, refresh issues new tokens |
-| `test_expired_access_token_rejected` / `test_expired_refresh_token_rejected` | Tokens with a past expiry → 401 |
-| `test_malformed_and_tampered_tokens_rejected` | Flipped signature, swapped user, `alg: none`, foreign secret, missing segment → 401 |
-| `test_tokens_for_deleted_user_rejected` | Unexpired tokens of a deleted user → 401 |
-| `test_refresh_token_signed_with_separate_secret`, `test_access_and_refresh_tokens_are_not_interchangeable` | Separate secrets; a token only works in its own role |
-| `test_login_does_not_reveal_whether_email_exists`, `test_unknown_email_still_runs_one_password_check` | No user enumeration via message or timing |
-| `test_passwords_and_tokens_never_logged` | Nothing secret appears in any log line |
-| `test_register_validates_input`, `test_password_limited_to_72_bytes` | Server-side input validation |
-| `test_auth_rate_limit`, `test_register_rate_limited`, `test_rate_limit_fails_open_without_redis` | Brute-force protection; visible WARNING when skipped |
-| `test_admin_guard.py` | `require_admin`: admin 200, non-admin 403, no token 401 (test-only route) |
+| Test                                                                                                       | What it proves                                                                                                                                                                      |
+| ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test_register_and_login`                                                                                  | Register (201, no password hash returned) → login → protected endpoint; duplicate email 400, wrong password / unknown email 401, no or garbage token 401, refresh issues new tokens |
+| `test_expired_access_token_rejected` / `test_expired_refresh_token_rejected`                               | Tokens with a past expiry → 401                                                                                                                                                     |
+| `test_malformed_and_tampered_tokens_rejected`                                                              | Flipped signature, swapped user, `alg: none`, foreign secret, missing segment → 401                                                                                                 |
+| `test_tokens_for_deleted_user_rejected`                                                                    | Unexpired tokens of a deleted user → 401                                                                                                                                            |
+| `test_refresh_token_signed_with_separate_secret`, `test_access_and_refresh_tokens_are_not_interchangeable` | Separate secrets; a token only works in its own role                                                                                                                                |
+| `test_login_does_not_reveal_whether_email_exists`, `test_unknown_email_still_runs_one_password_check`      | No user enumeration via message or timing                                                                                                                                           |
+| `test_passwords_and_tokens_never_logged`                                                                   | Nothing secret appears in any log line                                                                                                                                              |
+| `test_register_validates_input`, `test_password_limited_to_72_bytes`                                       | Server-side input validation                                                                                                                                                        |
+| `test_auth_rate_limit`, `test_register_rate_limited`, `test_rate_limit_fails_open_without_redis`           | Brute-force protection; visible WARNING when skipped                                                                                                                                |
+| `test_admin_guard.py`                                                                                      | `require_admin`: admin 200, non-admin 403, no token 401 (test-only route)                                                                                                           |
 
 ### Step 1.5 — Web: auth screens
 
@@ -271,12 +271,14 @@ Guard decisions live in `apps/web/src/features/auth/guardRules.ts` (pure, unit-t
 **Files:** `services/api/models/stock.py`
 
 **Stock model:**
+
 - `id` — UUID
 - `ticker` — unique string (e.g. "AAPL", "OGDC.KA")
 - `name` — company name
 - `exchange` — string
 
 **PricePoint model:**
+
 - `id` — UUID
 - `stock_id` — FK → stocks.id
 - `timestamp` — datetime (indexed)
@@ -291,6 +293,7 @@ Guard decisions live in `apps/web/src/features/auth/guardRules.ts` (pure, unit-t
 **Class:** `MarketDataClient`
 
 **Methods:**
+
 - `get_quote(ticker)` → current price, company name, volume, market cap
 - `get_history(ticker, period)` → OHLCV DataFrame for the given period (1mo, 3mo, 1y, etc.)
 
@@ -305,6 +308,7 @@ Guard decisions live in `apps/web/src/features/auth/guardRules.ts` (pure, unit-t
 **File:** `services/api/services/stock_service.py`
 
 **Cache flow:**
+
 ```
 Request comes in for ticker "AAPL"
     ↓
@@ -324,12 +328,12 @@ Cache MISS? → Call yfinance → Store in Redis with 15-min TTL → Return
 
 **File:** `services/api/routers/stocks.py`
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/stocks/search?q={query}` | Search stocks by ticker or name |
-| GET | `/stocks/{ticker}` | Get latest quote for a specific stock |
-| GET | `/stocks/{ticker}/history` | Get OHLCV history (passed to charts) |
-| GET | `/stocks/{ticker}/prediction` | Get ML prediction: BUY/SELL/HOLD + confidence |
+| Method | Path                          | Description                                   |
+| ------ | ----------------------------- | --------------------------------------------- |
+| GET    | `/stocks/search?q={query}`    | Search stocks by ticker or name               |
+| GET    | `/stocks/{ticker}`            | Get latest quote for a specific stock         |
+| GET    | `/stocks/{ticker}/history`    | Get OHLCV history (passed to charts)          |
+| GET    | `/stocks/{ticker}/prediction` | Get ML prediction: BUY/SELL/HOLD + confidence |
 
 All routes protected by `Depends(get_current_user)`.
 
@@ -342,6 +346,7 @@ All routes protected by `Depends(get_current_user)`.
 **File:** `services/api/worker/tasks.py`
 
 **Task:** `fetch_market_data_for_tickers`
+
 - Accepts a list of ticker symbols
 - Calls `MarketDataClient.get_history()` for each
 - Bulk-inserts OHLCV rows into `price_points` table
@@ -356,6 +361,7 @@ All routes protected by `Depends(get_current_user)`.
 **File:** `services/api/models/sentiment.py`
 
 **NewsSentiment model:**
+
 - `id` — UUID
 - `stock_id` — FK → stocks.id (cascade delete)
 - `headline` — text of the news article title
@@ -369,6 +375,7 @@ All routes protected by `Depends(get_current_user)`.
 **File:** `services/api/integrations/news_scraper.py`
 
 **How it works:**
+
 1. Builds Yahoo Finance RSS URL: `https://finance.yahoo.com/rss/headline?s={ticker}`
 2. Parses XML with `BeautifulSoup` using `lxml-xml` parser
 3. Extracts `<title>` tags (news headlines)
@@ -415,6 +422,7 @@ beat_schedule = {
 **Model:** `ProsusAI/finbert` from HuggingFace — a BERT model fine-tuned specifically on financial news (10,000+ financial articles)
 
 **How it works:**
+
 ```python
 pipeline("sentiment-analysis", model="ProsusAI/finbert")
 → Output: {"label": "positive", "score": 0.92}
@@ -422,6 +430,7 @@ pipeline("sentiment-analysis", model="ProsusAI/finbert")
 ```
 
 **Score normalization:**
+
 - `positive` → `+score` (bullish)
 - `negative` → `-score` (bearish)
 - `neutral` → `0.0`
@@ -435,6 +444,7 @@ pipeline("sentiment-analysis", model="ProsusAI/finbert")
 **File:** `services/api/worker/tasks.py`
 
 **Task:** `analyze_news_sentiment`
+
 1. Queries DB for `news_sentiments` rows where `sentiment_score == 0.0`
 2. Runs each headline through `FinBERTSentimentModel.analyze_headline()`
 3. Updates the row with the real score
@@ -449,6 +459,7 @@ pipeline("sentiment-analysis", model="ProsusAI/finbert")
 **Files:** `services/api/ml/features.py`, `ml/predictor.py`
 
 **Feature Engineering** (`features.py`):
+
 - Pulls historical `PricePoint` records from DB
 - Computes technical indicators using `pandas-ta`:
   - **RSI(14)** — momentum oscillator (overbought/oversold)
@@ -459,6 +470,7 @@ pipeline("sentiment-analysis", model="ProsusAI/finbert")
 - Returns a clean Pandas DataFrame ready for ML
 
 **Prediction** (`predictor.py`):
+
 - `RandomForestClassifier` from scikit-learn
 - Target variable: next day's price direction (UP=BUY, DOWN=SELL, FLAT=HOLD)
 - Outputs: `signal` (BUY/SELL/HOLD) + `confidence` (0.0–1.0) + `accuracy` (test set accuracy)
@@ -472,6 +484,7 @@ pipeline("sentiment-analysis", model="ProsusAI/finbert")
 **File:** `services/api/ml/lstm_predictor.py`
 
 **Architecture:** PyTorch LSTM neural network
+
 - Input: sequence of last 60 days of OHLCV + technical indicators
 - Hidden layers: 2 LSTM layers, 128 hidden units each
 - Output: next day's closing price prediction
@@ -487,6 +500,7 @@ pipeline("sentiment-analysis", model="ProsusAI/finbert")
 **File:** `apps/web/src/pages/StockDetail.tsx`
 
 **What it shows:**
+
 - Real-time stock quote (price, change %, volume)
 - Historical price chart using `recharts` (LineChart)
 - ML Prediction panel:
@@ -501,15 +515,15 @@ pipeline("sentiment-analysis", model="ProsusAI/finbert")
 
 Code is organised by feature (Rules.md §4.2) under `apps/web/src/features/`.
 
-| Route | Component | Access |
-|-------|-----------|--------|
-| `/` | redirect | → `/dashboard` |
-| `/login`, `/register` | `auth/LoginPage`, `auth/RegisterPage` | Logged-out only |
-| `/onboarding` | `onboarding/OnboardingPage` | Logged in; with a completed profile only as `?retake=1` |
-| `/dashboard` | `dashboard/DashboardPage` | Logged in + completed risk profile |
-| `/stocks`, `/stocks/:ticker` | `stocks/StocksPage`, `stocks/StockDetailPage` | Logged in + completed risk profile (Phase 2/3, needs re-audit) |
-| `/portfolio`, `/backtest`, `/chat`, `/notifications` | `common/ComingSoonPage` | Logged in + completed risk profile (Phases 5–8) |
-| `/admin` | `common/ComingSoonPage` | Admin role only (Phase 9) |
+| Route                                                | Component                                     | Access                                                         |
+| ---------------------------------------------------- | --------------------------------------------- | -------------------------------------------------------------- |
+| `/`                                                  | redirect                                      | → `/dashboard`                                                 |
+| `/login`, `/register`                                | `auth/LoginPage`, `auth/RegisterPage`         | Logged-out only                                                |
+| `/onboarding`                                        | `onboarding/OnboardingPage`                   | Logged in; with a completed profile only as `?retake=1`        |
+| `/dashboard`                                         | `dashboard/DashboardPage`                     | Logged in + completed risk profile                             |
+| `/stocks`, `/stocks/:ticker`                         | `stocks/StocksPage`, `stocks/StockDetailPage` | Logged in + completed risk profile (Phase 2/3, needs re-audit) |
+| `/portfolio`, `/backtest`, `/chat`, `/notifications` | `common/ComingSoonPage`                       | Logged in + completed risk profile (Phases 5–8)                |
+| `/admin`                                             | `common/ComingSoonPage`                       | Admin role only (Phase 9)                                      |
 
 ---
 
@@ -545,18 +559,18 @@ The four naive `TIMESTAMP` columns hold UTC; migrating them to `TIMESTAMPTZ` is 
 
 ## Automated Tests
 
-| Suite | File | Tests |
-|-------|------|-------|
-| Backend (pytest) | `tests/test_auth.py` | 15 |
-| | `tests/test_admin_guard.py` | 4 |
-| | `tests/test_risk_profile.py` | 33 |
-| | `tests/test_datetimes.py` | 4 |
-| | `tests/test_health.py` | 1 |
-| | `tests/test_stocks.py` | 14 (Phase 2, needs re-audit) |
-| | `tests/test_predictions.py` | 7 (Phase 3, needs re-audit) |
-| | `tests/test_ml_pipeline.py` | 13 (Phase 3, needs re-audit) |
-| Web (Node test runner) | `apps/web/src/**/*.test.ts` | 13 (draft-save ordering, route-guard rules, date formatting) |
-| i18n | `packages/i18n/scripts/*.test.mjs` | 3 (parity checker) |
+| Suite                  | File                               | Tests                                                        |
+| ---------------------- | ---------------------------------- | ------------------------------------------------------------ |
+| Backend (pytest)       | `tests/test_auth.py`               | 15                                                           |
+|                        | `tests/test_admin_guard.py`        | 4                                                            |
+|                        | `tests/test_risk_profile.py`       | 33                                                           |
+|                        | `tests/test_datetimes.py`          | 4                                                            |
+|                        | `tests/test_health.py`             | 1                                                            |
+|                        | `tests/test_stocks.py`             | 14 (Phase 2, needs re-audit)                                 |
+|                        | `tests/test_predictions.py`        | 7 (Phase 3, needs re-audit)                                  |
+|                        | `tests/test_ml_pipeline.py`        | 13 (Phase 3, needs re-audit)                                 |
+| Web (Node test runner) | `apps/web/src/**/*.test.ts`        | 13 (draft-save ordering, route-guard rules, date formatting) |
+| i18n                   | `packages/i18n/scripts/*.test.mjs` | 3 (parity checker)                                           |
 
 Backend total: **91**. All run in CI on every push.
 
@@ -576,18 +590,18 @@ The root [`README.md`](../README.md) "Local Setup" section is the maintained, st
 
 ## What Still Needs to Be Built / Re-audited
 
-| Phase | Item | Status |
-|-------|------|--------|
-| Phase 2 | Stock data & market analysis | ⚠️ Needs re-audit (graceful degradation gaps; mobile screens not built) |
-| Phase 3 | Prediction engine | ⚠️ Needs re-audit (KSE-100 data never acquired; PSX models below naive baselines) |
-| Phase 4 | FinBERT sentiment endpoint + "what's driving this" panel | Not started |
-| Phase 5 | Portfolio generation + cost engine (server must require a risk profile) | Not started |
-| Phase 6 | Backtesting vs KSE-100 | Not started |
-| Phase 7 | Autonomous agent & notifications | Not started |
-| Phase 8 | LLM chatbot (bilingual) | Not started |
-| Phase 9 | Admin panel | Not started |
-| Phase 10 | Mobile app parity | Not started |
-| Phase 11 | Testing, polish, defense prep (incl. hardening backlog in Memory.md §11) | Not started |
+| Phase    | Item                                                                     | Status                                                                            |
+| -------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| Phase 2  | Stock data & market analysis                                             | ⚠️ Needs re-audit (graceful degradation gaps; mobile screens not built)           |
+| Phase 3  | Prediction engine                                                        | ⚠️ Needs re-audit (KSE-100 data never acquired; PSX models below naive baselines) |
+| Phase 4  | FinBERT sentiment endpoint + "what's driving this" panel                 | Not started                                                                       |
+| Phase 5  | Portfolio generation + cost engine (server must require a risk profile)  | Not started                                                                       |
+| Phase 6  | Backtesting vs KSE-100                                                   | Not started                                                                       |
+| Phase 7  | Autonomous agent & notifications                                         | Not started                                                                       |
+| Phase 8  | LLM chatbot (bilingual)                                                  | Not started                                                                       |
+| Phase 9  | Admin panel                                                              | Not started                                                                       |
+| Phase 10 | Mobile app parity                                                        | Not started                                                                       |
+| Phase 11 | Testing, polish, defense prep (incl. hardening backlog in Memory.md §11) | Not started                                                                       |
 
 ---
 
@@ -599,4 +613,4 @@ The root [`README.md`](../README.md) "Local Setup" section is the maintained, st
 
 ---
 
-*Last updated: 2026-10-09*
+_Last updated: 2026-10-09_
