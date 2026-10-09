@@ -84,6 +84,9 @@ def test_prepare_refuses_short_history():
 
 # ---- Training run (tiny, on MOCK data) (Workflow.md Steps 3.4-3.5)
 
+SMALL_RF = {**RF_PARAMS, "n_estimators": 5, "max_depth": 3}
+SMALL_GRID = {"min_samples_leaf": (5, 20)}
+
 
 @pytest.fixture(scope="module")
 def trained(tmp_path_factory):
@@ -98,7 +101,8 @@ def trained(tmp_path_factory):
         model_dir,
         version="MOCK-run-v1",
         lstm_epochs=1,
-        rf_params={**RF_PARAMS, "n_estimators": 5, "max_depth": 3},
+        rf_base=SMALL_RF,
+        rf_grid=SMALL_GRID,
     )
     return SimpleNamespace(dir=model_dir, meta=meta, raw=raw)
 
@@ -109,7 +113,9 @@ def test_every_artifact_carries_the_model_version(trained):
         assert joblib.load(root / name)["model_version"] == "MOCK-run-v1"
     assert (root / "lstm.pt").exists()
     assert json.loads((root / "metadata.json").read_text())["model_version"] == "MOCK-run-v1"
-    assert json.loads((trained.dir / "latest.json").read_text())["model_version"] == "MOCK-run-v1"
+    assert (root / "report.md").read_text().startswith("# Model evaluation: MOCK-run-v1")
+    # Training makes a candidate only; it never sets the active model (ml/promote.py)
+    assert not (trained.dir / "latest.json").exists()
 
 
 def test_metadata_logs_data_range_hyperparameters_metrics_and_timing(trained):
@@ -121,6 +127,12 @@ def test_metadata_logs_data_range_hyperparameters_metrics_and_timing(trained):
     assert periods["val"]["last_date"] < cuts["test_start"] <= periods["test"]["first_date"]
     assert meta["lstm"]["hyperparameters"]["mc_dropout_passes"] == 30
     assert meta["random_forest"]["hyperparameters"]["n_estimators"] == 5
+    assert meta["random_forest"]["grid"] == {"min_samples_leaf": [5, 20]}
+    grid = meta["lstm"]["training"]["rf_selection"]["grid"]
+    assert [g["min_samples_leaf"] for g in grid] == [5, 20]
+    best = max(grid, key=lambda g: (g["val_balanced_accuracy"], g["min_samples_leaf"]))
+    assert meta["random_forest"]["hyperparameters"]["min_samples_leaf"] == best["min_samples_leaf"]
+    assert all("rf_params" in fold for fold in meta["walk_forward"]["folds"])
     assert meta["lstm"]["training"]["lstm_seconds"] >= 0
     assert meta["training_seconds_total"] > 0
     ev = meta["evaluation"]

@@ -55,6 +55,7 @@ FEATURE_COLUMNS = [
 # Next-day return thresholds for the buy/sell/hold label
 SIGNAL_THRESHOLD = 0.01
 SIGNAL_LABELS = {1: "BUY", 0: "HOLD", -1: "SELL"}
+CLASS_ORDER = [-1, 0, 1]  # SELL, HOLD, BUY: column order of probabilities and the confusion matrix
 
 # Rows needed before every indicator is defined (SMA_50 is the longest window)
 WARMUP_ROWS = 50

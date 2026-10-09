@@ -132,14 +132,36 @@ def load_dataset(path: str | Path) -> tuple[dict, dict[str, pd.DataFrame]]:
     return manifest, frames
 
 
+def dataset_reference(manifest: dict) -> dict:
+    """What a model stores about its input: the dataset version and each file's hash."""
+    return {
+        "version": manifest["version"],
+        "sha256": {t: e["sha256"] for t, e in manifest["tickers"].items()},
+    }
+
+
+def find_dataset(version: str) -> Path:
+    """A committed dataset (DATASET_DIR) first, else a candidate one (CANDIDATE_DIR/data)."""
+    from core.config import settings
+
+    for root in (Path(settings.DATASET_DIR), settings.candidate_dataset_dir):
+        if (root / version / MANIFEST).exists():
+            return root / version
+    raise DatasetError(f"No dataset {version} in {settings.DATASET_DIR} or the candidates")
+
+
 def main() -> None:
-    """`python -m ml.dataset`: build a new dataset version for the tracked tickers."""
+    """
+    `python -m ml.dataset`: build a new dataset version for the tracked tickers. It goes to
+    the git-ignored candidate folder; a dataset is committed only by copying it into
+    DATASET_DIR on purpose.
+    """
     from core.config import settings
     from core.database import SessionLocal
 
     db = SessionLocal()
     try:
-        path = build_dataset(db, settings.tracked_tickers, settings.DATASET_DIR)
+        path = build_dataset(db, settings.tracked_tickers, settings.candidate_dataset_dir)
     finally:
         db.close()
     print(f"Dataset written to {path}")

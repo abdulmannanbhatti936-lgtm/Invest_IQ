@@ -40,8 +40,13 @@ class Settings(BaseSettings):
     )
 
     # ML
+    # MODEL_DIR holds the promoted models and latest.json, the one the API serves.
+    # DATASET_DIR holds the committed datasets. Every training run (CLI or the weekly job)
+    # writes only into CANDIDATE_DIR (git-ignored) until a model is promoted (ml/promote.py).
     MODEL_DIR: str = str(API_ROOT / "ml" / "artifacts")
     DATASET_DIR: str = str(API_ROOT / "ml" / "data")
+    CANDIDATE_DIR: str = str(API_ROOT / "ml" / "candidates")
+    REPORTS_DIR: str = str(API_ROOT / "ml" / "reports")  # committed reports of promoted models
     LOW_CONFIDENCE_THRESHOLD: float = 0.6  # PRD.md FR16
     MIN_HISTORY_DAYS: int = 120  # below this we refuse to predict (PRD.md FR10)
 
@@ -88,6 +93,14 @@ class Settings(BaseSettings):
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
+
+    @property
+    def candidate_dataset_dir(self) -> Path:
+        return Path(self.CANDIDATE_DIR) / "data"
+
+    @property
+    def candidate_model_dir(self) -> Path:
+        return Path(self.CANDIDATE_DIR) / "models"
 
     @property
     def tracked_tickers(self) -> list[str]:

@@ -9,7 +9,7 @@ from core.config import settings
 from core.database import SessionLocal
 from integrations.market_data import MarketDataClient, MarketDataUnavailable
 from integrations.psx_catalog import CATALOG_BY_TICKER
-from ml.dataset import build_dataset, load_dataset
+from ml.dataset import build_dataset, dataset_reference, load_dataset
 from ml.inference import ModelNotFoundError, load_bundle
 from ml.training import InsufficientDataError, train_and_save
 from models.sentiment import NewsSentiment
@@ -290,27 +290,25 @@ def analyze_news_sentiment():
 @celery_app.task(name="worker.tasks.train_models")
 def train_models(tickers: list | None = None):
     """
-    Weekly retrain (PRD.md FR15): write a new dataset version from price_points, train the
-    pooled models on it and point latest.json at the new model_version. The walk-forward
-    check is left to the CLI (`python -m ml.train`), which also writes the report.
+    Weekly retrain (PRD.md FR15): a new dataset version from price_points and a CANDIDATE
+    model with its full evaluation report (walk-forward included), both in the git-ignored
+    CANDIDATE_DIR. The live model is never replaced here: latest.json changes only when a
+    person promotes the candidate (ml/promote.py, Workflow.md Appendix E).
     """
     db = SessionLocal()
     try:
-        dataset_path = build_dataset(db, _tickers(tickers), settings.DATASET_DIR)
+        dataset_path = build_dataset(db, _tickers(tickers), settings.candidate_dataset_dir)
     finally:
         db.close()
     manifest, raw = load_dataset(dataset_path)
-    dataset = {
-        "version": manifest["version"],
-        "sha256": {t: e["sha256"] for t, e in manifest["tickers"].items()},
-    }
     try:
-        meta = train_and_save(raw, dataset, settings.MODEL_DIR, run_walk_forward=False)
+        meta = train_and_save(raw, dataset_reference(manifest), settings.candidate_model_dir)
     except InsufficientDataError as e:
         logger.error(f"Retrain skipped: {e}")
         return {"status": "insufficient_data", "detail": str(e)}
+    logger.info(f"Candidate {meta['model_version']} trained; promote with ml.promote")
     return {
-        "status": "completed",
+        "status": "candidate",
         "model_version": meta["model_version"],
         "dataset": manifest["version"],
         "tickers": meta["tickers"],

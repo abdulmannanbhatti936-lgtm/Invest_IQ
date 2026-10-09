@@ -8,6 +8,7 @@ only good for checking shapes, determinism and API behaviour, never for results.
 
 from pathlib import Path
 
+from ml.promote import set_active
 from ml.training import RF_PARAMS, train_and_save
 from tests.synthetic import make_ohlcv
 
@@ -31,8 +32,12 @@ def main() -> None:
         version=FIXTURE_VERSION,
         run_walk_forward=False,
         lstm_epochs=2,
-        rf_params={**RF_PARAMS, "n_estimators": 10, "max_depth": 4},
+        rf_base={**RF_PARAMS, "n_estimators": 10, "max_depth": 4},
+        rf_grid={"min_samples_leaf": (5, 20)},
     )
+    # Test-only shortcut: this MOCK model has no walk-forward report, so it could never pass
+    # ml.promote; the tests point their own fixture folder at it directly
+    set_active(FIXTURE_DIR, FIXTURE_VERSION)
     print(f"Wrote {FIXTURE_DIR / FIXTURE_VERSION}")
 
 
