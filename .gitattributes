@@ -1,0 +1,20 @@
+# LF everywhere, including Windows checkouts, so Prettier/ESLint see the same files as CI
+* text=auto eol=lf
+
+# Binary files: never convert or diff as text
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.webp  binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+*.pdf   binary
+*.zip   binary
+*.pkl   binary
+*.joblib binary
+*.h5    binary
+*.keras binary

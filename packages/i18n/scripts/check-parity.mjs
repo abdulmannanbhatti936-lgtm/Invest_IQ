@@ -26,11 +26,16 @@ export const checkParity = (en, ur) => {
   const urMap = new Map(flatten(ur));
 
   for (const key of enMap.keys()) if (!urMap.has(key)) errors.push(`missing in ur.json: ${key}`);
-  for (const key of urMap.keys()) if (!enMap.has(key)) errors.push(`extra in ur.json (not in en.json): ${key}`);
+  for (const key of urMap.keys())
+    if (!enMap.has(key)) errors.push(`extra in ur.json (not in en.json): ${key}`);
 
-  for (const [lang, map] of [['en', enMap], ['ur', urMap]]) {
+  for (const [lang, map] of [
+    ['en', enMap],
+    ['ur', urMap],
+  ]) {
     for (const [key, value] of map) {
-      if (typeof value !== 'string') errors.push(`${lang}.json ${key}: value is ${typeof value}, expected text`);
+      if (typeof value !== 'string')
+        errors.push(`${lang}.json ${key}: value is ${typeof value}, expected text`);
       else if (value.trim() === '') errors.push(`${lang}.json ${key}: empty value`);
     }
   }
@@ -41,7 +46,8 @@ export const checkParity = (en, ur) => {
     const a = placeholders(enValue).join(',');
     const b = placeholders(urValue).join(',');
     if (a !== b) errors.push(`placeholders differ for ${key}: en {${a}} vs ur {${b}}`);
-    if (enValue === urValue && /[A-Za-z]{3,}/.test(enValue)) warnings.push(`ur.json ${key} is identical to English: "${enValue}"`);
+    if (enValue === urValue && /[A-Za-z]{3,}/.test(enValue))
+      warnings.push(`ur.json ${key} is identical to English: "${enValue}"`);
   }
   return { errors, warnings, keyCount: enMap.size };
 };
@@ -54,5 +60,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.error(`\ni18n parity check FAILED: ${errors.length} problem(s)`);
     process.exit(1);
   }
-  console.log(`i18n parity check passed: ${keyCount} keys in en.json and ur.json, placeholders match`);
+  console.log(
+    `i18n parity check passed: ${keyCount} keys in en.json and ur.json, placeholders match`,
+  );
 }
