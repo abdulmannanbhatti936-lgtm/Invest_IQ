@@ -1,7 +1,7 @@
 import datetime
 import uuid
 
-from sqlalchemy import Column, DateTime, ForeignKey, Numeric, String
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -26,9 +26,17 @@ class Prediction(Base):
     forecast_price = Column(Numeric(14, 4), nullable=False)
     last_close = Column(Numeric(14, 4), nullable=False)
 
+    # Calibrated probability (0-1) that the LSTM's forecast direction is right
+    # (ml/confidence.py). Rows from models before lstm-rf-2026-10-10 stored the RF class
+    # probability here; they are kept as history and never served (filtered by version).
+    confidence_score = Column(Numeric(5, 4), nullable=False)
+
     # Random Forest buy/sell/hold signal and its class probability (0-1)
     signal = Column(String, nullable=False)
-    confidence_score = Column(Numeric(5, 4), nullable=False)
+    signal_probability = Column(Numeric(5, 4), nullable=True)
+
+    # PSX trading date of the close the forecast was made from
+    as_of_date = Column(Date, nullable=True)
 
     generated_at = Column(
         DateTime(timezone=True),
