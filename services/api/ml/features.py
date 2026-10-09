@@ -1,10 +1,15 @@
 """
 Feature engineering (Workflow.md Step 3.2, PRD.md FR13).
 
-Indicators are the standard TA-Lib definitions (RSI, MACD, Bollinger Bands,
-SMA), implemented directly in pandas. TA-Lib needs a native C build that is
-painful on Windows/CI, and pandas-ta is unmaintained and breaks on numpy 2;
-the formulas below are the textbook ones and are unit-tested.
+RSI, MACD, Bollinger Bands and SMA are hand-written in pandas with TA-Lib's exact
+definitions, including how TA-Lib seeds its smoothing (see `_seeded_ewm`). TA-Lib itself
+needs a native C library that is painful to install on Windows and in CI, so it is not a
+dependency; instead `tests/test_indicators.py` checks our output against reference values
+produced by TA-Lib 0.8.1 and against the published Wilder/StockCharts RSI example.
+
+Every feature uses trailing windows only (value at day t depends on days <= t), and model
+inputs are scale-free (returns and ratios), so the backward dividend adjustment, which
+rescales whole stretches of history, cannot leak a future price level into a feature.
 
 The module is generic over an optional `sentiment_score` column so Phase 4 can
 merge sentiment in without restructuring (Workflow.md Step 4.6).
@@ -91,35 +96,64 @@ def normalize_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
+def _seeded_ewm(values: pd.Series, length: int, alpha: float, seed_end: int | None = None):
+    """
+    Exponential smoothing seeded the way TA-Lib does it: the first output (at position
+    `seed_end`, by default the `length`-th valid value) is the simple mean of the `length`
+    values ending there, and each later output is alpha * value + (1 - alpha) * previous.
+    """
+    out = pd.Series(np.nan, index=values.index, dtype=float)
+    first = values.first_valid_index()
+    if first is None:
+        return out
+    start = values.index.get_loc(first)
+    seed_end = start + length - 1 if seed_end is None else seed_end
+    if seed_end >= len(values):
+        return out
+    seeded = values.astype(float).copy()
+    seeded.iloc[:seed_end] = np.nan
+    seeded.iloc[seed_end] = values.iloc[seed_end - length + 1 : seed_end + 1].mean()
+    return seeded.ewm(alpha=alpha, adjust=False).mean()
+
+
 def rsi(close: pd.Series, length: int = 14) -> pd.Series:
-    """Wilder's RSI (same smoothing as TA-Lib)."""
+    """Wilder's RSI: averages seeded with the mean of the first `length` changes (TA-Lib)."""
     delta = close.diff()
-    gain = delta.clip(lower=0.0)
-    loss = -delta.clip(upper=0.0)
-    avg_gain = gain.ewm(alpha=1 / length, adjust=False, min_periods=length).mean()
-    avg_loss = loss.ewm(alpha=1 / length, adjust=False, min_periods=length).mean()
-    rs = avg_gain / avg_loss
-    out = 100 - 100 / (1 + rs)
-    # No losses in the window -> RSI 100; flat window -> 50
-    out = out.where(avg_loss != 0, 100.0)
-    out = out.where(~((avg_gain == 0) & (avg_loss == 0)), 50.0)
-    return out.where(avg_gain.notna())
+    avg_gain = _seeded_ewm(delta.clip(lower=0.0), length, 1 / length)
+    avg_loss = _seeded_ewm(-delta.clip(upper=0.0), length, 1 / length)
+    out = 100 * avg_gain / (avg_gain + avg_loss)
+    # The one deliberate difference from TA-Lib: a flat window (no gains, no losses) reads as
+    # neutral 50 here. TA-Lib returns 0, which would make an untraded stock look oversold.
+    return out.where((avg_gain + avg_loss) != 0, 50.0).where(avg_gain.notna())
+
+
+def ema(values: pd.Series, length: int, seed_end: int | None = None) -> pd.Series:
+    return _seeded_ewm(values, length, 2 / (length + 1), seed_end)
 
 
 def macd(
     close: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9
 ) -> tuple[pd.Series, pd.Series, pd.Series]:
-    ema_fast = close.ewm(span=fast, adjust=False, min_periods=fast).mean()
-    ema_slow = close.ewm(span=slow, adjust=False, min_periods=slow).mean()
-    line = ema_fast - ema_slow
-    signal_line = line.ewm(span=signal, adjust=False, min_periods=signal).mean()
+    """
+    MACD as TA-Lib computes it: both EMAs are seeded on the slow EMA's first bar, so the
+    fast EMA's seed is the mean of the `fast` closes ending there, not of the first ones.
+    """
+    first = close.first_valid_index()
+    seed_end = (close.index.get_loc(first) if first is not None else 0) + slow - 1
+    line = ema(close, fast, seed_end) - ema(close, slow, seed_end)
+    signal_line = ema(line, signal)
     return line, signal_line, line - signal_line
+
+
+def sma(close: pd.Series, length: int) -> pd.Series:
+    return close.rolling(length).mean()
 
 
 def bollinger(
     close: pd.Series, length: int = 20, std: float = 2.0
 ) -> tuple[pd.Series, pd.Series, pd.Series]:
-    mid = close.rolling(length).mean()
+    """SMA middle band +/- `std` population standard deviations (TA-Lib BBANDS, MA type 0)."""
+    mid = sma(close, length)
     dev = close.rolling(length).std(ddof=0)
     return mid + std * dev, mid, mid - std * dev
 
@@ -131,8 +165,8 @@ def add_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
 
     df["RSI_14"] = rsi(close, 14)
     df["MACD"], df["MACD_signal"], df["MACD_hist"] = macd(close)
-    df["SMA_20"] = close.rolling(20).mean()
-    df["SMA_50"] = close.rolling(50).mean()
+    df["SMA_20"] = sma(close, 20)
+    df["SMA_50"] = sma(close, 50)
     df["BB_upper"], df["BB_mid"], df["BB_lower"] = bollinger(close)
 
     daily_ret = close.pct_change()

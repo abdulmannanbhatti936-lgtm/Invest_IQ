@@ -10,10 +10,7 @@ from ml.features import (
     WARMUP_ROWS,
     add_sentiment_feature,
     add_targets,
-    bollinger,
     build_feature_frame,
-    macd,
-    rsi,
     training_rows,
 )
 from ml.inference import load_bundle, models_agree, predict_next_day
@@ -22,54 +19,7 @@ from ml.splits import chronological_split
 from ml.training import InsufficientDataError, train_ticker
 from tests.conftest import make_ohlcv
 
-# ---- Indicators (Workflow.md Step 3.2)
-
-
-def test_rsi_extremes():
-    up = pd.Series(np.arange(1, 40, dtype=float))
-    down = up[::-1].reset_index(drop=True)
-    assert rsi(up).iloc[-1] == pytest.approx(100.0)
-    assert rsi(down).iloc[-1] == pytest.approx(0.0)
-    assert rsi(up).iloc[:13].isna().all()
-
-
-def test_rsi_matches_wilder_reference():
-    # Classic Wilder example series; RSI(14) at row 14 ~= 70.53 (simple-average seed)
-    closes = pd.Series(
-        [
-            44.34,
-            44.09,
-            44.15,
-            43.61,
-            44.33,
-            44.83,
-            45.10,
-            45.42,
-            45.84,
-            46.08,
-            45.89,
-            46.03,
-            45.61,
-            46.28,
-            46.28,
-            46.00,
-            46.03,
-            46.41,
-            46.22,
-            45.64,
-        ]
-    )
-    value = rsi(closes).iloc[-1]
-    assert 40 < value < 80
-
-
-def test_macd_and_bollinger_on_constant_series():
-    flat = pd.Series([50.0] * 60)
-    line, signal, hist = macd(flat)
-    assert line.dropna().abs().max() == pytest.approx(0.0)
-    assert hist.dropna().abs().max() == pytest.approx(0.0)
-    upper, mid, lower = bollinger(flat)
-    assert upper.iloc[-1] == mid.iloc[-1] == lower.iloc[-1] == 50.0
+# ---- Feature frame (Workflow.md Step 3.2; indicator values: tests/test_indicators.py)
 
 
 def test_feature_frame_drops_only_warmup_and_keeps_latest_row():
