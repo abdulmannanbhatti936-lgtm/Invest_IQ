@@ -48,7 +48,7 @@ def _mean_std(wf: dict, key: str) -> str:
     return f"{_pct(wf['mean'][key])} ({_pct(wf['std'][key])})"
 
 
-def _verdicts(ev: dict) -> list[str]:
+def _verdicts(ev: dict, constant_confidence: float) -> list[str]:
     lstm, base = ev["lstm"], ev["baselines"]
     direction = lstm["direction"]
     dm = lstm["diebold_mariano_vs_naive"]
@@ -88,9 +88,17 @@ def _verdicts(ev: dict) -> list[str]:
     if rf["balanced_accuracy"] > majority_class["balanced_accuracy"] + 0.02:
         lines.append(
             f"The Random Forest's balanced accuracy ({_pct(rf['balanced_accuracy'])}) is above "
-            f"the majority-class baseline ({_pct(majority_class['balanced_accuracy'])}), but its "
-            f"plain accuracy ({_pct(rf['accuracy'])}) vs {_pct(majority_class['accuracy'])} for "
-            f"always answering {majority_class['label']} shows how small the edge is."
+            f"the majority-class baseline ({_pct(majority_class['balanced_accuracy'])}): it does "
+            f"tell BUY, HOLD and SELL days apart a little. "
+            + (
+                f"Its plain accuracy ({_pct(rf['accuracy'])}) is still below always answering "
+                f"{majority_class['label']} ({_pct(majority_class['accuracy'])}), so the signal is "
+                f"weak and is shown only as a secondary indicator."
+                if rf["accuracy"] < majority_class["accuracy"]
+                else f"Its plain accuracy ({_pct(rf['accuracy'])}) vs "
+                f"{_pct(majority_class['accuracy'])} for always answering "
+                f"{majority_class['label']} shows how small the edge is."
+            )
         )
     else:
         lines.append(
@@ -105,6 +113,14 @@ def _verdicts(ev: dict) -> list[str]:
         f"low-confidence, and every forecast for a stock where the LSTM did not beat the naive "
         f"guess."
     )
+    if conf["brier"] >= conf["brier_constant_baseline"]:
+        lines.append(
+            f"The confidence score did not hold up on the test period: its Brier score "
+            f"({conf['brier']:.4f}) is no better than always saying "
+            f"{_pct(constant_confidence)} ({conf['brier_constant_baseline']:.4f}). Higher "
+            f"scores did not mean more correct directions, which is consistent with the model "
+            f"having no reliable edge; the score is shown, but so is the low-confidence flag."
+        )
     return lines
 
 
@@ -178,7 +194,10 @@ def write_report(meta: dict) -> Path:
         "",
         "**In plain words:**",
         "",
-        *[f"- {line}" for line in _verdicts(ev)],
+        *[
+            f"- {line}"
+            for line in _verdicts(ev, meta["lstm"]["training"]["val_direction_hit_rate"])
+        ],
         "",
         "## LSTM price forecast (test period)",
         "",
