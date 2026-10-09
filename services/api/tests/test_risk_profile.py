@@ -399,3 +399,24 @@ def test_users_cannot_access_each_others_data(client):
         404,
         405,
     )
+
+
+def test_deleting_user_via_orm_removes_their_profile(db):
+    # passive_deletes=True leaves the child rows to the DB's ON DELETE CASCADE; without it the
+    # ORM would try to set risk_profiles.user_id to NULL and fail the NOT NULL constraint.
+    from models.risk_profile import RiskProfile
+    from models.user import User
+
+    email = f"cascade_{uuid.uuid4().hex[:8]}@example.com"
+    user = User(email=email, password_hash="x", full_name="C")
+    db.add(user)
+    db.flush()
+    db.add(RiskProfile(user_id=user.id, category=RiskCategory.moderate, answers={}))
+    db.commit()
+    user_id = user.id
+    db.expire_all()
+
+    db.delete(db.get(User, user_id))
+    db.commit()
+
+    assert db.query(RiskProfile).filter(RiskProfile.user_id == user_id).count() == 0

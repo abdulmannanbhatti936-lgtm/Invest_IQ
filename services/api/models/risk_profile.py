@@ -34,4 +34,7 @@ class RiskProfile(Base):
         nullable=False,
     )
 
-    user = relationship("User", backref=backref("risk_profile", uselist=False))
+    # passive_deletes: deleting a User leaves its profile to the DB's ON DELETE CASCADE
+    user = relationship(
+        "User", backref=backref("risk_profile", uselist=False, passive_deletes=True)
+    )
