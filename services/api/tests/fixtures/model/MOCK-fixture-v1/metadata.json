@@ -1,6 +1,6 @@
 {
   "model_version": "MOCK-fixture-v1",
-  "trained_at": "2026-10-09T22:31:38.775220+00:00",
+  "trained_at": "2026-10-09T22:34:28.779650+00:00",
   "tickers": [
     "MOCKA",
     "MOCKB",
@@ -77,7 +77,7 @@
     "training": {
       "best_epoch": 2,
       "best_val_loss": 1.030951976776123,
-      "lstm_seconds": 3.9,
+      "lstm_seconds": 3.8,
       "random_forest_seconds": 0.1,
       "y_std": 0.014662180573890697,
       "val_direction_hit_rate": 0.49140893470790376
@@ -432,7 +432,7 @@
     }
   },
   "walk_forward": null,
-  "training_seconds_total": 4.5,
+  "training_seconds_total": 4.4,
   "library_versions": {
     "torch": "2.14.0+cpu",
     "sklearn": "1.9.1",

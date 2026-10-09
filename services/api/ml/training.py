@@ -503,5 +503,9 @@ def save_artifacts(models: FittedModels, metadata: dict, model_dir: Path, versio
     )
     joblib.dump({"model_version": version, "model": models.forest}, out / "random_forest.joblib")
     joblib.dump({"model_version": version, "model": models.calibrator}, out / "calibrator.joblib")
-    (out / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
-    (model_dir / "latest.json").write_text(json.dumps({"model_version": version}) + "\n")
+    (out / "metadata.json").write_text(
+        json.dumps(metadata, indent=2) + "\n", encoding="utf-8", newline="\n"
+    )
+    (model_dir / "latest.json").write_text(
+        json.dumps({"model_version": version}) + "\n", newline="\n"
+    )

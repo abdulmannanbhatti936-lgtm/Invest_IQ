@@ -111,7 +111,9 @@ def build_dataset(db: Session, tickers: list[str], dataset_dir: str | Path) -> P
         },
         "tickers": entries,
     }
-    (out / MANIFEST).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    (out / MANIFEST).write_text(
+        json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n"
+    )
     return out
 
 
