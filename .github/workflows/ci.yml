@@ -1,13 +1,12 @@
-﻿name: CI
+name: CI
 
 on:
   push:
-    branches: [main]
   pull_request:
     branches: [main]
 
 jobs:
-  backend-test:
+  backend:
     runs-on: ubuntu-latest
 
     services:
@@ -35,14 +34,17 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+    # Variable names per Architecture.md §17; CI-only placeholder values
     env:
       DATABASE_URL: postgresql://investiq:investiq@127.0.0.1:5435/investiq
       REDIS_URL: redis://localhost:6379/0
-      SECRET_KEY: ci-secret-key-for-testing-only
-      ALGORITHM: HS256
-      ACCESS_TOKEN_EXPIRE_MINUTES: 30
-      FINNHUB_API_KEY: dummy
-      PYTHONPATH: .
+      JWT_SECRET: ci-access-secret-not-for-production
+      JWT_REFRESH_SECRET: ci-refresh-secret-not-for-production
+      ENVIRONMENT: development
+
+    defaults:
+      run:
+        working-directory: ./services/api
 
     steps:
       - uses: actions/checkout@v4
@@ -50,29 +52,28 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.13'
           cache: pip
           cache-dependency-path: services/api/requirements.txt
 
       - name: Install backend dependencies
-        working-directory: ./services/api
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Ruff lint check
-        working-directory: ./services/api
+      - name: Lint (ruff)
         run: ruff check .
 
+      - name: Format check (black)
+        run: black --check .
+
       - name: Apply DB migrations
-        working-directory: ./services/api
         run: alembic upgrade head
 
-      - name: Run Pytest
-        working-directory: ./services/api
-        run: python -m pytest tests/ -v
+      - name: Pytest
+        run: python -m pytest -q
 
-  frontend-test:
+  frontend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -80,15 +81,37 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: '24'
           cache: npm
 
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Run ESLint
-        run: npm run lint --if-present
+      - name: Lint (ESLint + Prettier, all workspaces)
+        run: npm run lint
 
-      - name: Run frontend type-check (web)
+      - name: i18n parity (en.json vs ur.json keys, empty values, placeholders)
+        run: |
+          npm test -w @investiq/i18n
+          npm run check -w @investiq/i18n
+
+      - name: Type-check web
         working-directory: ./apps/web
+        run: npx tsc -b
+
+      - name: Unit tests (web, Node built-in test runner)
+        working-directory: ./apps/web
+        run: npm test
+
+      - name: Unit tests (api-client token refresh, Node built-in test runner)
+        run: npm test -w @investiq/api-client
+
+      - name: Type-check mobile
+        working-directory: ./apps/mobile
         run: npx tsc --noEmit
+
+      - name: Type-check shared packages
+        run: |
+          for pkg in shared-types api-client i18n design-tokens; do
+            npx tsc --noEmit -p packages/$pkg
+          done

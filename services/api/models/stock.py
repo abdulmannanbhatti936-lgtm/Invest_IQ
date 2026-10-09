@@ -1,6 +1,14 @@
 import uuid
 
-from sqlalchemy import BigInteger, Column, DateTime, ForeignKey, Numeric, String
+from sqlalchemy import (
+    BigInteger,
+    Column,
+    DateTime,
+    ForeignKey,
+    Numeric,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -23,11 +31,14 @@ class Stock(Base):
 
 class PricePoint(Base):
     __tablename__ = "price_points"
+    __table_args__ = (UniqueConstraint("stock_id", "timestamp", name="uq_price_points_stock_ts"),)
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
-    stock_id = Column(UUID(as_uuid=True), ForeignKey("stocks.id", ondelete="CASCADE"), nullable=False, index=True)
+    stock_id = Column(
+        UUID(as_uuid=True), ForeignKey("stocks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     timestamp = Column(DateTime(timezone=True), nullable=False, index=True)
-    
+
     open = Column(Numeric, nullable=True)
     high = Column(Numeric, nullable=True)
     low = Column(Numeric, nullable=True)

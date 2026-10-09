@@ -1,119 +1,138 @@
-import { type ReactNode, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import type { ReactNode } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
+  Bell,
+  Briefcase,
+  History,
   LayoutDashboard,
   LineChart,
-  Briefcase,
-  MessageSquare,
-  Bell,
   LogOut,
-  Settings,
-  Globe,
+  MessageSquare,
+  ShieldCheck,
 } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@investiq/i18n';
+import { useAuth } from '../../features/auth/AuthContext';
+import { LanguageToggle } from '../LanguageToggle';
+
+const NAV = [
+  { key: 'dashboard', path: '/dashboard', icon: LayoutDashboard },
+  { key: 'stocks', path: '/stocks', icon: LineChart },
+  { key: 'portfolio', path: '/portfolio', icon: Briefcase },
+  { key: 'backtest', path: '/backtest', icon: History },
+  { key: 'chat', path: '/chat', icon: MessageSquare },
+];
 
 export const AppLayout = ({ children }: { children: ReactNode }) => {
   const { user, logout } = useAuth();
-  const location = useLocation();
   const navigate = useNavigate();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
+  const isAdmin = user?.role === 'admin';
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  const toggleLanguage = () => {
-    const newLang = i18n.language === 'en' ? 'ur' : 'en';
-    i18n.changeLanguage(newLang);
-  };
-
-  useEffect(() => {
-    document.documentElement.dir = i18n.language === 'ur' ? 'rtl' : 'ltr';
-    document.documentElement.lang = i18n.language;
-  }, [i18n.language]);
-
-  const navItems = [
-    { name: t('nav_dashboard'), path: '/dashboard', icon: LayoutDashboard },
-    { name: t('nav_stocks'), path: '/stocks', icon: LineChart },
-    { name: t('nav_portfolio'), path: '/portfolio', icon: Briefcase },
-    { name: t('nav_backtest'), path: '/backtest', icon: Settings },
-    { name: t('nav_chat'), path: '/chat', icon: MessageSquare },
-  ];
+  const items = isAdmin ? [...NAV, { key: 'admin', path: '/admin', icon: ShieldCheck }] : NAV;
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden text-gray-900">
-      {/* Sidebar Navigation */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col rtl:border-l rtl:border-r-0">
-        <div className="h-16 flex items-center px-6 border-b border-gray-200">
-          <span className="text-xl font-bold text-blue-700 tracking-tight">InvestIQ</span>
+    <div className="flex h-screen overflow-hidden bg-gray-50 text-gray-900">
+      <aside className="hidden w-64 flex-col border-e border-gray-200 bg-white md:flex">
+        <div className="flex h-16 items-center gap-2 border-b border-gray-200 px-6">
+          <span className="text-xl font-bold tracking-tight text-blue-700">
+            {t('common.appName')}
+          </span>
+          {isAdmin && (
+            <span className="rounded bg-purple-100 px-2 py-0.5 text-xs font-semibold text-purple-800">
+              {t('common.adminBadge')}
+            </span>
+          )}
         </div>
 
         <nav className="flex-1 overflow-y-auto py-4">
           <ul className="space-y-1 px-3">
-            {navItems.map((item) => {
-              const isActive = location.pathname.startsWith(item.path);
-              const Icon = item.icon;
-              return (
-                <li key={item.path}>
-                  <Link
-                    to={item.path}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            {items.map(({ key, path, icon: Icon }) => (
+              <li key={path}>
+                <NavLink
+                  to={path}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                       isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Icon className={`w-5 h-5 ${isActive ? 'text-blue-600' : 'text-gray-500'}`} />
-                    {item.name}
-                  </Link>
-                </li>
-              );
-            })}
+                    }`
+                  }
+                >
+                  <Icon className="h-5 w-5" />
+                  {t(`nav.${key}`)}
+                </NavLink>
+              </li>
+            ))}
           </ul>
         </nav>
 
-        <div className="p-4 border-t border-gray-200">
+        <div className="border-t border-gray-200 p-4">
           <div className="flex items-center gap-3 px-3 py-2">
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">
               {user?.full_name?.charAt(0).toUpperCase() || 'U'}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{user?.full_name}</p>
-              <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-gray-900">{user?.full_name}</p>
+              <p className="truncate text-xs text-gray-500" dir="ltr">
+                {user?.email}
+              </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={handleLogout}
-            className="mt-2 w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 rounded-md hover:bg-red-50 transition-colors"
+            className="mt-2 flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
           >
-            <LogOut className="w-4 h-4" />
-            Log Out
+            <LogOut className="h-4 w-4 rtl:rotate-180" />
+            {t('common.logout')}
           </button>
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Header */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-end px-6 shadow-sm z-10">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={toggleLanguage}
-              className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-1.5 rounded-md hover:bg-gray-100 transition-colors"
-              title="Toggle Language"
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <header className="z-10 flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 shadow-sm md:justify-end md:px-6">
+          <span className="text-lg font-bold text-blue-700 md:hidden">{t('common.appName')}</span>
+          <div className="flex items-center gap-2">
+            <LanguageToggle />
+            <NavLink
+              to="/notifications"
+              aria-label={t('nav.notifications')}
+              className="rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
             >
-              <Globe className="w-4 h-4" />
-              {i18n.language === 'en' ? 'اردو' : 'English'}
-            </button>
-            <button className="text-gray-500 hover:text-gray-700 relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+              <Bell className="h-5 w-5" />
+            </NavLink>
+            <button
+              type="button"
+              onClick={handleLogout}
+              aria-label={t('common.logout')}
+              className="rounded-md p-2 text-gray-500 hover:bg-gray-100 md:hidden"
+            >
+              <LogOut className="h-5 w-5 rtl:rotate-180" />
             </button>
           </div>
         </header>
 
-        {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">{children}</main>
+        {/* Mobile-width nav */}
+        <nav className="flex gap-1 overflow-x-auto border-b border-gray-200 bg-white px-2 md:hidden">
+          {items.map(({ key, path }) => (
+            <NavLink
+              key={path}
+              to={path}
+              className={({ isActive }) =>
+                `shrink-0 px-3 py-2 text-sm font-medium ${
+                  isActive ? 'border-b-2 border-blue-600 text-blue-700' : 'text-gray-600'
+                }`
+              }
+            >
+              {t(`nav.${key}`)}
+            </NavLink>
+          ))}
+        </nav>
+
+        <main className="flex-1 overflow-y-auto p-4 md:p-8">{children}</main>
       </div>
     </div>
   );

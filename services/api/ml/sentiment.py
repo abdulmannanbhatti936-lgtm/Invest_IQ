@@ -1,24 +1,37 @@
 import logging
 
-from transformers import pipeline
-
 logger = logging.getLogger(__name__)
+
 
 class FinBERTSentimentModel:
     """
     Wrapper around HuggingFace's FinBERT model (ProsusAI/finbert)
     specifically trained for financial sentiment analysis.
     """
+
     def __init__(self):
+        self._model = None
+        self._load_failed = False
+
+    @property
+    def model(self):
+        # Loaded lazily so importing this module (e.g. in the worker) stays cheap
+        if self._model is None and not self._load_failed:
+            self._load()
+        return self._model
+
+    def _load(self):
         logger.info("Initializing FinBERT model. This might take a while if downloading weights...")
         try:
+            from transformers import pipeline
+
             # We use 'ProsusAI/finbert' as it's the industry standard for financial text.
             # Labels: 'positive', 'negative', 'neutral'
-            self.model = pipeline("sentiment-analysis", model="ProsusAI/finbert")
+            self._model = pipeline("sentiment-analysis", model="ProsusAI/finbert")
             logger.info("FinBERT model loaded successfully.")
         except Exception as e:
             logger.error(f"Failed to load FinBERT model: {e}")
-            self.model = None
+            self._load_failed = True
 
     def analyze_headline(self, text: str) -> float:
         """
@@ -29,22 +42,23 @@ class FinBERTSentimentModel:
         if not self.model:
             logger.warning("FinBERT model not loaded. Returning default 0.0 score.")
             return 0.0
-            
+
         try:
             result = self.model(text)[0]
-            label = result['label']
-            score = result['score']
-            
+            label = result["label"]
+            score = result["score"]
+
             # Map probabilities to our [-1.0, 1.0] scale
-            if label == 'positive':
+            if label == "positive":
                 return round(float(score), 4)
-            elif label == 'negative':
+            elif label == "negative":
                 return round(-float(score), 4)
             else:
                 return 0.0
         except Exception as e:
             logger.error(f"Error during sentiment analysis of text '{text}': {e}")
             return 0.0
+
 
 # Singleton instance for the app lifecycle
 sentiment_model = FinBERTSentimentModel()

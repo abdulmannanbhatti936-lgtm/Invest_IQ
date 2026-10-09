@@ -1,25 +1,45 @@
-import datetime
-from typing import List
+from pydantic import BaseModel, ConfigDict
 
-from pydantic import BaseModel
+from schemas.types import UTCDateTime
+
+
+class StockSummary(BaseModel):
+    ticker: str
+    name: str
+    sector: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class StockSearchResponse(BaseModel):
+    results: list[StockSummary]
 
 
 class StockQuote(BaseModel):
     ticker: str
     name: str
-    sector: str
+    sector: str | None = None
+    currency: str = "PKR"
     price: float
+    open: float | None = None
+    high: float | None = None
+    low: float | None = None
+    previous_close: float | None = None
+    change: float | None = None
+    change_percent: float | None = None
     volume: int
-    timestamp: datetime.datetime
+    timestamp: UTCDateTime
+    # Key statistics (PRD.md FR8)
+    fifty_two_week_high: float | None = None
+    fifty_two_week_low: float | None = None
+    market_cap: float | None = None
+    pe_ratio: float | None = None
+
 
 class PricePointResponse(BaseModel):
-    timestamp: datetime.datetime
-    open: float
-    high: float
-    low: float
+    timestamp: UTCDateTime
+    open: float | None = None
+    high: float | None = None
+    low: float | None = None
     close: float
     volume: int
-
-class StockSearchResponse(BaseModel):
-    # Search is simplified for now: if quote exists, it returns a list of 1.
-    results: List[StockQuote]

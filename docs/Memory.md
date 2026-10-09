@@ -16,17 +16,13 @@
 
 ## 2. Current Status (update this section every session)
 
-### **Phase 1: Auth, Onboarding & Risk Profiling (In Progress)**
+**Phase 0 ✅ and Phase 1 ✅ complete (re-verified 2026-10-09), and the independent Phase 1 audit's fixes (Groups 1–4) are done** — last commit `178d253` on `fix/phase-0-3-completion`, CI green; PR into `main` opened 2026-10-09. **Next steps, in order:** (1) Task 2 — `TIMESTAMPTZ` migration (approved; §4), (2) npm audit triage (§4, before Phase 2), (3) Phase 2 re-audit from Workflow Step 2.1 — one step at a time.
 
-- **Completed:** Step 1.1 (Database Models), Step 1.2 (Auth API Endpoints), Step 1.3 (Risk Profile Backend), Step 1.4 (Auth Unit/Integration Tests), Step 1.5 (Web: Auth Screens), Step 1.6 (Web: Onboarding Questionnaire), Step 1.7 (Dashboard Structure), Step 1.8 (Language Toggle & RTL)
-
-### **Phase 3: Machine Learning - Core Logic (COMPLETED)**
-
-- **Completed:** Step 3.1 (ML Environment & Sentiment Pipeline), Step 3.2 (Sentiment Predictor Script), Step 3.3 (Price Prediction Logic - Baseline), Step 3.4 (LSTM Price Prediction Logic - Advanced), Step 3.5 (Prediction display on UI)
-
-### **Phase 2: Stock Data & Market Analysis (COMPLETED)**
-
-- **Completed:** Step 2.1 (Database Models), Step 2.2 (External Data Client), Step 2.3 (Redis Caching), Step 2.4 (Endpoints), Step 2.5 (Automated Fetch Job), Step 2.6 (Sentiment Model), Step 2.7 (News Scraper), Step 2.8 (Celery Beat)
+- **Phase 0 — Foundation:** every checkpoint re-run and passing; CI green on GitHub. Open: the README has not yet been tested from a fresh clone by the second teammate.
+- **Phase 1 — Auth & Risk Profiling:** all 5 Phases.md exit criteria verified (boxes ticked) and re-checked by an independent audit (§7). Audit fixes: case-insensitive emails (DB unique index), tests isolated in `investiq_test`, refresh-token rotation + reuse detection + server-side logout, startup refusal of weak JWT secrets outside development (unset `ENVIRONMENT` = production), `/docs` only in development, logout on onboarding, questionnaire served by the API (single source), Playwright E2E smoke tests. Tests: 118 backend, 13 web unit, 6 api-client unit, 3 i18n-checker, 2 Playwright E2E (local only). Open, not blocking: Urdu wording review (`docs/i18n-review-phase1.md`); real-device and screen-reader checks.
+- **Phase 2 — Stock Data:** ⚠️ needs re-audit. Code exists (endpoints, Redis cache, Celery jobs, web screens) but was marked complete without checkpoint evidence. Known gaps: no graceful degradation when Yahoo is unreachable (§4); mobile screens (Step 2.9) not built; AAPL/LOWCONF rows in the dev DB (§4).
+- **Phase 3 — Prediction Engine:** ⚠️ needs re-audit. The original prototype was trained on AAPL (non-PSX, §10). A 12-ticker PSX retrain exists but Step 3.1 (3+ years of KSE-100 data) was never done and the models do not beat their naive baselines; all live predictions are flagged low-confidence. Indicator formulas need reference-value tests (§4).
+- **Waiting on the team (§4):** `admin@gmail.com` decision; Urdu wording review.
 
 > _Update instructions: replace this section's content each session with (a) which phase is active, (b) what was completed since the last update, (c) what's in progress, (d) what's blocked/waiting on a decision._
 
@@ -45,6 +41,24 @@ Decisions made so far, with the reasoning, so they're never silently re-litigate
 | LLM chatbot always grounded in real DB data, never freeform | Prevents hallucinated financial advice — named as a top risk in PRD.md §15                                            | Architecture.md §12, Rules.md §1                                                 |
 | Color palette: **left as placeholder**                      | Manam will decide and provide later                                                                                   | Design.md §2                                                                     |
 | Financial math uses `Decimal`, never float                  | Rounding errors unacceptable when showing real prices                                                                 | Rules.md §3.4                                                                    |
+| Risk scoring (2026-10-09): 7 questions × 3/2/1 pts (7–21); 7–11 Conservative, 12–16 Moderate, 17–21 Aggressive; safety caps after scoring: need money within 1 yr → max Conservative; would sell on a drop OR emergency savings < 3 months → max Moderate | Team decision. PRD FR2/FR3 only named the topics; the caps stop a high scorer with a short horizon, panic-selling tendency or no safety cushion from being pushed into aggressive picks | `services/api/services/risk_scoring.py`, DetailedReport.md Step 1.3 |
+| `users.role` added early (planned for Step 9.1) because the admin route guard needed it; `users.onboarding_progress` (JSONB) added for FR6 resume (2026-10-09) | Removing `role` until Phase 9 would only create churn; FR6 needs partial answers stored server-side | Architecture.md §7 |
+| JWT lifetimes: access 30 min, refresh 7 days, separate secrets (2026-10-09) | Short-lived access tokens per Architecture §11; the web client refreshes silently on 401 | `core/config.py`, DetailedReport Step 1.2 |
+| Passwords capped at 72 bytes; `bcrypt==3.2.2` pinned (2026-10-09) | bcrypt ignores bytes after 72; passlib 1.7.4 breaks with bcrypt 5 | `schemas/user.py`, `requirements.txt` |
+| Login runs a dummy bcrypt check for unknown emails (2026-10-09) | Same message and same timing as a wrong password, so login cannot reveal registered emails | `routers/auth.py` |
+| Web tokens stay in `localStorage` for the FYP (2026-10-09) | Simple and reload-safe; XSS trade-off documented, httpOnly-cookie refresh token planned for Phase 11 | §11, §12 |
+| Register page also shows the PRD §8.5 disclaimer (2026-10-09) | Registration is treated as the start of onboarding | `features/auth/RegisterPage.tsx` |
+| Retake = explicit `/onboarding?retake=1`; a completed profile otherwise goes to `/dashboard`; login returns only to same-app paths (2026-10-09) | Never trap a user, never open-redirect off-site | `features/auth/guardRules.ts` |
+| Frontend unit tests use Node's built-in test runner (2026-10-09) | No new dependency (Vitest/Jest would need approval); pure logic is extracted into testable modules | `apps/web/src/**/*.test.ts` |
+| Urdu body font: self-hosted Noto Naskh Arabic, no Nastaliq (2026-10-09) | Design §3 readability at small sizes; self-hosted so the demo works offline | `apps/web/src/index.css` |
+| API datetimes are UTC with a trailing `Z`; the web displays Asia/Karachi time (2026-10-09) | Naive timestamps made the dashboard show the previous day after 7 pm PKT | `schemas/types.py`, `lib/format.ts` |
+| en/ur i18n parity is enforced in CI (2026-10-09) | Missing or drifting Urdu strings fail the build instead of reaching a demo | `packages/i18n/scripts/check-parity.mjs` |
+| Emails are case-insensitive: stored trimmed + lowercase, unique index on `lower(email)` (2026-10-09) | Two accounts differing only by case existed; users could not log in with the casing they registered with | `schemas/user.py`, migration `9428fccc1482` |
+| Tests never touch the dev DB: pytest uses `<db>_test` with per-test rollback; E2E uses the same DB and deletes its `e2e_*` accounts (2026-10-09) | Test runs had left 465 users (6 admins) in the dev/demo DB | `tests/testdb.py`, `tests/conftest.py` |
+| Refresh tokens are single-use (rotation) and stored in Postgres; reuse of a revoked token (including a logged-out one) revokes all of the user's refresh tokens; `/auth/logout` takes the refresh token in the body and always returns 204; access tokens are not revoked (≤ 30 min) (2026-10-09) | Server-side logout and theft detection without a DB lookup on every request; Postgres so revocation never fails open | `routers/auth.py`, `refresh_tokens` table, Architecture §11 |
+| Unset `ENVIRONMENT` means production; outside development the API refuses placeholder/short (< 32) JWT secrets and hides `/docs` (2026-10-09) | A deployment that forgets the variable must fail safe | `core/config.py` |
+| The questionnaire is served by the API only (`GET /users/risk-questionnaire`); labels stay in i18n, and a test fails on any missing en/ur label (2026-10-09) | One source of truth; no hand-copied question list to drift | `tests/test_i18n_labels.py` |
+| Playwright (Chromium only) for E2E smoke tests, local only — not in CI yet (2026-10-09) | Approved dev dependency; CI would need a browser, DB and API in the job | `apps/web/e2e`, README |
 
 ## 4. Open Questions / Not Yet Decided
 
@@ -56,6 +70,16 @@ Carried over from PRD.md §17 and Architecture.md §21 — resolve these before/
 - [ ] OAuth (Google login) — in scope for v1 onboarding or deferred?
 - [ ] Specific financial news sources for the sentiment scraper — to be finalized before Phase 4
 - [ ] iOS support for mobile — Android is the committed target; iOS is a stretch goal only
+- [ ] **Phase 2 re-audit — graceful degradation gaps (found 2026-10-09 while offline):** with Yahoo unreachable, `GET /stocks/{ticker}/history` returned **200 with 0 points** instead of serving the stored `price_points` (15k+ rows) or a 503, and `GET /stocks/{ticker}` returned **404 "No market data found"** instead of 503 because yfinance reports a network failure as "no data" (Architecture §8.3, Workflow Step 2.6). Fix during the Phase 2 audit.
+- [ ] **Migrate naive timestamps to `TIMESTAMPTZ` — APPROVED 2026-10-09, next task (Task 2):** `users.created_at`, `risk_profiles.updated_at`, `predictions.generated_at`, `news_sentiments.timestamp` → `TIMESTAMPTZ`, converting existing values as UTC (`USING col AT TIME ZONE 'UTC'`); in the same task replace `datetime.utcnow()` with `datetime.now(timezone.utc)` and add `ON DELETE CASCADE` to `risk_profiles.user_id`. Test the upgrade/downgrade round trip on a scratch DB and confirm API output is unchanged.
+- [ ] **Phase 5 must enforce the risk profile on the server:** the Phase 1 route guard is screen-only (PRD §7.1 acceptance criteria are about screens). Every Phase 5 portfolio endpoint (`/portfolio/*`) must reject a user without a completed risk profile server-side (e.g. a `require_risk_profile` dependency → 403/409), since recommendations depend on the profile (FR4). Decided 2026-10-09, not built yet.
+- [ ] **`admin@gmail.com` in the dev DB — pending a team decision (2026-10-09):** role `user`, created 2026-09-26 22:48 UTC, has an `aggressive` risk profile. Origin unknown (predates the Phase 1 audit); kept until the team confirms. Every other test account was deleted from the dev DB the same day; only it and `phase0.check@example.com` remain.
+- [ ] **Phase 2 re-audit — 2 stocks in the dev DB are not in the seeded PSX catalog (found 2026-10-09):** `AAPL` (Apple Inc., Technology — **non-PSX**, 251 price points, 0 predictions) and `LOWCONF` ("Low Conf Stock", sector "Unknown" — looks like an old test fixture, 0 rows). The migration seeds 50 tickers; neither is created by current code. Not deleted — decide during the Phase 2 audit (AAPL must never reach training, tests or a demo, CLAUDE.md).
+- [ ] **Prune old `refresh_tokens` rows (Phase 9/11, not built):** every login and refresh adds a row, and expired or revoked rows are never deleted. Add a Celery task that deletes rows whose `expires_at` has passed (revoked rows can go at the same point; they are only needed until expiry for reuse detection). Decided 2026-10-09.
+- [ ] **Playwright E2E is local-only, not in CI (decided 2026-10-09):** `npm run e2e` (README) runs the Phase 1 smoke flow + Urdu RTL run against the `<db>_test` database. Adding it to CI needs Chromium, Postgres, Redis and the API in the job; revisit in Phase 11 (Step 11.1 regression pass) or earlier if UI regressions slip through.
+- [ ] **Phase 3 audit — technical indicators (found 2026-10-09):** Architecture.md §3 says TA-Lib; the code (`ml/features.py`) uses hand-written indicator formulas in pandas (no TA-Lib or pandas-ta dependency). Phase 3 must (a) update §3 and (b) add tests that compare our RSI/MACD/Bollinger/SMA against known reference values, since hand-written formulas need proof of correctness.
+- [ ] **npm audit triage — do BEFORE the Phase 2 re-audit (logged 2026-10-09):** `npm audit` reports 41 findings (1 critical, 30 high, 10 moderate), all pre-existing (none from Playwright), e.g. `node-forge` (critical), `shell-quote`, `uuid`, `js-yaml`, `minimatch`, `image-size`, `source-map-js`. Rules §6: flagged vulnerabilities get addressed, not ignored. Triage as its own step, critical first: for each, which package pulls it in (web, mobile/Expo, dev-only tooling), whether it ships to users, and the fix (upgrade, override, or documented acceptance). Do not run `npm audit fix --force` blindly (breaking upgrades).
+- [ ] **Admin endpoints (Phase 9):** `require_admin` (`core/deps.py`) exists and was probed on 2026-10-09 (admin 200, non-admin 403, no token 401), and is covered by `tests/test_admin_guard.py` on a test-only route (admin 200, non-admin 403, no token 401). No real endpoint uses it yet — Step 9.4 must still test every real admin endpoint.
 
 ## 5. Known Constraints
 
@@ -167,6 +191,27 @@ Completed: Built `Stocks.tsx` (market overview and search) and `StockDetail.tsx`
 Blocked: None.
 Next session should: Proceed to Phase 4 (Sentiment Analysis - Core Logic).
 
+[2026-10-09] — Phase 0 re-verification
+Completed: Re-ran every Phase 0 checkpoint. Fixed: .gitignore (joblib/artifacts/caches), missing services/ml-engine, sentiment-engine, chatbot-service and infra/deploy folders (README stubs, per Architecture §5/§6.5), wrong DB port in .env.example (5432→5435), Docker healthchecks, react-is peer dependency (the web build was failing), mobile import of a removed type, CI env vars (SECRET_KEY → JWT_SECRET/JWT_REFRESH_SECRET), and a no-op web type-check (tsc --noEmit → tsc -b; mobile + packages type-checks added; black --check added). README setup rewritten (.env creation, Celery, ML training).
+In progress: Phase 1 re-verification.
+Blocked: CI green on GitHub needs a push. Risk-questionnaire scoring thresholds need team sign-off (§4).
+Decisions made: Ignore trained artifacts in git (regenerated by python -m ml.train); keep the CSV dataset committed.
+Next session should: Push the branch, confirm CI is green, then start Phase 1 re-verification.
+
+[2026-10-09] — Phase 1 re-verification complete (Steps 1.1–1.9)
+Completed: Audited Phase 1 one step at a time against Workflow/PRD/Architecture/Design/Rules and fixed every failure: enum left behind on downgrade (1.1); timing-based email enumeration, 72-byte passwords, bcrypt pin, token-separation/no-logging/rate-limit tests (1.2, 1.4); duplicate-answer 422, draft-step bound, retake updated_at, cross-user isolation tests (1.3); auth form patterns + i18n error mapping + register disclaimer (1.5); onboarding error states, retake exit, ordered draft saves (1.6); route-guard rules, deep-link return, retake mode, require_admin test (1.7); en/ur parity check in CI, Naskh font, UTC datetimes shown in PKT (1.8). Phase 1 exit criteria all PASS through the real UI (register → questionnaire → dashboard; profile persists across logout/login; FR6 resume after closing the tab; 19 auth tests; §8.5 disclaimer at onboarding). Appendix A checklist all PASS. Docs synced: Phases.md status, DetailedReport (Phases 0–1 rewritten, Phases 2–3 marked "Needs re-audit"), README quality checks, §9/§10/§15 trackers (AAPL rows labelled non-PSX).
+In progress: nothing.
+Blocked: team decisions only — TIMESTAMPTZ migration (§4), Urdu wording review (docs/i18n-review-phase1.md).
+Decisions made: see §3 rows dated 2026-10-09 (token lifetimes, 72-byte passwords, dummy-hash login, localStorage, retake mode, Node test runner, Naskh font, UTC datetimes, i18n parity in CI).
+Next session should: Start the Phase 2 re-audit at Workflow Step 2.1 — read §2, §4 (Phase 2 degradation gaps) and §11 first; one step at a time with a checkpoint report after each.
+
+[2026-10-09] — Phase 1 independent audit + fixes (Groups 1–4)
+Completed: Independent examiner-style audit of Phase 1 (all exit criteria PASS; 11 findings). Fixed in four reviewed commits, CI green on each. Group 1 `1eea19e`: case-insensitive emails (migration with a clash guard), pytest isolated in `investiq_test` with per-test rollback, dev DB cleaned to 2 accounts. Group 2 `a59b8ab`: refresh-token rotation + reuse detection + `POST /auth/logout` (refresh_tokens table); web client calls logout and refreshes under a cross-tab Web Lock; weak-secret startup refusal + loud dev warning; strong local secrets; `/docs` dev-only; logout on onboarding (en + ur). Group 3 `4724835`: questionnaire loaded from the API + missing-label test; refresh single-flight extracted and unit-tested (works without Web Locks on React Native; mobile bundles); unset ENVIRONMENT = production; full_name trimmed; dead schemas removed; Architecture §3/§19; Phase 1 boxes ticked. Group 4 `178d253`: Playwright E2E (`npm run e2e`: Phase 1 smoke flow + Urdu RTL, own API on the test DB, deletes its accounts); server full_name ≥ 2 characters like the form. Then a PR from `fix/phase-0-3-completion` into `main`.
+In progress: nothing.
+Blocked: `admin@gmail.com` keep/delete (team checking its origin, §4); Urdu wording review.
+Decisions made: §3 rows dated 2026-10-09 (emails, test DB, refresh tokens, ENVIRONMENT, questionnaire source, Playwright). Found during the work: `ruff --fix` reordered conftest imports so the engine would bind the dev DB before the switch; now guarded (§11).
+Next session should: Task 2 — TIMESTAMPTZ migration (+ timezone-aware now(), ON DELETE CASCADE on risk_profiles.user_id) with an upgrade/downgrade round trip on a scratch DB; then the npm audit triage (§4); then the Phase 2 re-audit from Workflow Step 2.1.
+
 ## 8. Team & Responsibilities
 
 | Person                      | Role (suggested per Phases.md owner-splits)                                                                                                                               | Notes                                                         |
@@ -181,7 +226,7 @@ Next session should: Proceed to Phase 4 (Sentiment Analysis - Core Logic).
 
 | Dependency               | Status                    | Notes                                                                 |
 | ------------------------ | ------------------------- | --------------------------------------------------------------------- |
-| Yahoo Finance API        | Not yet integrated        | Confirm rate limits before Phase 2                                    |
+| Yahoo Finance API        | Integrated — needs Phase 2 re-audit | Via `yfinance`, PSX symbols with `.KA` suffix. Rate limits still unconfirmed. When Yahoo is unreachable the API does not degrade gracefully yet (§4). |
 | PSX Data API / website   | Not yet integrated        | Official API access vs scraping — open question (§4)                  |
 | Claude API               | Not yet integrated        | Needed for chatbot (Phase 8) — key budgeted per PRD.md §14 assumption |
 | Firebase Cloud Messaging | Not yet integrated        | Needed for Phase 7 (notifications)                                    |
@@ -196,10 +241,13 @@ _(Fill in once Phase 3/4 training actually happens — this table becomes primar
 
 | Model                          | Version | Trained on | RMSE | Directional Accuracy | Notes                                           |
 | ------------------------------ | ------- | ---------- | ---- | -------------------- | ----------------------------------------------- |
-| LSTM/BiLSTM (price prediction) | v1.0    | AAPL (1y)  | 9.06 | ~65%                 | Target: RMSE < 5% (Met, price is ~330), acc > 80% (needs more data) |
+| LSTM/BiLSTM (price prediction) | v1.0    | AAPL (1y)  | 9.06 | ~65%                 | **Non-PSX prototype, not valid for the report.** Kept as history. Target: RMSE < 5% (Met, price is ~330), acc > 80% (needs more data) |
 | SVM (buy/sell/hold)            | —       | —          | —    | —                    | Skipped in favor of Random Forest baseline      |
-| Random Forest (buy/sell/hold)  | v1.0    | AAPL (1y)  | —    | 40-60%               | Baseline prototype                              |
-| FinBERT (sentiment)            | pre-trn | News       | —    | >85%                 | HuggingFace Pretrained, proven on financial text|
+| Random Forest (buy/sell/hold)  | v1.0    | AAPL (1y)  | —    | 40-60%               | **Non-PSX prototype, not valid for the report.** Kept as history. Baseline prototype |
+| LSTM (next-day return)         | lstm-rf-20261008T191201Z | 12 PSX tickers, 5y Yahoo `.KA` (§15), chronological 70/15/15 | 2.29% of price (naive: 2.20%) | 47.0% (majority baseline: 54.4%) | **PSX, pending Phase 3 re-audit.** Mean over 12 tickers; does **not** beat its baselines. `services/api/ml/reports/` |
+| Random Forest (buy/sell/hold)  | lstm-rf-20261008T191201Z | same as above | — | 44.6% accuracy (class baseline: 51.2%) | **PSX, pending Phase 3 re-audit.** Below baseline; all predictions flagged low-confidence |
+| SVM (buy/sell/hold)            | lstm-rf-20261008T191201Z | same as above | — | 43.0% accuracy (class baseline: 51.2%) | **PSX, pending Phase 3 re-audit.** Below baseline |
+| FinBERT (sentiment)            | pre-trn | News       | —    | >85%                 | Published figure for ProsusAI/finbert, **not measured in this project** (Phase 4) |
 
 **Backtest results (once available):**
 
@@ -213,6 +261,15 @@ _(Fill in once Phase 3/4 training actually happens — this table becomes primar
 - PSX/news scraping is likely to hit rate limits under real use — build the Redis caching layer (Architecture.md §10) early, don't treat it as a later optimization.
 - Floating-point math on fees/tax will produce off-by-a-paisa errors that look fine in testing and embarrassing in a live demo — `Decimal` is mandatory, not a nice-to-have (Rules.md §3.4).
 - Urdu UI text tends to overflow components sized for English string lengths — see Design.md §24, test with real Urdu strings early, not lorem-ipsum placeholders.
+- **Auth rate limiter fails open when Redis is down** (`core/rate_limit.py`): login/register keep working but are NOT rate-limited while Redis is unavailable. Deliberate for the FYP (availability over strictness); every skipped check logs a WARNING "Auth rate limit SKIPPED".
+- **Auth rate limiter limits by direct client IP:** behind Railway's proxy all users may share one IP (one user's failed logins could lock everyone out), so `X-Forwarded-For` handling (trusting only the platform proxy) is needed at deployment. Not implemented yet.
+- **Passwords are capped at 72 bytes** because bcrypt ignores everything after byte 72 (Urdu letters are 2 bytes each, so ~36 Urdu characters). The register screens need an en/ur message for the API's "Password is too long" 422.
+- **Registration reveals whether an email is already registered** ("already exists", 400). Accepted known limitation (2026-10-09): standard sign-up behaviour, slowed by the register rate limit; hiding it would need an email-verification flow, which is out of PRD scope. Login does NOT leak this: same message and same bcrypt cost for unknown emails (dummy-hash check, `routers/auth.py`).
+- **Web tokens live in `localStorage`** (`apps/web/src/lib/tokenStorage.ts`, keys `investiq.access_token` / `investiq.refresh_token`). XSS trade-off accepted for the FYP (2026-10-09): any script on the page could read them. Since 2026-10-09 refresh tokens are **single-use and rotated** (`refresh_tokens` table), **reuse is detected** (presenting a used or logged-out token revokes all of that user's refresh tokens) and **logout revokes the token server-side**. Remaining risk: a stolen refresh token is usable only until the next rotation. Whichever side (thief or real user) refreshes second triggers reuse detection, which ends every session. If the thief refreshes first while the real user is inactive, the thief's chain lasts until the real user's app next tries to refresh with its old token (its next visit after the 30-minute access token expires). A fresh login on another device does not end it. A stolen access token stays valid for up to 30 minutes (access tokens are stateless and not revoked on logout). Mitigations: React escapes all rendered text, no `dangerouslySetInnerHTML`, 30-minute access tokens.
+- **Phase 11 hardening backlog** (decided, not yet built): (1) move the refresh token to an `httpOnly`, `Secure`, `SameSite=Strict` cookie and keep the access token in memory only (needs CSRF protection on `/auth/refresh` and cookie-aware CORS; mobile keeps secure storage); (2) `X-Forwarded-For` handling for the auth rate limiter behind the hosting proxy.
+- **yfinance hides network failures as "no data":** when Yahoo is unreachable it logs `possibly delisted; no price data found` and returns an empty frame, so callers cannot tell "offline" from "unknown ticker" (seen 2026-10-09 with the machine offline). Any data-source check must distinguish these (Phase 2 re-audit, §4).
+- **Dev-only account:** `phase0.check@example.com` (role `admin`, local DB only) was created on 2026-10-09 for automated browser checks. It is for local testing only — never seed it into staging/production and never use or show it in a demo or the defense.
+- **Import sorters can reorder `tests/conftest.py`:** `ruff --fix` moved the test-DB switch (`from tests.testdb import …`) below `core.database`, which would create the engine on the **dev** DB. The file now has an `# isort: split` marker and refuses to run unless the engine's database ends in `_test` — keep both.
 - A previous demo of this project existed and is _not_ the baseline — if any old code, screenshots, or decisions surface from that demo, verify against these docs before trusting them (§2).
 
 > _Update instructions: every time something wastes more than an hour because a lesson wasn't written down, add it here._
@@ -225,6 +282,7 @@ _(Pre-loaded from the literature gap analysis and known limitations — useful c
 - **"How is this different from the academic papers you cited?"** → Every cited study is either not PSX-specific, not real-time, or has no user-facing product — InvestIQ is the first to combine all three for Pakistani retail investors (PRD.md §2.2).
 - **"What happens if your prediction is wrong?"** → Predictions are always shown as probabilistic with a confidence score (PRD.md §7.3, FR14); the disclaimer (PRD.md §8.5) and backtesting module (§7.6) exist specifically to set honest expectations rather than overpromise.
 - **"Is this giving real financial advice? Is that legal/safe?"** → Advisory-only, explicitly out-of-scope for trade execution (PRD.md §6.2); disclaimer language displayed throughout (§8.5).
+- **"Why store login tokens in localStorage? Isn't that vulnerable to XSS?"** → It's a deliberate, documented trade-off: React escapes everything it renders and the app never uses `dangerouslySetInnerHTML`, so there is no known XSS path; access tokens expire after 30 minutes; passwords are never stored client-side. Moving the refresh token to an `httpOnly` cookie is a planned Phase 11 hardening step (Memory.md §11).
 - **"How does the chatbot avoid making things up?"** → Grounding architecture — every response is built from real database records, never generated freeform (Architecture.md §12).
 
 ## 13. Quick Terminology Reference
@@ -257,7 +315,7 @@ _(Fill in as historical data is acquired — critical for both model training an
 
 | Dataset                                        | Source              | Date range covered | Companies/tickers included | Rows/size | Status           |
 | ---------------------------------------------- | ------------------- | ------------------ | -------------------------- | --------- | ---------------- |
-| PSX historical prices                          | Yahoo Finance / PSX | —                  | —                          | —         | Not yet acquired |
+| PSX historical prices                          | Yahoo Finance (`yfinance`, `.KA`, auto-adjusted daily OHLCV) | 2021-10-08 → 2026-10-07 (downloaded 2026-10-08) | 12: SYS, HUBC, OGDC, PPL, MCB, UBL, HBL, MEBL, FFC, EFERT, LUCK, PSO | 15,409 rows (`services/api/ml/data/raw/`, `manifest.json`) | Acquired — pending Phase 2/3 re-audit |
 | PSX company fundamentals                       | —                   | —                  | —                          | —         | Not yet acquired |
 | Financial news corpus (for sentiment)          | —                   | —                  | —                          | —         | Not yet acquired |
 | KSE-100 index history (for backtest benchmark) | —                   | —                  | N/A                        | —         | Not yet acquired |

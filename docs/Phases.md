@@ -5,7 +5,7 @@
 **Companion docs:** PRD.md, Architecture.md, Rules.md
 **Purpose of this document:** This is the single source of truth for **what to build right now** vs **what comes later**. An AI coding agent (or a human) reading this should never build ahead of the current phase, never skip a phase's exit criteria, and never assume a future phase's work is already available.
 
-**Current status: Phase 0 — not yet started.** A previous demo was made but is explicitly not being carried forward (see PRD.md, Memory.md). Treat this as a greenfield build.
+**Current status (2026-10-09): Phase 0 ✅ and Phase 1 ✅ complete — every exit criterion re-verified against the running code. Next: Phase 2 re-audit.** Phases 2 and 3 have code from an earlier pass that was marked complete without checkpoint evidence (the first models were trained on AAPL, not PSX), so they must be re-audited step by step before Phase 4 (see Memory.md §2). A previous demo was made but is explicitly not being carried forward (see PRD.md, Memory.md).
 
 ---
 
@@ -69,11 +69,11 @@
 
 **Exit criteria:**
 
-- [ ] New user can register, log in, complete the risk questionnaire, and land on a (placeholder) dashboard
-- [ ] Risk profile persists across logout/login
-- [ ] Partial-onboarding resume works (FR6 edge case)
-- [ ] Auth endpoints have passing unit/integration tests
-- [ ] Disclaimer language (PRD.md Section 8.5) shown at onboarding
+- [x] New user can register, log in, complete the risk questionnaire, and land on a (placeholder) dashboard
+- [x] Risk profile persists across logout/login
+- [x] Partial-onboarding resume works (FR6 edge case)
+- [x] Auth endpoints have passing unit/integration tests
+- [x] Disclaimer language (PRD.md Section 8.5) shown at onboarding
 
 ---
 

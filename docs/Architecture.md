@@ -44,25 +44,27 @@ One backend, multiple clients. The web app and mobile app are both thin clients 
 
 ## 3. Tech Stack (final)
 
-| Layer                    | Technology                                                                                                 | Notes                                                                                                                                   |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Web Frontend             | React.js + Vite, Tailwind CSS                                                                              | Matches Manam's existing core stack                                                                                                     |
-| Mobile App               | **React Native** (Expo)                                                                                    | Chosen over Flutter — team already works in React/JS; enables shared TypeScript types/utils between web and mobile via a shared package |
-| Backend                  | Python, FastAPI                                                                                            | Async-first, auto-generates OpenAPI docs (useful for Antigravity AI to reference the API contract directly)                             |
-| AI/ML                    | TensorFlow or PyTorch (LSTM/BiLSTM), Scikit-learn (SVM, Random Forest), HuggingFace Transformers (FinBERT) | Served via a dedicated internal ML service                                                                                              |
-| NLP fallback             | VADER (via `nltk`/`vaderSentiment`)                                                                        | Lightweight fallback when FinBERT confidence is low                                                                                     |
-| LLM Chatbot              | Claude API (primary)                                                                                       | Bilingual EN/UR conversational layer, grounded via RAG-style context injection (user's live data)                                       |
-| Database                 | PostgreSQL (recommended) or MySQL                                                                          | Relational — the domain (users, portfolios, predictions) is inherently relational                                                       |
-| Cache / Queue            | Redis                                                                                                      | Response caching + Celery broker                                                                                                        |
-| Background Jobs          | Celery + Redis                                                                                             | Market monitoring agent, model retraining jobs, notification dispatch                                                                   |
-| Notifications            | Firebase Cloud Messaging (FCM)                                                                             | Cross-platform push (web + mobile)                                                                                                      |
-| Technical Indicators     | TA-Lib                                                                                                     | RSI, MACD, Bollinger Bands, Moving Averages                                                                                             |
-| Backtesting              | Backtrader or QuantStats                                                                                   | Historical strategy simulation                                                                                                          |
-| Data Sources             | Yahoo Finance API, PSX Data API/website                                                                    | Price + fundamentals                                                                                                                    |
-| News/Sentiment Ingestion | Custom scrapers (`requests`/`BeautifulSoup` or `Scrapy`), optional Tweepy for Twitter/X                    | Feeds FinBERT pipeline                                                                                                                  |
-| Auth                     | JWT (access + refresh tokens), bcrypt/argon2 password hashing                                              | Stateless auth across web + mobile                                                                                                      |
-| Deployment               | Backend: Railway or AWS/GCP; Web: Vercel; Mobile: Expo EAS Build                                           | Matches Manam's existing deployment patterns (Vercel + Railway)                                                                         |
-| Version Control          | Git / GitHub, monorepo                                                                                     | See Section 5                                                                                                                           |
+| Layer                    | Technology                                                                                                                                                                                        | Notes                                                                                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Web Frontend             | React.js + Vite, Tailwind CSS                                                                                                                                                                     | Matches Manam's existing core stack                                                                                                     |
+| Mobile App               | **React Native** (Expo)                                                                                                                                                                           | Chosen over Flutter — team already works in React/JS; enables shared TypeScript types/utils between web and mobile via a shared package |
+| Backend                  | Python, FastAPI                                                                                                                                                                                   | Async-first, auto-generates OpenAPI docs (useful for Antigravity AI to reference the API contract directly)                             |
+| AI/ML                    | TensorFlow or PyTorch (LSTM/BiLSTM), Scikit-learn (SVM, Random Forest), HuggingFace Transformers (FinBERT)                                                                                        | Served via a dedicated internal ML service                                                                                              |
+| NLP fallback             | VADER (via `nltk`/`vaderSentiment`)                                                                                                                                                               | Lightweight fallback when FinBERT confidence is low                                                                                     |
+| LLM Chatbot              | Claude API (primary)                                                                                                                                                                              | Bilingual EN/UR conversational layer, grounded via RAG-style context injection (user's live data)                                       |
+| Database                 | PostgreSQL (recommended) or MySQL                                                                                                                                                                 | Relational — the domain (users, portfolios, predictions) is inherently relational                                                       |
+| Cache / Queue            | Redis                                                                                                                                                                                             | Response caching + Celery broker                                                                                                        |
+| Background Jobs          | Celery + Redis                                                                                                                                                                                    | Market monitoring agent, model retraining jobs, notification dispatch                                                                   |
+| Notifications            | Firebase Cloud Messaging (FCM)                                                                                                                                                                    | Cross-platform push (web + mobile)                                                                                                      |
+| Technical Indicators     | TA-Lib                                                                                                                                                                                            | RSI, MACD, Bollinger Bands, Moving Averages                                                                                             |
+| Backtesting              | Backtrader or QuantStats                                                                                                                                                                          | Historical strategy simulation                                                                                                          |
+| Data Sources             | Yahoo Finance API, PSX Data API/website                                                                                                                                                           | Price + fundamentals                                                                                                                    |
+| News/Sentiment Ingestion | Custom scrapers (`requests`/`BeautifulSoup` or `Scrapy`), optional Tweepy for Twitter/X                                                                                                           | Feeds FinBERT pipeline                                                                                                                  |
+| Auth                     | JWT (access + refresh tokens), bcrypt/argon2 password hashing                                                                                                                                     | Stateless auth across web + mobile                                                                                                      |
+| Deployment               | Backend: Railway or AWS/GCP; Web: Vercel; Mobile: Expo EAS Build                                                                                                                                  | Matches Manam's existing deployment patterns (Vercel + Railway)                                                                         |
+| Version Control          | Git / GitHub, monorepo                                                                                                                                                                            | See Section 5                                                                                                                           |
+| Web libraries (as built) | TanStack Query, React Router, axios (in `packages/api-client`), react-hook-form + zod (`@hookform/resolvers`), lucide-react (icons), recharts (charts), i18next + react-i18next (`packages/i18n`) | Forms validate client-side with zod; the server re-validates everything with Pydantic                                                   |
+| Urdu font                | Noto Naskh Arabic, self-hosted in `apps/web/public/fonts/` (SIL Open Font License)                                                                                                                | No Nastaliq (Design §3 readability); self-hosted so the demo works offline                                                              |
 
 ## 4. Why React Native over Flutter (decision rationale)
 
@@ -81,19 +83,25 @@ investiq/
 │   └── admin/                 # (optional) separate admin panel, or a route within web/
 ├── services/
 │   ├── api/                   # FastAPI backend — auth, users, portfolio, backtest, notifications
-│   ├── ml-engine/              # LSTM/BiLSTM, SVM, Random Forest training + inference
-│   ├── sentiment-engine/       # FinBERT + VADER pipeline, news scrapers
-│   └── chatbot-service/        # LLM orchestration layer (Claude API), context grounding
+│   │   ├── ml/                 # ML code lives HERE (internal module, §6.5): features, training, inference, sentiment
+│   │   ├── integrations/       # market data + news scraper clients
+│   │   └── worker/             # Celery tasks
+│   ├── ml-engine/              # placeholder README → code is in services/api/ml/ (§6.5)
+│   ├── sentiment-engine/       # placeholder README → runs inside services/api (§6.5), Phase 4
+│   └── chatbot-service/        # placeholder README → runs inside services/api (§6.5), Phase 8
 ├── packages/
 │   ├── shared-types/           # TypeScript types shared by web + mobile
 │   ├── api-client/             # Typed API client (generated from FastAPI OpenAPI schema)
-│   └── i18n/                   # English/Urdu translation strings
+│   ├── i18n/                   # English/Urdu translation strings
+│   └── design-tokens/          # Shared design tokens (Design.md §20)
 ├── infra/
 │   ├── docker-compose.yml      # Local dev: Postgres, Redis, API, ML services
 │   └── deploy/                 # Deployment configs (Railway/AWS, Vercel, EAS)
 ├── docs/                       # PRD.md, Architecture.md, Rules.md, Phases.md, Design.md, Memory.md
 └── README.md
 ```
+
+**Code location (decided 2026-10-09):** per §6.5, the ML, sentiment and chatbot code runs as internal Python modules of `services/api` (ML is in `services/api/ml/`). The `services/ml-engine`, `services/sentiment-engine` and `services/chatbot-service` folders hold only pointer READMEs until/unless they are split into real services.
 
 **Rationale:** a monorepo keeps the FastAPI OpenAPI contract, the shared types, and both frontends in sync — critical when one person is likely doing more backend/ML and the other more frontend/mobile, and both need to move without breaking each other's work.
 
@@ -131,9 +139,11 @@ For a two-person FYP team, running 4 separate microservices in production is unn
 ```sql
 users
   id UUID PK
-  email VARCHAR UNIQUE
+  email VARCHAR UNIQUE                       -- stored trimmed + lowercase; unique index on lower(email)
   password_hash VARCHAR
   full_name VARCHAR
+  role ENUM('user','admin') DEFAULT 'user'   -- added early (planned for Step 9.1): admin route guard needs it
+  onboarding_progress JSONB NULL             -- partial questionnaire answers + step, for resume (PRD FR6)
   created_at TIMESTAMP
 
 risk_profiles
@@ -142,6 +152,12 @@ risk_profiles
   category ENUM('conservative','moderate','aggressive')
   answers JSONB
   updated_at TIMESTAMP
+
+refresh_tokens                               -- one row per issued refresh token (rotation + revocation)
+  jti UUID PK                                -- the JWT's jti claim
+  user_id UUID FK -> users.id ON DELETE CASCADE
+  expires_at TIMESTAMPTZ
+  revoked_at TIMESTAMPTZ NULL                -- set on use (rotation), logout, or reuse detection
 
 stocks
   id UUID PK
@@ -227,10 +243,15 @@ admin_action_logs
 ```
 POST   /auth/register
 POST   /auth/login
-POST   /auth/refresh
+POST   /auth/refresh                    # rotates: the old refresh token is revoked, a new pair is returned
+POST   /auth/logout                     # revokes the given refresh token (always 204)
 
 GET    /users/me
-PATCH  /users/me/risk-profile
+GET    /users/risk-questionnaire        # public: question ids + option values only (scoring stays server-side)
+GET    /users/me/risk-profile
+PATCH  /users/me/risk-profile           # create or retake (FR5); returns category, score, caps_applied
+GET    /users/me/onboarding-progress    # partial answers + step, for resume (FR6)
+PUT    /users/me/onboarding-progress
 
 GET    /stocks/search?q=
 GET    /stocks/{ticker}
@@ -283,6 +304,8 @@ All endpoints documented automatically via FastAPI's built-in OpenAPI/Swagger �
 ## 11. Security Architecture
 
 - JWT access tokens (short-lived) + refresh tokens (longer-lived, stored securely on client)
+- Refresh tokens are single-use and recorded in Postgres (`refresh_tokens`, never Redis, so revocation can't fail open): each refresh revokes the old token; presenting a revoked token again revokes all of that user's refresh tokens (reuse detection); `/auth/logout` revokes the current one
+- Outside `ENVIRONMENT=development` the API refuses to start with placeholder JWT secrets or secrets shorter than 32 characters; `/docs`, `/redoc` and `/openapi.json` are served only in development
 - Passwords hashed with bcrypt/argon2, never logged
 - Role-based access control: `user` vs `admin` roles enforced at the API layer (FastAPI dependency injection)
 - Input validation via Pydantic models on every endpoint
@@ -383,13 +406,13 @@ Separate `.env` files (or platform secret managers — Railway/Vercel env vars) 
 
 ## 19. Testing Strategy (high-level)
 
-| Layer             | Approach                                                                                                                                                    |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Backend (FastAPI) | Pytest — unit tests for portfolio/fee-tax calculation logic (these must be exact, not approximate), integration tests for key endpoints                     |
-| ML models         | Offline evaluation notebooks/scripts reporting RMSE, directional accuracy, Sharpe ratio against held-out test data before any model is promoted to "active" |
-| Frontend (web)    | Component tests for critical flows (onboarding, portfolio display) — Vitest/React Testing Library                                                           |
-| Mobile            | Manual QA on Android emulator/device each phase; automated testing is a stretch goal given FYP time constraints                                             |
-| End-to-end        | At minimum one manual full-flow walkthrough (register → prediction → portfolio → backtest → chat → notification) before each phase demo                     |
+| Layer             | Approach                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend (FastAPI) | Pytest — unit tests for portfolio/fee-tax calculation logic (these must be exact, not approximate), integration tests for key endpoints. Tests never touch the dev DB: `pytest` creates and migrates a separate `<db>_test` database and rolls every test back. A backend test also checks that every questionnaire id/option, safety cap and risk category the API returns has an English and an Urdu label                                                                                                        |
+| ML models         | Offline evaluation notebooks/scripts reporting RMSE, directional accuracy, Sharpe ratio against held-out test data before any model is promoted to "active"                                                                                                                                                                                                                                                                                                                                                         |
+| Frontend (web)    | Node's built-in test runner (`node --test`, no extra dependency) for logic kept in pure modules: route-guard rules, date/number formatting, ordered draft saves (`apps/web`), and the token-refresh coordinator (`packages/api-client`). `en`/`ur` key parity is checked in CI. There are no React component tests; screens are covered by the Playwright smoke tests and the manual walkthrough                                                                                                                    |
+| Mobile            | Manual QA on Android emulator/device each phase; automated testing is a stretch goal given FYP time constraints                                                                                                                                                                                                                                                                                                                                                                                                     |
+| End-to-end        | Playwright (Chromium only) smoke tests in `apps/web/e2e`, run locally with `npm run e2e` (not in CI yet): the Phase 1 flow (register → partial onboarding → reload and resume → finish → dashboard → logout → login) and an Urdu right-to-left run. The run starts its own API on the `<db>_test` database and its own web server, and deletes every account it created. Plus at least one manual full-flow walkthrough (register → prediction → portfolio → backtest → chat → notification) before each phase demo |
 
 ## 20. CI/CD (lightweight, FYP-appropriate)
 
