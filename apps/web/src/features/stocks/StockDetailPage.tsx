@@ -189,7 +189,7 @@ export const StockDetailPage = () => {
 
       {quote.isPending ? <Skeleton className="h-40 w-full" /> : <KeyStats quote={quote.data} />}
 
-      <PredictionPanel query={prediction} />
+      <PredictionPanel query={prediction} ticker={ticker} />
 
       <DisclaimerBanner />
     </div>

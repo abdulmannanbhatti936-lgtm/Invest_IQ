@@ -17,6 +17,7 @@ class ModelEvaluation(BaseModel):
     directional_accuracy: float | None
     baseline_directional_accuracy: float | None  # always guessing the majority direction
     baseline_direction: Literal["up", "down"]
+    typical_error_pct: float  # forecast RMSE as % of price on the test period
     theil_u: float  # forecast RMSE / "tomorrow = today" RMSE; below 1 beats it
     beats_naive: bool
     classifier_accuracy: float

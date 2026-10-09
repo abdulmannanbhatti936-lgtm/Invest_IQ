@@ -105,6 +105,7 @@ def model_evaluation(bundle: ModelBundle, ticker: str) -> dict | None:
         "directional_accuracy": evaluation["directional_accuracy"],
         "baseline_directional_accuracy": evaluation["majority_direction_accuracy"],
         "baseline_direction": pooled["baselines"]["majority_direction"]["direction"],
+        "typical_error_pct": evaluation["lstm_rmse_pct"],
         "theil_u": evaluation["theil_u"],
         "beats_naive": evaluation["beats_naive"],
         "classifier_accuracy": evaluation["rf_accuracy"],

@@ -179,6 +179,7 @@
     "chartTitle": "Price history",
     "chartActual": "Closing price",
     "chartForecast": "AI forecast (next trading day)",
+    "chartBand": "Typical error range",
     "insufficientHistory": "Insufficient data: this stock has too little trading history for a reliable chart or prediction.",
     "periods": {
       "1mo": "1 month",
@@ -213,31 +214,51 @@
   },
   "prediction": {
     "title": "AI forecast",
-    "subtitle": "From an LSTM price model and a Random Forest buy/sell/hold classifier, trained on this stock's past prices and technical indicators.",
-    "signal": {
-      "BUY": "Buy",
-      "SELL": "Sell",
-      "HOLD": "Hold"
-    },
+    "subtitle": "From an LSTM price model, with a Random Forest buy/sell/hold signal as a second opinion. Both were trained on 18 liquid KSE-100 stocks and tested on months they never saw.",
+    "asOf": "Based on the close of {{date}}: {{price}}",
     "forecastLabel": "Forecast close, next trading day",
-    "fromClose": "from last close {{price}}",
-    "confidence": "Confidence",
-    "confidenceHelp": "How sure the classifier is about this signal (its probability). It is not a guarantee.",
+    "forecast": {
+      "up": "The model forecasts a {{pct}} rise for the next trading day.",
+      "down": "The model forecasts a {{pct}} fall for the next trading day.",
+      "flat": "The model forecasts almost no change for the next trading day."
+    },
+    "confidence": "Chance the direction is right",
+    "confidenceHelp": "How often forecasts this certain got the direction (up or down) right on past data the model did not train on. It is not a guarantee.",
     "level": {
       "low": "Low",
       "medium": "Medium",
       "high": "High"
     },
-    "lowConfidenceTitle": "Low-confidence prediction",
-    "lowConfidenceBody": "Confidence is below {{threshold}}%. Treat this as a weak signal, not advice.",
-    "disagree": "The price forecast and the buy/sell/hold signal point in different directions, so this prediction is flagged as low confidence.",
+    "lowConfidenceTitle": "Low-confidence forecast",
+    "lowConfidenceIntro": "Treat this as a weak signal, not advice:",
+    "reason": {
+      "below_threshold": "The chance the direction is right is below {{threshold}}%.",
+      "models_disagree": "The price forecast and the buy/sell/hold signal point different ways.",
+      "no_edge_over_baseline": "On past data, this model was not more accurate for {{ticker}} than assuming tomorrow's close equals today's."
+    },
+    "signal": {
+      "BUY": "Buy",
+      "SELL": "Sell",
+      "HOLD": "Hold"
+    },
+    "signalTitle": "Buy/sell/hold signal (second opinion)",
+    "signalProbability": "{{pct}} probability",
+    "signalHelp": "From a Random Forest classifier. Buy means it expects a rise of more than 1% tomorrow, sell a fall of more than 1%, hold anything in between.",
+    "notCoveredTitle": "No forecast for this stock yet",
+    "notCovered": "There is no forecast for {{ticker}} yet. Forecasts cover the 18 liquid KSE-100 stocks the model was trained and tested on.",
     "insufficientData": "Insufficient data for a reliable prediction. This stock doesn't have enough trading history yet.",
-    "notReady": "No prediction yet. Forecasts are generated daily after market close for tracked stocks.",
-    "notTracked": "AI forecasts are currently available for tracked KSE-100 stocks only.",
+    "notReady": "No forecast yet. Forecasts are generated after each trading day's close.",
     "loadError": "We couldn't load the forecast.",
     "generated": "Generated {{date}} · model {{version}}",
-    "evaluationTitle": "How accurate has this model been?",
-    "evaluationBody": "On {{start}} to {{end}} — days the model never saw in training — it called the direction of the next day's move correctly {{direction}} of the time. Its buy/sell/hold signal was right {{accuracy}} of the time, versus {{baseline}} for always guessing the most common outcome. Typical price error: {{rmse}}.",
-    "evaluationNote": "Short-term stock moves are very hard to predict; these numbers are shown so you can judge the forecast yourself."
+    "evaluationTitle": "How accurate has this model been for {{ticker}}?",
+    "evaluationDirection": "From {{start}} to {{end}}, days the model never saw in training, it called the next day's direction right on {{direction}} of days. Always guessing \"{{baselineDirection}}\" would have been right on {{baseline}}.",
+    "evaluationErrorBeats": "Its forecasts were typically off by {{error}} of the price, slightly better than assuming tomorrow's close equals today's.",
+    "evaluationErrorNoEdge": "Its forecasts were typically off by {{error}} of the price, no better than assuming tomorrow's close equals today's.",
+    "evaluationSignal": "The buy/sell/hold signal was right on {{accuracy}} of days, versus {{baseline}} for always giving the most common answer.",
+    "evaluationNote": "Next-day stock moves are very hard to predict from past prices. These numbers are shown so you can judge the forecast yourself.",
+    "baselineDirection": {
+      "up": "up",
+      "down": "down"
+    }
   }
 }

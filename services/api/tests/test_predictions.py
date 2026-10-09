@@ -152,6 +152,8 @@ def test_confident_prediction(client, db, mock_model, edge):
     assert data["models_agree"] is True
     ev = data["evaluation"]
     assert ev["beats_naive"] is True and len(ev["top_features"]) == 3
+    expected_error = mock_model.ticker_evaluation("MOCKA")["lstm_rmse_pct"]
+    assert ev["typical_error_pct"] == pytest.approx(expected_error)
     assert ev["baseline_direction"] in {"up", "down"}
 
 
