@@ -5,7 +5,11 @@
 **Companion docs:** PRD.md, Architecture.md, Rules.md
 **Purpose of this document:** This is the single source of truth for **what to build right now** vs **what comes later**. An AI coding agent (or a human) reading this should never build ahead of the current phase, never skip a phase's exit criteria, and never assume a future phase's work is already available.
 
-**Current status (2026-10-09): Phase 0 ✅ and Phase 1 ✅ complete — every exit criterion re-verified against the running code. Next: Phase 2 re-audit.** Phases 2 and 3 have code from an earlier pass that was marked complete without checkpoint evidence (the first models were trained on AAPL, not PSX), so they must be re-audited step by step before Phase 4 (see Memory.md §2). A previous demo was made but is explicitly not being carried forward (see PRD.md, Memory.md).
+**Current status (2026-10-10): Phase 0 ✅ and Phase 1 ✅ complete — every exit criterion re-verified against the running code. Next: Phase 2 re-audit.**
+
+**Semester scope (decided 2026-10-10):** this semester covers Phase 2 → 3 → 4 → 5 → 6 → 8 (Chatbot), in that order, with the web app demoable end-to-end (register → onboarding → stock detail with prediction and sentiment → portfolio → backtest → chatbot, English and Urdu). **Next semester:** Phase 7 (Notifications), Phase 9 (Admin), Phase 10 (Mobile parity), Phase 11 (Testing & defense prep). Phase 3 uses **Random Forest only** as the classifier; SVM is skipped (Memory.md §3).
+
+**Re-audit note:** Phases 2 and 3 have code from an earlier pass that was marked complete without checkpoint evidence (the first models were trained on AAPL, not PSX), so they must be re-audited step by step before Phase 4 (see Memory.md §2). A previous demo was made but is explicitly not being carried forward (see PRD.md, Memory.md).
 
 ---
 
@@ -106,6 +110,8 @@
 ## Phase 3 — AI Prediction Engine (LSTM + SVM/Random Forest)
 
 **Goal:** Real, trained models produce a price forecast + buy/sell/hold signal for a selected stock. Implements FR11–FR16.
+
+> **Scope decision (2026-10-10):** the classifier is Random Forest only; SVM is skipped for this project (Memory.md §3).
 
 **Tasks:**
 
