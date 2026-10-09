@@ -399,3 +399,31 @@ def test_users_cannot_access_each_others_data(client):
         404,
         405,
     )
+
+
+@pytest.mark.parametrize(
+    "profile_loaded", [False, True], ids=["profile_not_loaded", "profile_loaded"]
+)
+def test_deleting_user_via_orm_removes_their_profile(db, profile_loaded):
+    # The User -> RiskProfile backref cascades deletes in the ORM (covers a profile already
+    # loaded in the session) and uses passive_deletes, so an unloaded profile is left to the
+    # DB's ON DELETE CASCADE instead of being fetched first.
+    from models.risk_profile import RiskProfile
+    from models.user import User
+
+    email = f"cascade_{uuid.uuid4().hex[:8]}@example.com"
+    user = User(email=email, password_hash="x", full_name="C")
+    db.add(user)
+    db.flush()
+    db.add(RiskProfile(user_id=user.id, category=RiskCategory.moderate, answers={}))
+    db.commit()
+    user_id = user.id
+    db.expire_all()
+
+    user = db.get(User, user_id)
+    if profile_loaded:
+        assert user.risk_profile is not None
+    db.delete(user)
+    db.commit()
+
+    assert db.query(RiskProfile).filter(RiskProfile.user_id == user_id).count() == 0

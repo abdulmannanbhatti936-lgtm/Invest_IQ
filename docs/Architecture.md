@@ -168,7 +168,7 @@ stocks
 price_points
   id BIGSERIAL PK
   stock_id UUID FK -> stocks.id
-  timestamp TIMESTAMP
+  timestamp TIMESTAMPTZ
   open NUMERIC, high NUMERIC, low NUMERIC, close NUMERIC, volume BIGINT
 
 predictions
