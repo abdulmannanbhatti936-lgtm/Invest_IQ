@@ -9,3 +9,4 @@ apps/web/e2e-report/
 apps/web/e2e-results/
 services/api/ml/data/
 services/api/ml/reports/
+docs/data-quality/
