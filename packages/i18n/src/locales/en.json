@@ -177,6 +177,7 @@
     "summaryFlat": "Unchanged over the last {{period}}",
     "dayChange": "Change from previous close",
     "chartTitle": "Price history",
+    "priceAxis": "Closing price (Rs.)",
     "chartActual": "Closing price",
     "chartForecast": "AI forecast (next trading day)",
     "chartBand": "Typical error range",
@@ -214,7 +215,7 @@
   },
   "prediction": {
     "title": "AI forecast",
-    "subtitle": "From an LSTM price model, with a Random Forest buy/sell/hold signal as a second opinion. Both were trained on 18 liquid KSE-100 stocks and tested on months they never saw.",
+    "subtitle": "From an LSTM price model, with a Random Forest buy/sell/hold signal as a second opinion. Both were trained on liquid KSE-100 stocks and tested on months they never saw.",
     "asOf": "Based on the close of {{date}}: {{price}}",
     "forecastLabel": "Forecast close, next trading day",
     "forecast": {
@@ -245,7 +246,7 @@
     "signalProbability": "{{pct}} probability",
     "signalHelp": "From a Random Forest classifier. Buy means it expects a rise of more than 1% tomorrow, sell a fall of more than 1%, hold anything in between.",
     "notCoveredTitle": "No forecast for this stock yet",
-    "notCovered": "There is no forecast for {{ticker}} yet. Forecasts cover the 18 liquid KSE-100 stocks the model was trained and tested on.",
+    "notCovered": "There is no forecast for {{ticker}} yet. Forecasts cover the {{stocks}} liquid KSE-100 stocks the model was trained and tested on.",
     "insufficientData": "Insufficient data for a reliable prediction. This stock doesn't have enough trading history yet.",
     "notReady": "No forecast yet. Forecasts are generated after each trading day's close.",
     "loadError": "We couldn't load the forecast.",

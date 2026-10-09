@@ -69,6 +69,7 @@ export const PriceChart = ({
   return (
     // Time always runs left-to-right, even in the Urdu layout
     <div className="w-full" dir="ltr">
+      <p className="mb-2 ps-16 text-xs text-gray-500">{t('stockDetail.priceAxis')}</p>
       <div className="h-[320px]">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
@@ -104,7 +105,7 @@ export const PriceChart = ({
             <Legend />
             <Line
               name={t('stockDetail.chartActual')}
-              type="monotone"
+              type="linear"
               dataKey="close"
               stroke="#2563eb"
               strokeWidth={2}

@@ -38,6 +38,7 @@ const prediction = (overrides: Partial<Prediction> = {}): Prediction => ({
     classifier_baseline_accuracy: 0.47,
     top_features: ['volatility_20d', 'range_pct', 'bb_width'],
   },
+  covered_stock_count: 18,
   ...overrides,
 });
 
