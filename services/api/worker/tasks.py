@@ -5,7 +5,7 @@ from sqlalchemy.dialects.postgresql import insert
 from core.celery_app import celery_app
 from core.config import settings
 from core.database import SessionLocal
-from integrations.market_data import MarketDataClient
+from integrations.market_data import MarketDataClient, MarketDataUnavailable
 from integrations.psx_catalog import CATALOG_BY_TICKER
 from ml.features import price_points_to_frame
 from ml.inference import ModelNotFoundError
@@ -13,24 +13,13 @@ from ml.training import InsufficientDataError, new_model_version, train_ticker
 from models.sentiment import NewsSentiment
 from models.stock import PricePoint, Stock
 from services.prediction_service import InsufficientHistoryError, generate_prediction
+from services.stock_service import StockService
 
 logger = logging.getLogger(__name__)
 
 
 def _tickers(tickers: list[str] | None) -> list[str]:
     return [t.upper() for t in tickers] if tickers else settings.tracked_tickers
-
-
-def _get_or_create_stock(db, ticker: str) -> Stock:
-    stock = db.query(Stock).filter(Stock.ticker == ticker).first()
-    if stock:
-        return stock
-    name, sector = CATALOG_BY_TICKER.get(ticker, (ticker, None))
-    stock = Stock(ticker=ticker, name=name, sector=sector)
-    db.add(stock)
-    db.commit()
-    db.refresh(stock)
-    return stock
 
 
 def upsert_price_points(db, stock: Stock, history: list[dict]) -> int:
@@ -61,36 +50,66 @@ def upsert_price_points(db, stock: Stock, history: list[dict]) -> int:
 
 
 @celery_app.task(name="worker.tasks.refresh_stock_prices")
-def refresh_stock_prices(tickers: list | None = None, period: str = "5y"):
+def refresh_stock_prices(
+    tickers: list | None = None, period: str = "1mo", update_shares: bool = False
+):
     """
-    Fetch daily OHLCV for tracked tickers and upsert into price_points
-    (Architecture.md §9). A provider failure for one ticker is logged and skipped.
+    End-of-day refresh (Architecture.md §9): fetch daily OHLCV for every stock in the
+    universe, upsert it into price_points and drop the cached responses of the stocks that
+    changed. The API only reads the database, so a failed refresh means the "as of" date
+    stops moving, never a broken page. `update_shares` also refreshes shares outstanding.
     """
+    universe = [t.upper() for t in tickers] if tickers else list(CATALOG_BY_TICKER)
     db = SessionLocal()
     try:
-        upserted, failed = 0, []
-        for ticker in _tickers(tickers):
+        upserted, refreshed, no_data, failed = 0, [], [], []
+        for ticker in universe:
+            stock = db.query(Stock).filter(Stock.ticker == ticker).first()
+            if not stock:
+                logger.error(f"Price refresh skipped {ticker}: not in the stock universe")
+                failed.append(ticker)
+                continue
             try:
                 history = MarketDataClient.get_history(ticker, period=period)
-            except Exception as e:
+            except MarketDataUnavailable as e:
                 logger.error(f"Price refresh failed for {ticker}: {e}")
                 failed.append(ticker)
                 continue
             if not history:
-                logger.warning(f"No history found for {ticker}")
-                failed.append(ticker)
+                logger.warning(f"No history returned for {ticker}")
+                no_data.append(ticker)
                 continue
-            stock = _get_or_create_stock(db, ticker)
             upserted += upsert_price_points(db, stock, history)
-        return {"status": "completed", "upserted_points": upserted, "failed": failed}
+            if update_shares:
+                _update_shares_outstanding(db, stock)
+            refreshed.append(ticker)
+
+        StockService.invalidate(refreshed)
+        # yfinance reports a network failure as "no data" for each symbol (Memory.md §11), so
+        # a run where nothing came back is treated as a provider outage
+        status = "completed" if refreshed else "provider_unavailable"
+        if not refreshed:
+            logger.error(f"Price refresh got no data for any of {len(universe)} stocks")
+        return {
+            "status": status,
+            "upserted_points": upserted,
+            "refreshed": len(refreshed),
+            "no_data": no_data,
+            "failed": failed,
+        }
     finally:
         db.close()
 
 
-# Kept so anything still calling the old task name keeps working
-fetch_market_data_for_tickers = celery_app.task(name="worker.tasks.fetch_market_data_for_tickers")(
-    refresh_stock_prices.run
-)
+def _update_shares_outstanding(db, stock: Stock) -> None:
+    try:
+        shares = MarketDataClient.get_shares_outstanding(stock.ticker)
+    except MarketDataUnavailable as e:
+        logger.warning(f"Shares outstanding not refreshed for {stock.ticker}: {e}")
+        return
+    if shares:
+        stock.shares_outstanding = shares
+        db.commit()
 
 
 @celery_app.task(name="worker.tasks.fetch_news_for_tickers")
