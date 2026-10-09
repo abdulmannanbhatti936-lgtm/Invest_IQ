@@ -81,27 +81,8 @@ class MarketDataClient:
         shares = _clean(info.get("sharesOutstanding"))
         return int(shares) if shares else None
 
-    @classmethod
-    def get_history(
-        cls,
-        ticker: str,
-        period: str = "1y",
-        start: datetime.date | None = None,
-        end: datetime.date | None = None,
-    ) -> list[dict[str, Any]]:
-        """
-        Historical daily OHLCV. Returns [] when there is no data; raises
-        MarketDataUnavailable on provider failure.
-        """
-        kwargs: dict[str, Any] = {}
-        if start:
-            kwargs["start"] = start.strftime("%Y-%m-%d")
-        if end:
-            kwargs["end"] = end.strftime("%Y-%m-%d")
-        if not start and not end:
-            kwargs["period"] = period
-
-        hist = cls._download(ticker, **kwargs)
+    @staticmethod
+    def _bars(hist: pd.DataFrame) -> list[dict[str, Any]]:
         return [
             {
                 "timestamp": index.to_pydatetime(),
@@ -113,3 +94,39 @@ class MarketDataClient:
             }
             for index, row in hist.iterrows()
         ]
+
+    @classmethod
+    def get_history(
+        cls,
+        ticker: str,
+        period: str = "1y",
+        start: datetime.date | None = None,
+        end: datetime.date | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Raw daily OHLCV as the provider returns it. Returns [] when there is no data;
+        raises MarketDataUnavailable on provider failure.
+        """
+        kwargs: dict[str, Any] = {}
+        if start:
+            kwargs["start"] = start.strftime("%Y-%m-%d")
+        if end:
+            kwargs["end"] = end.strftime("%Y-%m-%d")
+        if not start and not end:
+            kwargs["period"] = period
+        return cls._bars(cls._download(ticker, **kwargs))
+
+    @classmethod
+    def get_history_and_splits(
+        cls, ticker: str, period: str = "1y"
+    ) -> tuple[list[dict[str, Any]], list[tuple[datetime.date, float]]]:
+        """Raw daily OHLCV plus the split events (date, new shares per old share) in the period."""
+        hist = cls._download(ticker, period=period)
+        splits = []
+        if "Stock Splits" in hist.columns:
+            splits = [
+                (index.date(), float(ratio))
+                for index, ratio in hist["Stock Splits"].items()
+                if _clean(ratio)
+            ]
+        return cls._bars(hist), splits

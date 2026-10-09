@@ -20,6 +20,9 @@ CACHE_PREFIX = "stocks"
 PERIOD_DAYS = {"1mo": 31, "3mo": 92, "6mo": 183, "1y": 366, "2y": 731, "5y": 1827}
 FIFTY_TWO_WEEKS = datetime.timedelta(days=365)
 
+# Only bars that passed the split-adjustment checks are served
+SERVED = PricePoint.quality_flag.is_(None)
+
 # Bars are stamped at midnight Pakistan time (19:00 UTC the day before), so date filters
 # must use the PSX trading date, not the UTC date
 PSX_TRADING_DATE = func.date(func.timezone("Asia/Karachi", PricePoint.timestamp))
@@ -49,14 +52,19 @@ def _float(value: Any) -> float | None:
     return None if value is None else float(value)
 
 
+def _adjusted(value: Any, factor: Any) -> float | None:
+    return None if value is None else float(value) / float(factor)
+
+
 def _point(p: PricePoint) -> dict[str, Any]:
+    """A bar as served: split-adjusted (services/split_adjustment.py)."""
     return {
         "timestamp": p.timestamp,
-        "open": _float(p.open),
-        "high": _float(p.high),
-        "low": _float(p.low),
-        "close": float(p.close),
-        "volume": p.volume or 0,
+        "open": _adjusted(p.open, p.split_factor),
+        "high": _adjusted(p.high, p.split_factor),
+        "low": _adjusted(p.low, p.split_factor),
+        "close": _adjusted(p.close, p.split_factor),
+        "volume": round((p.volume or 0) * float(p.split_factor)),
     }
 
 
@@ -127,7 +135,7 @@ class StockService:
         stock = cls._get_stock(db, ticker)
         latest_two = (
             db.query(PricePoint)
-            .filter(PricePoint.stock_id == stock.id)
+            .filter(PricePoint.stock_id == stock.id, SERVED)
             .order_by(PricePoint.timestamp.desc())
             .limit(2)
             .all()
@@ -135,19 +143,22 @@ class StockService:
         if not latest_two:
             raise PriceDataUnavailable(stock.ticker)
 
-        latest = latest_two[0]
-        price = float(latest.close)
-        previous_close = float(latest_two[1].close) if len(latest_two) > 1 else None
+        latest = _point(latest_two[0])
+        price = latest["close"]
+        previous_close = _point(latest_two[1])["close"] if len(latest_two) > 1 else None
         change = price - previous_close if previous_close else None
         # A missing high/low on a day falls back to that day's close
         year_high, year_low = (
             db.query(
-                func.max(func.coalesce(PricePoint.high, PricePoint.close)),
-                func.min(func.coalesce(PricePoint.low, PricePoint.close)),
+                func.max(
+                    func.coalesce(PricePoint.high, PricePoint.close) / PricePoint.split_factor
+                ),
+                func.min(func.coalesce(PricePoint.low, PricePoint.close) / PricePoint.split_factor),
             )
             .filter(
                 PricePoint.stock_id == stock.id,
-                PricePoint.timestamp > latest.timestamp - FIFTY_TWO_WEEKS,
+                SERVED,
+                PricePoint.timestamp > latest["timestamp"] - FIFTY_TWO_WEEKS,
             )
             .one()
         )
@@ -158,14 +169,14 @@ class StockService:
             "sector": stock.sector,
             "currency": "PKR",
             "price": price,
-            "open": _float(latest.open),
-            "high": _float(latest.high),
-            "low": _float(latest.low),
+            "open": latest["open"],
+            "high": latest["high"],
+            "low": latest["low"],
             "previous_close": previous_close,
             "change": change,
             "change_percent": (change / previous_close * 100) if change is not None else None,
-            "volume": latest.volume or 0,
-            "timestamp": latest.timestamp,
+            "volume": latest["volume"],
+            "timestamp": latest["timestamp"],
             "fifty_two_week_high": _float(year_high),
             "fifty_two_week_low": _float(year_low),
             "market_cap": price * stock.shares_outstanding if stock.shares_outstanding else None,
@@ -183,8 +194,8 @@ class StockService:
         end: datetime.date | None = None,
     ) -> list[dict[str, Any]]:
         """
-        Stored daily OHLCV, oldest first. Without start/end, `period` counts back from the
-        latest stored trading day ("max" returns everything).
+        Stored daily OHLCV, split-adjusted, oldest first. Without start/end, `period` counts
+        back from the latest stored trading day ("max" returns everything).
         """
         key = cls._cache_key(
             "history",
@@ -200,13 +211,13 @@ class StockService:
         stock = cls._get_stock(db, ticker)
         latest = (
             db.query(func.max(PricePoint.timestamp))
-            .filter(PricePoint.stock_id == stock.id)
+            .filter(PricePoint.stock_id == stock.id, SERVED)
             .scalar()
         )
         if latest is None:
             raise PriceDataUnavailable(stock.ticker)
 
-        query = db.query(PricePoint).filter(PricePoint.stock_id == stock.id)
+        query = db.query(PricePoint).filter(PricePoint.stock_id == stock.id, SERVED)
         if start or end:
             if start:
                 query = query.filter(PSX_TRADING_DATE >= start)

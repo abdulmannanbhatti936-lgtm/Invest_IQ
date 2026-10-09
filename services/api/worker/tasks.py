@@ -1,4 +1,6 @@
+import datetime
 import logging
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.dialects.postgresql import insert
 
@@ -11,11 +13,14 @@ from ml.features import price_points_to_frame
 from ml.inference import ModelNotFoundError
 from ml.training import InsufficientDataError, new_model_version, train_ticker
 from models.sentiment import NewsSentiment
-from models.stock import PricePoint, Stock
+from models.stock import PricePoint, Stock, StockSplit
 from services.prediction_service import InsufficientHistoryError, generate_prediction
+from services.split_adjustment import METHOD_VERSION, SUSPECT_FLAG, Split, adjust
 from services.stock_service import StockService
 
 logger = logging.getLogger(__name__)
+
+PSX_TIMEZONE = ZoneInfo("Asia/Karachi")
 
 
 def _tickers(tickers: list[str] | None) -> list[str]:
@@ -70,7 +75,7 @@ def refresh_stock_prices(
                 failed.append(ticker)
                 continue
             try:
-                history = MarketDataClient.get_history(ticker, period=period)
+                history, splits = MarketDataClient.get_history_and_splits(ticker, period=period)
             except MarketDataUnavailable as e:
                 logger.error(f"Price refresh failed for {ticker}: {e}")
                 failed.append(ticker)
@@ -80,6 +85,8 @@ def refresh_stock_prices(
                 no_data.append(ticker)
                 continue
             upserted += upsert_price_points(db, stock, history)
+            record_splits(db, stock, splits)
+            apply_split_adjustment(db, stock)
             if update_shares:
                 _update_shares_outstanding(db, stock)
             refreshed.append(ticker)
@@ -99,6 +106,51 @@ def refresh_stock_prices(
         }
     finally:
         db.close()
+
+
+def record_splits(db, stock: Stock, splits: list[tuple[datetime.date, float]]) -> None:
+    """Store provider split events; a later fetch with the same date updates the ratio."""
+    if not splits:
+        return
+    stmt = insert(StockSplit).values(
+        [{"stock_id": stock.id, "split_date": day, "ratio": ratio} for day, ratio in splits]
+    )
+    db.execute(
+        stmt.on_conflict_do_update(
+            constraint="uq_stock_splits_stock_date", set_={"ratio": stmt.excluded.ratio}
+        )
+    )
+    db.commit()
+
+
+def apply_split_adjustment(db, stock: Stock) -> None:
+    """
+    Recompute split_factor and quality_flag for all of a stock's bars from its raw closes and
+    recorded splits, and store each split's decision (services/split_adjustment.py).
+    """
+    points = (
+        db.query(PricePoint)
+        .filter(PricePoint.stock_id == stock.id)
+        .order_by(PricePoint.timestamp)
+        .all()
+    )
+    splits = db.query(StockSplit).filter(StockSplit.stock_id == stock.id).all()
+    result = adjust(
+        [p.timestamp.astimezone(PSX_TIMEZONE).date() for p in points],
+        [float(p.close) for p in points],
+        [Split(s.split_date, float(s.ratio)) for s in splits],
+    )
+    for point, factor, suspect in zip(points, result.factors, result.suspect, strict=True):
+        point.split_factor = factor
+        point.quality_flag = SUSPECT_FLAG if suspect else None
+        point.adjustment_version = METHOD_VERSION
+    by_day = {s.split_date: s for s in splits}
+    for decision in result.decisions:
+        split = by_day[decision.day]
+        split.history_adjusted = decision.history_adjusted_by_us
+        split.decision_note = decision.note
+        split.method_version = METHOD_VERSION
+    db.commit()
 
 
 def _update_shares_outstanding(db, stock: Stock) -> None:

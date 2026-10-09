@@ -51,6 +51,7 @@ def provider_down(monkeypatch):
         raise MarketDataUnavailable("timeout")
 
     monkeypatch.setattr(MarketDataClient, "get_history", staticmethod(boom))
+    monkeypatch.setattr(MarketDataClient, "get_history_and_splits", staticmethod(boom))
     monkeypatch.setattr(MarketDataClient, "get_shares_outstanding", staticmethod(boom))
     monkeypatch.setattr(MarketDataClient, "_download", staticmethod(boom))
 
@@ -241,15 +242,17 @@ def provider(monkeypatch):
     """SYS has data, HBL's request fails, every other ticker returns nothing."""
     calls = []
 
-    def get_history(ticker, period="1y", start=None, end=None):
+    def get_history_and_splits(ticker, period="1y"):
         calls.append((ticker, period))
         if ticker == "HBL":
             raise MarketDataUnavailable("timeout")
         if ticker == "SYS":
-            return [bar(LATEST - datetime.timedelta(days=1), 116.0), bar(LATEST, 118.0)]
-        return []
+            return [bar(LATEST - datetime.timedelta(days=1), 116.0), bar(LATEST, 118.0)], []
+        return [], []
 
-    monkeypatch.setattr(MarketDataClient, "get_history", staticmethod(get_history))
+    monkeypatch.setattr(
+        MarketDataClient, "get_history_and_splits", staticmethod(get_history_and_splits)
+    )
     monkeypatch.setattr(
         MarketDataClient, "get_shares_outstanding", staticmethod(lambda ticker: 1_473_404_435)
     )
@@ -283,8 +286,8 @@ def test_refresh_is_idempotent_and_updates_corrected_bars(db, provider, fake_red
     refresh_stock_prices.run(tickers=["SYS"])
     monkeypatch.setattr(
         MarketDataClient,
-        "get_history",
-        staticmethod(lambda ticker, period="1y": [bar(LATEST, 118.5)]),
+        "get_history_and_splits",
+        staticmethod(lambda ticker, period="1y": ([bar(LATEST, 118.5)], [])),
     )
     refresh_stock_prices.run(tickers=["SYS"])
     assert _stored(db, "SYS") == [116.0, 118.5]

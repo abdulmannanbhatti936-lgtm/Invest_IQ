@@ -53,6 +53,16 @@ def _rollback_after_each_test(_test_database):
         connection.close()
 
 
+@pytest.fixture(autouse=True)
+def _no_market_data_network(monkeypatch):
+    """Tests never reach Yahoo Finance: any call that is not mocked fails loudly."""
+
+    def blocked(*args, **kwargs):
+        raise RuntimeError("Market data network calls are disabled in tests; mock the client")
+
+    monkeypatch.setattr("integrations.market_data.yf.Ticker", blocked)
+
+
 @pytest.fixture
 def client():
     return TestClient(app)

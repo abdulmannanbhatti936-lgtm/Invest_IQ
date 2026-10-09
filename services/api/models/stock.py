@@ -2,7 +2,9 @@ import uuid
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     Column,
+    Date,
     DateTime,
     ForeignKey,
     Numeric,
@@ -29,6 +31,7 @@ class Stock(Base):
     price_points = relationship("PricePoint", back_populates="stock", cascade="all, delete-orphan")
     sentiments = relationship("NewsSentiment", back_populates="stock", cascade="all, delete-orphan")
     predictions = relationship("Prediction", back_populates="stock", cascade="all, delete-orphan")
+    splits = relationship("StockSplit", back_populates="stock", cascade="all, delete-orphan")
 
 
 class PricePoint(Base):
@@ -47,5 +50,33 @@ class PricePoint(Base):
     close = Column(Numeric, nullable=False)
     volume = Column(BigInteger, nullable=True)
 
+    # The columns above are the provider's raw values and are never rewritten by our own
+    # processing. Served prices are raw / split_factor and volume x split_factor
+    # (services/split_adjustment.py); a bar with a quality_flag is left out.
+    split_factor = Column(Numeric, nullable=False, default=1, server_default="1")
+    quality_flag = Column(String, nullable=True)
+    adjustment_version = Column(String, nullable=True)
+
     # Relationship back to stock
     stock = relationship("Stock", back_populates="price_points")
+
+
+class StockSplit(Base):
+    """A provider split event and InvestIQ's decision about the history before it."""
+
+    __tablename__ = "stock_splits"
+    __table_args__ = (
+        UniqueConstraint("stock_id", "split_date", name="uq_stock_splits_stock_date"),
+    )
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    stock_id = Column(
+        UUID(as_uuid=True), ForeignKey("stocks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    split_date = Column(Date, nullable=False)
+    ratio = Column(Numeric, nullable=False)  # new shares per old share
+    history_adjusted = Column(Boolean, nullable=True)
+    decision_note = Column(String, nullable=True)
+    method_version = Column(String, nullable=True)
+
+    stock = relationship("Stock", back_populates="splits")
