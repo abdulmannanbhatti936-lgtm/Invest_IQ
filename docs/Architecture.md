@@ -181,12 +181,22 @@ stock_splits                                 -- provider split events + adjustme
   split_date DATE, ratio NUMERIC
   history_adjusted BOOLEAN NULL, decision_note VARCHAR NULL, method_version VARCHAR NULL
 
+stock_dividends                              -- provider dividend events + div-v1 decision
+  id BIGSERIAL PK
+  stock_id UUID FK -> stocks.id
+  ex_date DATE, amount NUMERIC, source VARCHAR
+  previous_close NUMERIC NULL, ex_close NUMERIC NULL
+  adjustment_factor NUMERIC NULL             -- NULL = not applied (review_flag says why)
+  review_flag VARCHAR NULL, method_version VARCHAR NULL
+
 predictions
   id UUID PK
   stock_id UUID FK -> stocks.id
   model_version VARCHAR
-  forecast_price NUMERIC
-  confidence_score NUMERIC
+  forecast_price NUMERIC, last_close NUMERIC
+  confidence_score NUMERIC                   -- calibrated chance the LSTM direction is right
+  signal VARCHAR, signal_probability NUMERIC NULL   -- Random Forest BUY/SELL/HOLD
+  as_of_date DATE NULL                       -- trading date of the close it starts from
   generated_at TIMESTAMPTZ
 
 sentiment_scores
@@ -300,8 +310,9 @@ All endpoints documented automatically via FastAPI's built-in OpenAPI/Swagger �
 | ----------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `refresh_stock_prices`  | Scheduled: Mon-Fri 18:00 PKT (last month); Sunday 06:00 PKT (5 years + shares outstanding) | Pull end-of-day PSX prices and splits into `price_points`/`stock_splits`, recompute split factors, invalidate cached responses. The API never calls the provider (Memory.md §3) |
 | `scrape_news_sentiment` | Scheduled (e.g., every few hours)                                                          | Pull news, run FinBERT/VADER, write `sentiment_scores`                                                                                                                          |
-| `run_predictions`       | Scheduled (e.g., daily) or on-demand                                                       | Run LSTM/SVM/RF inference, write `predictions`                                                                                                                                  |
-| `retrain_models`        | Scheduled (e.g., weekly) or admin-triggered                                                | Retrain LSTM/SVM/RF on latest data                                                                                                                                              |
+| `refresh_dividends`     | Scheduled: Mon-Fri 18:15 PKT                                                               | Store dividend events in `stock_dividends` and re-assess each against the served closes (`div-v1`)                                                                              |
+| `run_predictions`       | Scheduled: Mon-Fri 18:30 PKT, or on-demand                                                 | Run the current pooled LSTM + Random Forest for every stock the model covers, write `predictions`                                                                               |
+| `train_models`          | Scheduled: Saturday 22:00 PKT (FR15), or `python -m ml.train`                              | Build a new dataset version from `price_points`, retrain the pooled models, point `latest.json` at the new `model_version`                                                      |
 | `monitor_portfolios`    | Scheduled (e.g., every few min)                                                            | Check active portfolios against fresh predictions, trigger notifications                                                                                                        |
 | `send_notification`     | Triggered by `monitor_portfolios`                                                          | Dispatch via FCM, target latency < 5s                                                                                                                                           |
 
@@ -360,9 +371,12 @@ No portfolio or price figures are ever generated freeform by the LLM — they're
 - **Architecture (starting point):** 2 stacked LSTM/BiLSTM layers (e.g., 64 → 32 units) → Dropout (0.2) → Dense output layer predicting next N-day price/return
 - **Loss/metric:** MSE for training; RMSE and directional accuracy reported for evaluation (per PRD targets: RMSE < 5%, directional accuracy > 80%)
 - **Output:** predicted price/return + a confidence score derived from prediction variance or an auxiliary classifier's probability
+- **As built (2026-10-10):** one LSTM trained on 18 KSE-100 stocks together (scale-free inputs: returns, indicator ratios), 60-day windows, next-day return of the dividend-adjusted close. Confidence = Monte-Carlo dropout spread (30 fixed seeded masks) turned into a certainty (forecast / spread) and mapped to "chance the direction is right" by isotonic regression fitted on the validation period (`ml/confidence.py`). Sentiment is not an input yet (Phase 4)
 - **Training data split:** chronological train/validation/test split (never randomly shuffled — this is time-series data, shuffling would leak future information into training)
 
 ### 15.2 SVM / Random Forest (buy/sell/hold classifier)
+
+- **As built:** Random Forest only (SVM skipped, Memory.md §3), one model for all 18 stocks; labels BUY / SELL for a next-day move beyond +/-1%, otherwise HOLD
 
 - Same engineered feature set as LSTM, framed as classification instead of regression
 - Output: buy / sell / hold label + probability, used as a secondary signal alongside the LSTM forecast
@@ -379,6 +393,7 @@ No portfolio or price figures are ever generated freeform by the LLM — they're
 
 - Every trained model artifact tagged with a `model_version` (timestamp or semantic version)
 - `predictions` table stores which `model_version` generated each forecast — enables comparing model performance over time and rolling back if a retrain underperforms
+- **As built:** `services/api/ml/artifacts/<model_version>/` holds `lstm.pt`, `preprocess.joblib`, `random_forest.joblib`, `calibrator.joblib` and `metadata.json` (dataset version and hashes, cut dates, hyperparameters, metrics, walk-forward, training time); every joblib file carries the version and the loader refuses a mismatch. `latest.json` names the current version, and the API serves only that version's predictions. Artifacts are not in git; the evaluation report (`ml/reports/`) and the dataset (`ml/data/<dataset_version>/`) are
 
 ## 16. Frontend Architecture (Web + Mobile)
 
