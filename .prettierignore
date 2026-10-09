@@ -4,9 +4,10 @@ build/
 venv/
 .expo/
 
-# Generated output (test reports, training data and evaluation reports)
+# Generated output (test reports, training data, evaluation reports, the frozen test model)
 apps/web/e2e-report/
 apps/web/e2e-results/
 services/api/ml/data/
 services/api/ml/reports/
+services/api/tests/fixtures/model/
 docs/data-quality/
