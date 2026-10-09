@@ -5,7 +5,7 @@
 **Companion docs:** PRD.md, Architecture.md, Rules.md
 **Purpose of this document:** This is the single source of truth for **what to build right now** vs **what comes later**. An AI coding agent (or a human) reading this should never build ahead of the current phase, never skip a phase's exit criteria, and never assume a future phase's work is already available.
 
-**Current status (2026-10-10): Phase 0 ✅ and Phase 1 ✅ complete — every exit criterion re-verified against the running code. Next: Phase 2 re-audit.**
+**Current status (2026-10-10): Phase 0 ✅, Phase 1 ✅ and Phase 2 ✅ (re-audited 2026-10-10; mobile screens deferred to Phase 10). Next: Phase 3 re-audit.**
 
 **Semester scope (decided 2026-10-10):** this semester covers Phase 2 → 3 → 4 → 5 → 6 → 8 (Chatbot), in that order, with the web app demoable end-to-end (register → onboarding → stock detail with prediction and sentiment → portfolio → backtest → chatbot, English and Urdu). **Next semester:** Phase 7 (Notifications), Phase 9 (Admin), Phase 10 (Mobile parity), Phase 11 (Testing & defense prep). Phase 3 uses **Random Forest only** as the classifier; SVM is skipped (Memory.md §3).
 
@@ -100,10 +100,10 @@
 
 **Exit criteria:**
 
-- [ ] Searching any real PSX ticker returns live/cached data
-- [ ] Price chart renders correctly with real historical data
-- [ ] Rate-limit/outage on the data source degrades gracefully, doesn't crash the app
-- [ ] Redis cache verified to reduce redundant external API calls
+- [x] Searching any real PSX ticker returns live/cached data — 95 KSE-100 stocks searchable; quote/history served from stored end-of-day data with a 15-min Redis cache ("live" = latest end-of-day close, 1–2 trading days behind PSX, labelled with its date) (2026-10-10)
+- [x] Price chart renders correctly with real historical data — split-adjusted series; 52-week ranges match PSX for HBL, LUCK, SYS, OGDC (2026-10-10; screenshots in `docs/screenshots/phase2/`)
+- [x] Rate-limit/outage on the data source degrades gracefully, doesn't crash the app — the API never calls the provider; pages keep serving stored rows; 503 only when a stock has no stored prices (tests, 2026-10-10)
+- [x] Redis cache verified to reduce redundant external API calls — external calls happen only in the end-of-day job (one per stock per day); served responses are cached and invalidated by the job (tests, 2026-10-10)
 
 ---
 
