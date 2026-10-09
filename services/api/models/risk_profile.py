@@ -36,6 +36,7 @@ class RiskProfile(Base):
 
     # Deleting a User deletes its profile: the ORM cascade handles a profile already loaded
     # in the session; passive_deletes leaves an unloaded one to the DB's ON DELETE CASCADE.
+    # delete-orphan: replacing or clearing user.risk_profile DELETES the old row (update in place).
     user = relationship(
         "User",
         backref=backref(
