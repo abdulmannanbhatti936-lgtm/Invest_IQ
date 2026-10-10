@@ -112,7 +112,8 @@ export interface ModelEvaluation {
 }
 
 /** Why a forecast is flagged low-confidence (PRD FR16). */
-export type LowConfidenceReason = 'below_threshold' | 'models_disagree' | 'no_edge_over_baseline';
+export type LowConfidenceReason =
+  'below_threshold' | 'models_disagree' | 'no_edge_over_baseline' | 'sentiment_unavailable';
 
 export interface Prediction {
   ticker: string;
@@ -132,9 +133,59 @@ export interface Prediction {
   signal: Signal;
   signal_probability: number | null;
   models_agree: boolean;
+  /**
+   * 'used': the forecast read news sentiment; 'unavailable': the news sources were stale, so a
+   * price-only forecast was made (PRD FR22); null: the model reads prices only
+   */
+  sentiment_status: 'used' | 'unavailable' | null;
   evaluation: ModelEvaluation | null;
   /** How many stocks the current model forecasts (also in a `not_covered` 404's detail) */
   covered_stock_count: number;
+}
+
+// ---- News sentiment (Phase 4)
+
+export type SentimentLabel = 'positive' | 'negative' | 'neutral';
+
+/** A headline with its link; the article text is never stored or shown. */
+export interface SentimentHeadline {
+  headline: string;
+  source: string;
+  source_name: string;
+  url: string;
+  published_at: string;
+  /** null while the headline waits to be scored */
+  label: SentimentLabel | null;
+  /** -1 (negative) to +1 (positive) */
+  score: number | null;
+  scorer: 'finbert' | 'vader' | null;
+  /** Share in today's sentiment (decayed weight); null = shown but not counted */
+  weight: number | null;
+}
+
+export interface SentimentSourceFreshness {
+  source: string;
+  name: string;
+  last_success_at: string | null;
+  stale: boolean;
+}
+
+export interface StockSentiment {
+  ticker: string;
+  /** Trading day of the latest stored close; the window ends here */
+  as_of_date: string | null;
+  /** null when no headline counts */
+  label: SentimentLabel | null;
+  score: number | null;
+  news_weight: number;
+  counted_headlines: number;
+  window_trading_days: number;
+  half_life_trading_days: number;
+  /** Inside the window, newest first */
+  headlines: SentimentHeadline[];
+  /** Published after the last close; they count from the next trading day */
+  after_close_headlines: SentimentHeadline[];
+  freshness: { stale: boolean; sources: SentimentSourceFreshness[] };
 }
 
 /** `detail` of a 404 from GET /stocks/{ticker}/prediction */

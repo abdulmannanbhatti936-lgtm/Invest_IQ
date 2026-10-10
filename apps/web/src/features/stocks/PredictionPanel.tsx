@@ -239,6 +239,13 @@ export const PredictionPanel = ({
 
         <EvaluationDetails prediction={p} />
 
+        {/* 'unavailable' is already explained in the low-confidence note (PRD FR22) */}
+        {p.sentiment_status !== 'unavailable' && (
+          <p className="text-xs text-gray-500">
+            {t(p.sentiment_status === 'used' ? 'prediction.inputs.used' : 'prediction.inputs.none')}
+          </p>
+        )}
+
         <p className="text-xs text-gray-400">
           {t('prediction.generated', {
             date: formatDate(p.generated_at, i18n.language),

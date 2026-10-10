@@ -17,6 +17,7 @@ import { formatDate, formatPrice, formatSignedPct } from '../../lib/format';
 import { KeyStats } from './KeyStats';
 import { PredictionPanel } from './PredictionPanel';
 import { PriceChart } from './PriceChart';
+import { SentimentPanel } from './SentimentPanel';
 
 const PERIODS: HistoryPeriod[] = ['1mo', '3mo', '6mo', '1y', '5y'];
 const MIN_CHART_POINTS = 5;
@@ -44,6 +45,11 @@ export const StockDetailPage = () => {
   const prediction = useQuery({
     queryKey: ['prediction', ticker],
     queryFn: () => stocksApi.getPrediction(ticker),
+    retry: (count, error) => getErrorStatus(error) !== 404 && count < 2,
+  });
+  const sentiment = useQuery({
+    queryKey: ['sentiment', ticker],
+    queryFn: () => stocksApi.getSentiment(ticker),
     retry: (count, error) => getErrorStatus(error) !== 404 && count < 2,
   });
 
@@ -190,6 +196,8 @@ export const StockDetailPage = () => {
       {quote.isPending ? <Skeleton className="h-40 w-full" /> : <KeyStats quote={quote.data} />}
 
       <PredictionPanel query={prediction} ticker={ticker} />
+
+      <SentimentPanel query={sentiment} ticker={ticker.toUpperCase()} />
 
       <DisclaimerBanner />
     </div>

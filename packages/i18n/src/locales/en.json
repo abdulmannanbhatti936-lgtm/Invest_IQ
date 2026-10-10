@@ -235,7 +235,8 @@
     "reason": {
       "below_threshold": "The chance the direction is right is below {{threshold}}%.",
       "models_disagree": "The price forecast and the buy/sell/hold signal point different ways.",
-      "no_edge_over_baseline": "On past data, this model was not more accurate for {{ticker}} than assuming tomorrow's close equals today's."
+      "no_edge_over_baseline": "On past data, this model was not more accurate for {{ticker}} than assuming tomorrow's close equals today's.",
+      "sentiment_unavailable": "News could not be updated for more than a day, so this forecast uses prices only."
     },
     "signal": {
       "BUY": "Buy",
@@ -260,6 +261,37 @@
     "baselineDirection": {
       "up": "up",
       "down": "down"
+    },
+    "inputs": {
+      "used": "This forecast includes news sentiment.",
+      "none": "This forecast uses prices and technical indicators only. News sentiment is shown below for context."
     }
+  },
+  "sentiment": {
+    "title": "News sentiment",
+    "subtitle": "The tone of recent headlines about {{ticker}} in Profit and Mettis Global, scored by FinBERT, a language model trained on financial text.",
+    "label": {
+      "positive": "Positive",
+      "negative": "Negative",
+      "neutral": "Neutral"
+    },
+    "score": "Score {{score}} on a scale from −1 (negative) to +1 (positive)",
+    "basis": "Headlines counted: {{count}}, from the {{days}} trading days up to the close of {{date}}. Newer headlines count more; a headline's weight halves every {{halfLife}} trading days.",
+    "noNews": "No headlines about {{ticker}} from Profit or Mettis Global in the {{days}} trading days up to the close of {{date}}.",
+    "note": "Sentiment describes the tone of recent news, not where the price will go.",
+    "driversTitle": "What's driving this",
+    "share": "{{pct}} of the score",
+    "pending": "Not scored yet",
+    "scoredByVader": "Scored by VADER because FinBERT was unsure",
+    "contextTitle": "Also in the news, not counted",
+    "contextNote": "Business Recorder headlines are shown for context only: its archive does not reach back far enough to be part of the score.",
+    "afterCloseTitle": "Published after the last close",
+    "afterCloseNote": "These count from the next trading day.",
+    "openSource": "{{source}}, {{date}} (opens in a new tab)",
+    "stale": "News could not be updated for more than a day (last update {{date}}). The sentiment shown may be out of date.",
+    "staleNever": "News has not been collected yet, so there is no sentiment to show.",
+    "notCoveredTitle": "No news sentiment for this stock",
+    "notCovered": "News is collected for the {{stocks}} stocks that have forecasts. {{ticker}} is not one of them yet.",
+    "loadError": "We couldn't load the news sentiment."
   }
 }
