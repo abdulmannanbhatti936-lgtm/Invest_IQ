@@ -14,6 +14,7 @@ from ml.features import build_feature_frame
 from ml.inference import ModelBundle, load_bundle, models_agree, predict_next_day
 from models.prediction import Prediction
 from models.stock import Stock
+from services.sentiment_service import headline_frame, source_freshness
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,11 @@ logger = logging.getLogger(__name__)
 BELOW_THRESHOLD = "below_threshold"
 MODELS_DISAGREE = "models_disagree"
 NO_EDGE_OVER_BASELINE = "no_edge_over_baseline"
+SENTIMENT_UNAVAILABLE = "sentiment_unavailable"
+
+# predictions.sentiment_status values
+SENTIMENT_USED = "used"
+SENTIMENT_STALE = "unavailable"
 
 
 class InsufficientHistoryError(Exception):
@@ -41,7 +47,10 @@ def generate_prediction(db: Session, stock: Stock, bundle: ModelBundle | None = 
     """
     Run the current model for one stock and store the result. The model sees the same
     series it was trained on: served bars only (split-adjusted, flagged bars left out),
-    dividend-adjusted backwards (ml/dataset.py).
+    dividend-adjusted backwards (ml/dataset.py). A model that reads news gets the stock's
+    scored headlines; if a news source is stale (PRD.md FR22) the model's price-only
+    fallback makes the forecast instead and the row is marked, so it is shown as reduced
+    confidence. The forecast is stored under the current model's version either way.
     """
     bundle = bundle or load_bundle(settings.MODEL_DIR)
     if not bundle.covers(stock.ticker):
@@ -50,16 +59,28 @@ def generate_prediction(db: Session, stock: Stock, bundle: ModelBundle | None = 
     if len(frame) < settings.MIN_HISTORY_DAYS:
         raise InsufficientHistoryError(stock.ticker, len(frame))
 
-    result = predict_next_day(bundle, build_feature_frame(dividend_adjusted(frame)))
+    series = dividend_adjusted(frame)
+    sentiment_status = None
+    if not bundle.uses_news:
+        result = predict_next_day(bundle, build_feature_frame(series))
+    elif source_freshness(db)["stale"]:
+        fallback = load_bundle(settings.MODEL_DIR, bundle.metadata["fallback_model_version"])
+        logger.warning(f"{stock.ticker}: news sources stale, using {fallback.version}")
+        result = predict_next_day(fallback, build_feature_frame(series))
+        sentiment_status = SENTIMENT_STALE
+    else:
+        result = predict_next_day(bundle, build_feature_frame(series, headline_frame(db, stock)))
+        sentiment_status = SENTIMENT_USED
     prediction = Prediction(
         stock_id=stock.id,
-        model_version=result["model_version"],
+        model_version=bundle.version,
         forecast_price=_decimal(result["forecast_price"], "0.0001"),
         last_close=_decimal(result["last_close"], "0.0001"),
         confidence_score=_decimal(result["confidence"], "0.0001"),
         signal=result["signal"],
         signal_probability=_decimal(result["signal_probability"], "0.0001"),
         as_of_date=result["as_of"],
+        sentiment_status=sentiment_status,
     )
     db.add(prediction)
     db.commit()
@@ -87,6 +108,8 @@ def low_confidence_reasons(prediction: Prediction, bundle: ModelBundle, ticker: 
     evaluation = bundle.ticker_evaluation(ticker)
     if evaluation is None or not evaluation["beats_naive"]:
         reasons.append(NO_EDGE_OVER_BASELINE)
+    if getattr(prediction, "sentiment_status", None) == SENTIMENT_STALE:
+        reasons.append(SENTIMENT_UNAVAILABLE)
     return reasons
 
 

@@ -93,4 +93,4 @@ Confusion matrix (rows = actual, columns = predicted):
 
 ## Training run
 
-CPU only. LSTM: 7.6 s, best epoch 2 of at most 2 (early stopping, patience 8). Random Forest: 0.4 s. Whole run including walk-forward: 8.8 s. Seed 42; library versions torch 2.14.0+cpu, sklearn 1.9.1, pandas 3.0.6, numpy 2.2.6.
+CPU only. LSTM: 24.9 s, best epoch 2 of at most 2 (early stopping, patience 8). Random Forest: 1.2 s. Whole run including walk-forward: 28.8 s. Seed 42; library versions torch 2.14.0+cpu, sklearn 1.9.1, pandas 3.0.6, numpy 2.2.6.

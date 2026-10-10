@@ -64,6 +64,22 @@ def test_promotion_switches_the_active_model_and_logs_it(dirs):
     assert entry["model_version"] == "MOCK-complete" and entry["previous_version"] == "MOCK-active"
 
 
+def test_a_news_model_needs_its_price_only_fallback_promoted_first(dirs):
+    cand, models, reports = dirs
+    shutil.copytree(cand / "MOCK-complete", cand / "MOCK-news")
+    meta_path = cand / "MOCK-news" / "metadata.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta.update(model_version="MOCK-news", fallback_model_version="MOCK-complete")
+    meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    promotion.write_report(meta, cand / "MOCK-news" / promotion.REPORT_FILE)
+
+    with pytest.raises(promotion.PromotionRefused, match="fallback MOCK-complete"):
+        promotion.promote("MOCK-news", cand, models, reports)
+    promotion.promote("MOCK-complete", cand, models, reports)
+    promotion.promote("MOCK-news", cand, models, reports)
+    assert promotion.active_version(models) == "MOCK-news"
+
+
 def test_promotion_without_walk_forward_is_refused(dirs):
     cand, models, reports = dirs
     with pytest.raises(promotion.PromotionRefused, match="walk-forward"):

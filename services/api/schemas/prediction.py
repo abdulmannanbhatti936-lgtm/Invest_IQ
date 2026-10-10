@@ -5,7 +5,9 @@ from pydantic import BaseModel
 
 from schemas.types import UTCDateTime
 
-LowConfidenceReason = Literal["below_threshold", "models_disagree", "no_edge_over_baseline"]
+LowConfidenceReason = Literal[
+    "below_threshold", "models_disagree", "no_edge_over_baseline", "sentiment_unavailable"
+]
 
 
 class ModelEvaluation(BaseModel):
@@ -40,5 +42,8 @@ class PredictionResponse(BaseModel):
     signal: str  # Random Forest BUY / SELL / HOLD
     signal_probability: float | None
     models_agree: bool  # LSTM forecast direction matches the classifier signal
+    # 'used': the forecast read news sentiment; 'unavailable': news sources were stale and a
+    # price-only forecast was made instead (PRD.md FR22); None: the model reads prices only
+    sentiment_status: Literal["used", "unavailable"] | None = None
     evaluation: ModelEvaluation | None = None
     covered_stock_count: int  # how many stocks the current model forecasts
