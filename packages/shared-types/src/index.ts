@@ -133,6 +133,8 @@ export interface Prediction {
   signal_probability: number | null;
   models_agree: boolean;
   evaluation: ModelEvaluation | null;
+  /** How many stocks the current model forecasts (also in a `not_covered` 404's detail) */
+  covered_stock_count: number;
 }
 
 /** `detail` of a 404 from GET /stocks/{ticker}/prediction */

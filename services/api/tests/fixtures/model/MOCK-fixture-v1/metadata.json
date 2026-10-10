@@ -1,6 +1,6 @@
 {
   "model_version": "MOCK-fixture-v1",
-  "trained_at": "2026-10-09T22:34:28.779650+00:00",
+  "trained_at": "2026-10-09T23:34:00.649852+00:00",
   "tickers": [
     "MOCKA",
     "MOCKB",
@@ -77,9 +77,29 @@
     "training": {
       "best_epoch": 2,
       "best_val_loss": 1.030951976776123,
-      "lstm_seconds": 3.8,
-      "random_forest_seconds": 0.1,
+      "lstm_seconds": 7.6,
+      "random_forest_seconds": 0.4,
       "y_std": 0.014662180573890697,
+      "rf_params": {
+        "n_estimators": 10,
+        "max_depth": 4,
+        "class_weight": "balanced_subsample",
+        "random_state": 42,
+        "min_samples_leaf": 5
+      },
+      "rf_selection": {
+        "metric": "balanced_accuracy on the validation period",
+        "grid": [
+          {
+            "min_samples_leaf": 5,
+            "val_balanced_accuracy": 0.30075143532590337
+          },
+          {
+            "min_samples_leaf": 20,
+            "val_balanced_accuracy": 0.2947821681864235
+          }
+        ]
+      },
       "val_direction_hit_rate": 0.49140893470790376
     }
   },
@@ -87,70 +107,76 @@
     "hyperparameters": {
       "n_estimators": 10,
       "max_depth": 4,
-      "min_samples_leaf": 20,
       "class_weight": "balanced_subsample",
-      "random_state": 42
+      "random_state": 42,
+      "min_samples_leaf": 5
+    },
+    "grid": {
+      "min_samples_leaf": [
+        5,
+        20
+      ]
     },
     "feature_importance": [
       {
         "feature": "close_to_sma50",
-        "importance": 0.16155364750194262
+        "importance": 0.13924922088757782
       },
       {
         "feature": "return_20d",
-        "importance": 0.10256874447141791
-      },
-      {
-        "feature": "return_5d",
-        "importance": 0.09877444310177483
-      },
-      {
-        "feature": "volume_ratio_20d",
-        "importance": 0.0916623426410736
-      },
-      {
-        "feature": "macd_norm",
-        "importance": 0.06994791019938089
+        "importance": 0.12957491959104459
       },
       {
         "feature": "bb_width",
-        "importance": 0.06427548634468902
+        "importance": 0.09912478858037398
       },
       {
-        "feature": "volatility_20d",
-        "importance": 0.06277516235827188
-      },
-      {
-        "feature": "sma20_to_sma50",
-        "importance": 0.05581023525719029
-      },
-      {
-        "feature": "macd_signal_norm",
-        "importance": 0.053301870172761376
+        "feature": "macd_norm",
+        "importance": 0.09126263240040926
       },
       {
         "feature": "range_pct",
-        "importance": 0.04782761560400027
+        "importance": 0.07338257622669657
       },
       {
-        "feature": "bb_position",
-        "importance": 0.044983755189816156
+        "feature": "macd_signal_norm",
+        "importance": 0.07138322278490287
       },
       {
-        "feature": "return_1d",
-        "importance": 0.042893727423560124
+        "feature": "volatility_20d",
+        "importance": 0.06607481715735956
       },
       {
-        "feature": "close_to_sma20",
-        "importance": 0.03864256229313557
+        "feature": "return_5d",
+        "importance": 0.05143762587593056
       },
       {
-        "feature": "rsi_14",
-        "importance": 0.033725417096866515
+        "feature": "volume_ratio_20d",
+        "importance": 0.05075616930542342
       },
       {
         "feature": "macd_hist_norm",
-        "importance": 0.031257080344119
+        "importance": 0.04786514440232015
+      },
+      {
+        "feature": "bb_position",
+        "importance": 0.0436024259928918
+      },
+      {
+        "feature": "close_to_sma20",
+        "importance": 0.038762506992148255
+      },
+      {
+        "feature": "sma20_to_sma50",
+        "importance": 0.035070701646986224
+      },
+      {
+        "feature": "return_1d",
+        "importance": 0.03151325645187202
+      },
+      {
+        "feature": "rsi_14",
+        "importance": 0.0309399917040631
       }
     ]
   },
@@ -347,44 +373,44 @@
       "ci95_at_or_above_threshold": null
     },
     "random_forest": {
-      "accuracy": 0.3127147766323024,
-      "balanced_accuracy": 0.32299841050528993,
-      "f1_macro": 0.30506626728783853,
+      "accuracy": 0.3333333333333333,
+      "balanced_accuracy": 0.3569837488384544,
+      "f1_macro": 0.3257913291329133,
       "per_class": {
         "-1": {
-          "precision": 0.2459016393442623,
-          "recall": 0.43478260869565216,
+          "precision": 0.2857142857142857,
+          "recall": 0.5507246376811594,
           "support": 69
         },
         "0": {
-          "precision": 0.47191011235955055,
-          "recall": 0.2937062937062937,
+          "precision": 0.5194805194805194,
+          "recall": 0.27972027972027974,
           "support": 143
         },
         "1": {
-          "precision": 0.2375,
+          "precision": 0.2345679012345679,
           "recall": 0.24050632911392406,
           "support": 79
         }
       },
       "confusion_matrix": [
         [
-          30,
-          21,
-          18
+          38,
+          18,
+          13
         ],
         [
-          58,
-          42,
-          43
+          54,
+          40,
+          49
         ],
         [
-          34,
-          26,
+          41,
+          19,
           19
         ]
       ],
-      "brier": 0.6716055280573119
+      "brier": 0.6659485847225273
     },
     "per_ticker": {
       "MOCKA": {
@@ -398,7 +424,7 @@
         "beats_naive": true,
         "directional_accuracy": 0.5051546391752577,
         "majority_direction_accuracy": 0.4742268041237113,
-        "rf_accuracy": 0.32989690721649484,
+        "rf_accuracy": 0.36082474226804123,
         "rf_majority_class_accuracy": 0.4639175257731959
       },
       "MOCKB": {
@@ -412,7 +438,7 @@
         "beats_naive": false,
         "directional_accuracy": 0.5154639175257731,
         "majority_direction_accuracy": 0.5154639175257731,
-        "rf_accuracy": 0.3402061855670103,
+        "rf_accuracy": 0.31958762886597936,
         "rf_majority_class_accuracy": 0.5463917525773195
       },
       "MOCKC": {
@@ -426,13 +452,13 @@
         "beats_naive": false,
         "directional_accuracy": 0.4845360824742268,
         "majority_direction_accuracy": 0.5051546391752577,
-        "rf_accuracy": 0.26804123711340205,
+        "rf_accuracy": 0.31958762886597936,
         "rf_majority_class_accuracy": 0.4639175257731959
       }
     }
   },
   "walk_forward": null,
-  "training_seconds_total": 4.4,
+  "training_seconds_total": 8.8,
   "library_versions": {
     "torch": "2.14.0+cpu",
     "sklearn": "1.9.1",

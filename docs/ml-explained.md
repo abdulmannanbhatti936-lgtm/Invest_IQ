@@ -1,12 +1,12 @@
 # How InvestIQ's prediction engine works
 
-A plain-language walkthrough of Phase 3 for the viva: what data goes in, what the models do, how we tested them, what the confidence score means and how a forecast reaches the screen. The numbers are from model `lstm-rf-20261009T222331Z`, trained on 2026-10-10. The full evaluation report is `services/api/ml/reports/evaluation_lstm-rf-20261009T222331Z.md`.
+A plain-language walkthrough of Phase 3 for the viva: what data goes in, what the models do, how we tested them, what the confidence score means and how a forecast reaches the screen. The numbers are from model `lstm-rf-20261009T233529Z`, trained on 2026-10-10. The full evaluation report is `services/api/ml/reports/evaluation_lstm-rf-20261009T233529Z.md`.
 
 ## 1. Data
 
 **Where it comes from.** Daily open, high, low, close and volume for PSX stocks from Yahoo Finance (`.KA` symbols), pulled by a background job into our database (`price_points`). The app never calls Yahoo while a user is waiting; it shows what is stored, with an "as of" date, because Yahoo runs one or two trading days behind PSX.
 
-**Which stocks.** 18 of the most traded KSE-100 stocks across 11 sectors (oil and gas, banks, fertilizer, cement, power, refinery, technology, cables, autos). We ranked by median daily traded value over the last year and left out every stock whose history had an unexplained one-day jump of more than 10% (13 stocks), plus NCPL until a suspicious price is checked against PSX.
+**Which stocks.** 18 of the most traded KSE-100 stocks across 10 sectors (oil and gas exploration, oil marketing, banks, fertilizer, cement, power, refinery, technology, cables, autos). We ranked by median daily traded value over the last year and left out every stock whose history had an unexplained one-day jump of more than 10% (13 stocks), plus NCPL until a suspicious price is checked against PSX.
 
 **Cleaning.** Two problems in Yahoo's PSX data had to be fixed before any model saw it:
 
@@ -28,15 +28,15 @@ Two rules make the features trustworthy:
 
 **LSTM (the forecast).** A recurrent neural network reads the last 60 trading days of features and predicts tomorrow's return. Layers: LSTM with 64 units, LSTM with 32 units, 20% dropout, one output. Forecast price = today's close x (1 + predicted return).
 
-**Random Forest (the second opinion).** 300 decision trees vote on tomorrow: BUY (rise of more than 1%), SELL (fall of more than 1%) or HOLD. It also tells us which features mattered most (here: the day's high-low range, 20-day volatility and the last day's return).
+**Random Forest (the second opinion).** 300 decision trees vote on tomorrow: BUY (rise of more than 1%), SELL (fall of more than 1%) or HOLD. It also tells us which features mattered most (here: the day's high-low range, 20-day volatility and the last day's return). One setting, the smallest number of examples a leaf may hold, was chosen from a list fixed before training (5, 10, 20 or 40) by how well each did on the validation period; 5 won (balanced accuracy 43.2%, against 42.5%, 42.7% and 42.8%). The test period played no part in the choice.
 
-**One model for all 18 stocks.** Because the inputs are scale-free, one model can learn from every stock at once: about 15,000 training examples instead of about 850 per stock. The SVM classifier named in the PRD was dropped so that one classifier could be evaluated properly.
+**One model for all 18 stocks.** Because the inputs are scale-free, one model can learn from every stock at once: 14,808 training examples instead of about 823 per stock. The SVM classifier named in the PRD was dropped so that one classifier could be evaluated properly.
 
-**Reproducible.** Fixed random seed (42), and every saved file carries the model version. The training run logs the data range, every setting, every metric and how long it took (about 2 minutes for the LSTM and 8 minutes including the robustness check, on a laptop CPU).
+**Reproducible.** Fixed random seed (42), and every saved file carries the model version. The training run logs the data range, every setting, every metric and how long it took (about 3 minutes for the LSTM and 11 minutes including the robustness check, on a laptop CPU). The LSTM settings are the starting point in the architecture document and were not tuned; only the stopping point is chosen, on the validation period.
 
 ## 4. Evaluation
 
-**Split by time, never shuffled.** The first 70% of trading days (Dec 2021 to Apr 2025) train the models, the next 15% (Apr 2025 to Jan 2026) are for choosing when to stop training and for calibrating the confidence score, and the last 15% (Jan to Oct 2026, 3,151 forecasts) are a test the models never saw. All stocks use the same cut dates. The one day at each boundary is dropped, because its answer (tomorrow's price) lies in the next period.
+**Split by time, never shuffled.** The first 70% of trading days (Dec 2021 to Apr 2025) train the models, the next 15% (Apr 2025 to Jan 2026) are for choosing when to stop training, choosing the Random Forest's leaf size and calibrating the confidence score, and the last 15% (Jan to Oct 2026, 3,151 forecasts) are a test the models never saw. All stocks use the same cut dates. The one day at each boundary is dropped, because its answer (tomorrow's price) lies in the next period.
 
 **Compared with simple baselines,** on the same days:
 
@@ -94,7 +94,7 @@ Today every forecast is flagged, and the screen lists the reasons.
 
    All of it is in English and Urdu.
 
-**Retraining** is scheduled weekly (PRD FR15): the job builds a new dataset version and trains a new model version; older forecasts are kept but only the current model's are shown.
+**Retraining** is scheduled weekly (PRD FR15), but it never replaces the live model by itself. The job builds a new dataset and trains a _candidate_ with its full evaluation report, kept outside the repository. A person promotes a candidate with `python -m ml.promote <version>`; the command refuses a candidate without a complete report, keeps the earlier models next to the new one and logs every promotion. Older forecasts are kept, but only the current model's are shown.
 
 ## 7. Five questions an examiner is likely to ask
 
@@ -115,7 +115,7 @@ Four safeguards, each tested:
 The 2.70% is not suspicious: the naive baseline gets 2.65%, and the low error simply reflects that daily moves are small.
 
 **4. Why pool all 18 stocks into one model instead of one model per stock?**
-Each stock has about 1,200 trading days, which leaves about 850 training examples: too few for an LSTM. The inputs are returns and ratios, so a pattern like "a high RSI after a sharp rise" means the same for a Rs.30 stock and a Rs.1,600 stock. Pooling gives about 15,000 examples. We still report every metric per stock, and one rule ("the model did not beat naive for this stock") flags forecasts per stock.
+Each stock has about 1,200 trading days, which leaves about 823 training examples: too few for an LSTM. The inputs are returns and ratios, so a pattern like "a high RSI after a sharp rise" means the same for a Rs.30 stock and a Rs.1,600 stock. Pooling gives 14,808 examples. We still report every metric per stock, and one rule ("the model did not beat naive for this stock") flags forecasts per stock.
 
 **5. Your confidence score did not work on the test set. Why keep it?**
-Because it is built the right way and is checked honestly: Monte-Carlo dropout gives each forecast its own uncertainty, and the calibration is fitted on data the test never touches. That it shows no skill is a finding about the model, not a defect in the method: a model with no edge cannot have a meaningful "more sure" and "less sure". The app does not rely on the score alone; the other two low-confidence rules flag every current forecast. If a later model (for example with sentiment) gains real skill, the same calibration will show it on the reliability table.
+Because it is built the right way and is checked honestly: Monte-Carlo dropout gives each forecast its own uncertainty, and the calibration is fitted on data the test never touches. That it shows no skill is a finding about the model, not a defect in the method: a model with no edge cannot have a meaningful "more sure" and "less sure". The app does not rely on the score alone: two other rules can flag a forecast. Today the "did not beat the naive forecast" rule flags 17 of the 18 stocks and the disagreement rule flags 2; SAZEW, the one stock where the LSTM narrowly beat naive, is flagged only because its confidence is below 60%. If a later model (for example with sentiment) gains real skill, the same calibration will show it on the reliability table.

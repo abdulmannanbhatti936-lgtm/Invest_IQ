@@ -19,8 +19,8 @@ from services.stock_service import SERVED
 router = APIRouter(prefix="/stocks", tags=["predictions"], dependencies=[Depends(get_current_user)])
 
 
-def _unavailable(code: str, message: str) -> HTTPException:
-    return HTTPException(status_code=404, detail={"code": code, "message": message})
+def _unavailable(code: str, message: str, **extra) -> HTTPException:
+    return HTTPException(status_code=404, detail={"code": code, "message": message, **extra})
 
 
 @router.get(
@@ -30,7 +30,7 @@ def _unavailable(code: str, message: str) -> HTTPException:
         404: {
             "description": (
                 "detail.code is 'stock_not_found', 'not_covered', 'insufficient_data' "
-                "or 'not_ready'"
+                "or 'not_ready'; 'not_covered' also carries detail.covered_stock_count"
             )
         }
     },
@@ -50,9 +50,13 @@ def get_stock_prediction(ticker: str, db: Session = Depends(get_db)):
         bundle = load_bundle(settings.MODEL_DIR)
     except ModelNotFoundError:
         bundle = None
-    covered = bundle.covers(symbol) if bundle else symbol in settings.tracked_tickers
-    if not covered:
-        raise _unavailable("not_covered", f"There is no forecast for {symbol} yet.")
+    covered_tickers = bundle.metadata["tickers"] if bundle else settings.tracked_tickers
+    if symbol not in covered_tickers:
+        raise _unavailable(
+            "not_covered",
+            f"There is no forecast for {symbol} yet.",
+            covered_stock_count=len(covered_tickers),
+        )
 
     prediction = latest_prediction(db, stock, bundle.version) if bundle else None
     if not prediction:
@@ -88,4 +92,5 @@ def get_stock_prediction(ticker: str, db: Session = Depends(get_db)):
         ),
         "models_agree": MODELS_DISAGREE not in reasons,
         "evaluation": model_evaluation(bundle, stock.ticker),
+        "covered_stock_count": len(covered_tickers),
     }

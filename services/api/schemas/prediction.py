@@ -41,3 +41,4 @@ class PredictionResponse(BaseModel):
     signal_probability: float | None
     models_agree: bool  # LSTM forecast direction matches the classifier signal
     evaluation: ModelEvaluation | None = None
+    covered_stock_count: int  # how many stocks the current model forecasts

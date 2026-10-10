@@ -117,6 +117,15 @@ export const getErrorCode = (error: unknown): string | null => {
   return null;
 };
 
+/** The structured `detail` object of an API error (code, message and any extra fields), if any. */
+export const getErrorDetail = (error: unknown): Record<string, unknown> | null => {
+  if (axios.isAxiosError(error)) {
+    const detail = error.response?.data?.detail;
+    if (detail && typeof detail === 'object' && !Array.isArray(detail)) return detail;
+  }
+  return null;
+};
+
 /** Field-level problems from a FastAPI 422 response: the field name and the server's message. */
 export const getValidationErrors = (error: unknown): { field: string; message: string }[] => {
   if (!axios.isAxiosError(error) || error.response?.status !== 422) return [];

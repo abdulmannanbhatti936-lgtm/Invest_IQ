@@ -1,16 +1,21 @@
 """
 Training and evaluation of the pooled LSTM forecaster and Random Forest signal classifier
 (Workflow.md Steps 3.4-3.5, Architecture.md §15). Training never runs inside an HTTP
-request (Rules.md §3.5): it runs from the `ml.train` CLI or the weekly Celery job.
+request (Rules.md §3.5): it runs from the `ml.train` CLI or the weekly Celery job, and it
+only ever produces a candidate; ml/promote.py makes a candidate live.
 
 One model of each kind is trained on all tickers together ("pooled"): the inputs are
-scale-free, and pooling gives ~15,000 training rows instead of ~850 per stock. Evaluation:
+scale-free, and pooling gives ~15,000 training rows instead of ~820 per stock. Evaluation:
 - chronological 70/15/15 split with the same cut dates for every ticker; the row at each
   boundary is purged (ml/splits.py); the scaler and the target scale are fitted on the
   training period only;
 - the LSTM is compared with "tomorrow = today" (naive) and a 5-day moving average, and its
   direction with the training-period majority direction and a 20-day trend rule;
-- the Random Forest is compared with the majority class and the same trend rule;
+- the Random Forest's min_samples_leaf comes from a grid declared in advance (RF_GRID),
+  chosen on the validation period only; it is compared with the majority class and the
+  same trend rule;
+- the LSTM settings are the Architecture.md §15.1 starting point, not tuned; only the
+  stopping epoch is chosen, by validation loss;
 - a 3-fold expanding walk-forward repeats the whole fit to show how stable the result is.
 The SVM classifier was dropped (decision 2026-10-10): one well-evaluated classifier.
 """
@@ -34,7 +39,14 @@ from core.config import settings
 from ml import lstm_model, metrics
 from ml.confidence import MC_PASSES, MC_SEED, DirectionCalibrator, certainty
 from ml.dataset import dividend_adjusted
-from ml.features import FEATURE_COLUMNS, SIGNAL_LABELS, SIGNAL_THRESHOLD, build_feature_frame
+from ml.features import (
+    CLASS_ORDER,
+    FEATURE_COLUMNS,
+    SIGNAL_LABELS,
+    SIGNAL_THRESHOLD,
+    build_feature_frame,
+)
+from ml.report import REPORT_FILE, write_report
 from ml.splits import CutDates, assign_periods, shared_cut_dates, walk_forward_folds
 
 logger = logging.getLogger(__name__)
@@ -47,7 +59,6 @@ WALK_FORWARD_FOLDS = 3
 WALK_FORWARD_TEST_FRAC = 0.30
 MIN_TRAINING_ROWS = 400  # per ticker, ~1.6 trading years after indicator warm-up
 CONFIDENCE_BANDS = (0.50, 0.55, 0.60, 0.65)
-CLASS_ORDER = [-1, 0, 1]  # SELL, HOLD, BUY
 
 LSTM_HYPERPARAMS = {
     "seq_length": SEQ_LENGTH,
@@ -64,10 +75,13 @@ LSTM_HYPERPARAMS = {
 RF_PARAMS = {
     "n_estimators": 300,
     "max_depth": 6,
-    "min_samples_leaf": 20,
     "class_weight": "balanced_subsample",
     "random_state": SEED,
 }
+# Declared before training (decision 2026-10-10). Each value is fitted on the training period
+# and scored on the validation period only; the test period never takes part in the choice.
+RF_GRID = {"min_samples_leaf": (5, 10, 20, 40)}
+RF_SELECTION_METRIC = "balanced_accuracy"
 
 
 class InsufficientDataError(ValueError):
@@ -139,12 +153,37 @@ def lstm_outputs(
     return forecast, spread
 
 
+def select_rf_params(
+    train: pd.DataFrame, val: pd.DataFrame, rf_base: dict, rf_grid: dict
+) -> tuple[dict, list[dict]]:
+    """
+    Fit one forest per grid value on `train`, score each on `val` by balanced accuracy and
+    return the winner plus every score. A tie goes to the larger min_samples_leaf (the
+    simpler forest). `rf_grid` holds a single parameter.
+    """
+    ((name, values),) = rf_grid.items()
+    X_train, y_train = train[FEATURE_COLUMNS].to_numpy(), train["target_signal"].astype(int)
+    X_val, y_val = val[FEATURE_COLUMNS].to_numpy(), val["target_signal"].astype(int)
+    scores = []
+    for value in values:
+        forest = RandomForestClassifier(**rf_base, **{name: value}, n_jobs=-1).fit(
+            X_train, y_train.to_numpy()
+        )
+        summary = metrics.classification_summary(
+            y_val.to_numpy(), forest.predict(X_val), CLASS_ORDER, probabilities=None
+        )
+        scores.append({name: value, f"val_{RF_SELECTION_METRIC}": summary[RF_SELECTION_METRIC]})
+    best = max(scores, key=lambda s: (s[f"val_{RF_SELECTION_METRIC}"], s[name]))
+    return {**rf_base, name: best[name]}, scores
+
+
 def fit_and_evaluate(
     frames: dict[str, pd.DataFrame],
     cuts: CutDates,
     *,
     lstm_epochs: int = LSTM_HYPERPARAMS["max_epochs"],
-    rf_params: dict | None = None,
+    rf_base: dict = RF_PARAMS,
+    rf_grid: dict = RF_GRID,
 ) -> tuple[FittedModels, dict, pd.DataFrame]:
     """Fit everything for one set of cut dates; return the models, metrics, test rows."""
     samples = _samples(frames, cuts)
@@ -189,8 +228,13 @@ def fit_and_evaluate(
     )
 
     started = time.perf_counter()
+    rf_params, rf_scores = select_rf_params(
+        train, samples[samples["period"] == "val"], rf_base, rf_grid
+    )
+    # The chosen settings are refitted on train + validation, so the forest sees every
+    # pre-test row; the test period is scored once, below
     fit_rows = samples[samples["period"].isin(["train", "val"])]
-    forest = RandomForestClassifier(**(rf_params or RF_PARAMS), n_jobs=-1).fit(
+    forest = RandomForestClassifier(**rf_params, n_jobs=-1).fit(
         fit_rows[FEATURE_COLUMNS].to_numpy(), fit_rows["target_signal"].astype(int).to_numpy()
     )
     forest_seconds = time.perf_counter() - started
@@ -218,6 +262,11 @@ def fit_and_evaluate(
         "lstm_seconds": round(lstm_seconds, 1),
         "random_forest_seconds": round(forest_seconds, 1),
         "y_std": y_std,
+        "rf_params": rf_params,
+        "rf_selection": {
+            "metric": f"{RF_SELECTION_METRIC} on the validation period",
+            "grid": rf_scores,
+        },
         "val_direction_hit_rate": float(
             np.mean(np.sign(val_forecast[moved]) == np.sign(val_actual[moved]))
         ),
@@ -395,6 +444,7 @@ def walk_forward(frames: dict[str, pd.DataFrame], **fit_kwargs) -> dict:
         folds.append(
             {
                 **_fold_summary(evaluation),
+                "rf_params": models.training["rf_params"],
                 "lstm_seconds": models.training["lstm_seconds"],
                 "random_forest_seconds": models.training["random_forest_seconds"],
             }
@@ -415,11 +465,13 @@ def train_and_save(
     version: str | None = None,
     run_walk_forward: bool = True,
     lstm_epochs: int = LSTM_HYPERPARAMS["max_epochs"],
-    rf_params: dict | None = None,
+    rf_base: dict = RF_PARAMS,
+    rf_grid: dict = RF_GRID,
 ) -> dict:
     """
-    Fit the final 70/15/15 models, optionally the walk-forward folds, save the artifacts
-    under <model_dir>/<version>/ and point <model_dir>/latest.json at them.
+    Fit the final 70/15/15 models, optionally the walk-forward folds, and save the artifacts
+    and the evaluation report under <model_dir>/<version>/. This only ever creates a
+    candidate: it never touches the active pointer (ml/promote.py, Workflow.md Appendix E).
     `dataset` describes the input (name and per-file hashes) and is stored with the model.
     """
     version = version or new_model_version()
@@ -427,10 +479,10 @@ def train_and_save(
     frames = prepare_frames(raw)
     cuts = shared_cut_dates(pd.concat([f["date"] for f in frames.values()]), TRAIN_FRAC, VAL_FRAC)
     models, evaluation, _ = fit_and_evaluate(
-        frames, cuts, lstm_epochs=lstm_epochs, rf_params=rf_params
+        frames, cuts, lstm_epochs=lstm_epochs, rf_base=rf_base, rf_grid=rf_grid
     )
     folds = (
-        walk_forward(frames, lstm_epochs=lstm_epochs, rf_params=rf_params)
+        walk_forward(frames, lstm_epochs=lstm_epochs, rf_base=rf_base, rf_grid=rf_grid)
         if run_walk_forward
         else None
     )
@@ -464,7 +516,8 @@ def train_and_save(
             "training": models.training,
         },
         "random_forest": {
-            "hyperparameters": rf_params or RF_PARAMS,
+            "hyperparameters": models.training["rf_params"],
+            "grid": {name: list(values) for name, values in rf_grid.items()},
             "feature_importance": [{"feature": f, "importance": float(i)} for f, i in importances],
         },
         "evaluation": evaluation,
@@ -506,6 +559,4 @@ def save_artifacts(models: FittedModels, metadata: dict, model_dir: Path, versio
     (out / "metadata.json").write_text(
         json.dumps(metadata, indent=2) + "\n", encoding="utf-8", newline="\n"
     )
-    (model_dir / "latest.json").write_text(
-        json.dumps({"model_version": version}) + "\n", newline="\n"
-    )
+    write_report(metadata, out / REPORT_FILE)

@@ -1,6 +1,6 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 import { AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, Info } from 'lucide-react';
-import { getErrorCode, getErrorStatus } from '@investiq/api-client';
+import { getErrorCode, getErrorDetail, getErrorStatus } from '@investiq/api-client';
 import { useTranslation } from '@investiq/i18n';
 import type { Prediction, Signal } from '@investiq/shared-types';
 import { Badge } from '../../components/ui/Badge';
@@ -158,7 +158,9 @@ const Unavailable = ({ error, ticker }: { error: unknown; ticker: string }) => {
     return (
       <Notice>
         <p className="font-medium text-gray-900">{t('prediction.notCoveredTitle')}</p>
-        <p className="mt-1">{t(key, { ticker })}</p>
+        <p className="mt-1">
+          {t(key, { ticker, stocks: getErrorDetail(error)?.covered_stock_count })}
+        </p>
       </Notice>
     );
   }

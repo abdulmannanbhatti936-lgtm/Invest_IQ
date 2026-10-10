@@ -17,7 +17,7 @@ from services.prediction_service import (
     generate_prediction,
     low_confidence_reasons,
 )
-from tests.fixtures.build_model_fixture import FIXTURE_DIR, FIXTURE_VERSION
+from tests.fixtures.build_model_fixture import FIXTURE_DIR, FIXTURE_VERSION, MOCK_TICKERS
 from tests.synthetic import make_ohlcv
 from worker.tasks import run_predictions, upsert_price_points
 
@@ -150,6 +150,7 @@ def test_confident_prediction(client, db, mock_model, edge):
     assert data["low_confidence"] is False and data["low_confidence_reasons"] == []
     assert data["low_confidence_threshold"] == settings.LOW_CONFIDENCE_THRESHOLD == 0.6
     assert data["models_agree"] is True
+    assert data["covered_stock_count"] == len(MOCK_TICKERS)
     ev = data["evaluation"]
     assert ev["beats_naive"] is True and len(ev["top_features"]) == 3
     expected_error = mock_model.ticker_evaluation("MOCKA")["lstm_rmse_pct"]
@@ -191,14 +192,18 @@ def test_stock_outside_the_model_has_no_forecast(client, db, mock_model):
     # HBL is a real catalog stock, but the current model was not trained on it
     response = client.get("/stocks/HBL/prediction")
     assert response.status_code == 404
-    assert response.json()["detail"]["code"] == "not_covered"
+    detail = response.json()["detail"]
+    assert detail["code"] == "not_covered"
+    assert detail["covered_stock_count"] == len(MOCK_TICKERS)
 
 
 def test_without_a_model_coverage_follows_the_tracked_list(
     client, db, monkeypatch, tmp_path, fake_redis
 ):
     monkeypatch.setattr(settings, "MODEL_DIR", str(tmp_path))
-    assert client.get("/stocks/MCB/prediction").json()["detail"]["code"] == "not_covered"
+    detail = client.get("/stocks/MCB/prediction").json()["detail"]
+    assert detail["code"] == "not_covered"
+    assert detail["covered_stock_count"] == len(settings.tracked_tickers)
     assert client.get("/stocks/HBL/prediction").json()["detail"]["code"] == "insufficient_data"
 
 

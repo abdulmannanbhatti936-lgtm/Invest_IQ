@@ -50,7 +50,8 @@ celery_app.conf.beat_schedule = {
     },
     "retrain-models-weekly": {
         "task": "worker.tasks.train_models",
-        # Weekly retrain (PRD.md FR15), Saturday night
+        # Weekly retrain (PRD.md FR15), Saturday night: trains a candidate only; the live
+        # model changes when a person promotes it (ml/promote.py)
         "schedule": crontab(hour=22, minute=0, day_of_week="sat"),
     },
 }
