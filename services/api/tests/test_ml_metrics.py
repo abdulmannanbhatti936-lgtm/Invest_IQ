@@ -78,3 +78,15 @@ def test_calibrator_is_monotone_and_bounded():
     assert np.all(np.diff(out) >= 0) and out.min() >= 0 and out.max() <= 1
     assert out[-1] == calibrator.predict(np.array([3.0]))[0]  # clipped beyond the fit range
     assert certainty(np.array([0.01]), np.array([0.0]))[0] > 1e5  # zero spread is guarded
+
+
+def test_diebold_mariano_newey_west_widens_for_overlapping_errors():
+    # Five-day forecasts made each day share four days of outcome: errors come in runs
+    rng = np.random.default_rng(1)
+    shocks = rng.normal(0.05, 1.0, 400)
+    d = np.convolve(shocks, np.ones(5), mode="valid")
+    plain = diebold_mariano(d, np.zeros_like(d))
+    overlapping = diebold_mariano(d, np.zeros_like(d), lag=4)
+    assert overlapping["lag"] == 4
+    assert abs(overlapping["statistic"]) < abs(plain["statistic"])
+    assert diebold_mariano(d, np.zeros_like(d), lag=0)["statistic"] == plain["statistic"]

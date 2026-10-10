@@ -18,6 +18,11 @@ scale-free, and pooling gives ~15,000 training rows instead of ~820 per stock. E
   stopping epoch is chosen, by validation loss;
 - a 3-fold expanding walk-forward repeats the whole fit to show how stable the result is.
 The SVM classifier was dropped (decision 2026-10-10): one well-evaluated classifier.
+
+Phase 4 adds two options with the defaults unchanged: `features` (the price inputs, or the
+price inputs plus the news inputs of ml/features.py) and `horizon` (next day, or the
+pre-declared 5-day experiment with +/-2.24% labels, a 5-row embargo at each boundary and a
+Newey-West Diebold-Mariano test).
 """
 
 import json
@@ -42,6 +47,7 @@ from ml.dataset import dividend_adjusted
 from ml.features import (
     CLASS_ORDER,
     FEATURE_COLUMNS,
+    SENTIMENT_COLUMNS,
     SIGNAL_LABELS,
     SIGNAL_THRESHOLD,
     build_feature_frame,
@@ -63,7 +69,7 @@ CONFIDENCE_BANDS = (0.50, 0.55, 0.60, 0.65)
 LSTM_HYPERPARAMS = {
     "seq_length": SEQ_LENGTH,
     "layers": "LSTM(64) -> LSTM(32) -> Dropout(0.2) -> Dense(1)",
-    "target": "next-day return of the dividend-adjusted close, divided by its training std",
+    "target": "return of the dividend-adjusted close over the horizon, / its training std",
     "optimizer": "Adam",
     "lr": 1e-3,
     "batch_size": 64,
@@ -92,11 +98,25 @@ def new_model_version() -> str:
     return "lstm-rf-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
-def prepare_frames(raw: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
-    """Served bars with dividend factors -> the model's feature frame per ticker."""
+def prepare_frames(
+    raw: dict[str, pd.DataFrame],
+    headlines: dict[str, pd.DataFrame] | None = None,
+    horizon: int = 1,
+    threshold: float = SIGNAL_THRESHOLD,
+) -> dict[str, pd.DataFrame]:
+    """
+    Served bars with dividend factors -> the model's feature frame per ticker. With
+    `headlines` (scored news per ticker; a ticker without any gets an empty frame) the news
+    inputs are added.
+    """
     frames = {}
     for ticker, frame in raw.items():
-        features = build_feature_frame(dividend_adjusted(frame))
+        news = None
+        if headlines is not None:
+            news = headlines.get(ticker, pd.DataFrame({"published_at": [], "score": []}))
+        features = build_feature_frame(
+            dividend_adjusted(frame), news, horizon=horizon, threshold=threshold
+        )
         if features["target_return"].notna().sum() < MIN_TRAINING_ROWS:
             raise InsufficientDataError(
                 f"{ticker}: {len(features)} usable rows, need at least {MIN_TRAINING_ROWS}"
@@ -107,12 +127,12 @@ def prepare_frames(raw: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
     return frames
 
 
-def _samples(frames: dict[str, pd.DataFrame], cuts: CutDates) -> pd.DataFrame:
+def _samples(frames: dict[str, pd.DataFrame], cuts: CutDates, horizon: int = 1) -> pd.DataFrame:
     """Every labelled row of every ticker with its period, ticker and row position."""
     parts = []
     for ticker, frame in frames.items():
         labelled = frame[frame["target_return"].notna()].copy()
-        labelled["period"] = assign_periods(labelled["date"], cuts)
+        labelled["period"] = assign_periods(labelled["date"], cuts, horizon)
         labelled["ticker"] = ticker
         labelled["row"] = labelled.index
         parts.append(labelled)
@@ -154,7 +174,11 @@ def lstm_outputs(
 
 
 def select_rf_params(
-    train: pd.DataFrame, val: pd.DataFrame, rf_base: dict, rf_grid: dict
+    train: pd.DataFrame,
+    val: pd.DataFrame,
+    rf_base: dict,
+    rf_grid: dict,
+    features: list[str] = FEATURE_COLUMNS,
 ) -> tuple[dict, list[dict]]:
     """
     Fit one forest per grid value on `train`, score each on `val` by balanced accuracy and
@@ -162,8 +186,8 @@ def select_rf_params(
     simpler forest). `rf_grid` holds a single parameter.
     """
     ((name, values),) = rf_grid.items()
-    X_train, y_train = train[FEATURE_COLUMNS].to_numpy(), train["target_signal"].astype(int)
-    X_val, y_val = val[FEATURE_COLUMNS].to_numpy(), val["target_signal"].astype(int)
+    X_train, y_train = train[features].to_numpy(), train["target_signal"].astype(int)
+    X_val, y_val = val[features].to_numpy(), val["target_signal"].astype(int)
     scores = []
     for value in values:
         forest = RandomForestClassifier(**rf_base, **{name: value}, n_jobs=-1).fit(
@@ -184,15 +208,17 @@ def fit_and_evaluate(
     lstm_epochs: int = LSTM_HYPERPARAMS["max_epochs"],
     rf_base: dict = RF_PARAMS,
     rf_grid: dict = RF_GRID,
+    features: list[str] = FEATURE_COLUMNS,
+    horizon: int = 1,
 ) -> tuple[FittedModels, dict, pd.DataFrame]:
     """Fit everything for one set of cut dates; return the models, metrics, test rows."""
-    samples = _samples(frames, cuts)
+    samples = _samples(frames, cuts, horizon)
     train = samples[samples["period"] == "train"]
 
-    scaler = StandardScaler().fit(train[FEATURE_COLUMNS])
+    scaler = StandardScaler().fit(train[features])
     y_std = float(train["target_return"].std())
     scaled = {
-        ticker: scaler.transform(frame[FEATURE_COLUMNS]).astype(np.float32)
+        ticker: scaler.transform(frame[features]).astype(np.float32)
         for ticker, frame in frames.items()
     }
 
@@ -229,20 +255,20 @@ def fit_and_evaluate(
 
     started = time.perf_counter()
     rf_params, rf_scores = select_rf_params(
-        train, samples[samples["period"] == "val"], rf_base, rf_grid
+        train, samples[samples["period"] == "val"], rf_base, rf_grid, features
     )
     # The chosen settings are refitted on train + validation, so the forest sees every
     # pre-test row; the test period is scored once, below
     fit_rows = samples[samples["period"].isin(["train", "val"])]
     forest = RandomForestClassifier(**rf_params, n_jobs=-1).fit(
-        fit_rows[FEATURE_COLUMNS].to_numpy(), fit_rows["target_signal"].astype(int).to_numpy()
+        fit_rows[features].to_numpy(), fit_rows["target_signal"].astype(int).to_numpy()
     )
     forest_seconds = time.perf_counter() - started
 
     test = lstm_rows["test"].copy()
     test["forecast_return"], test["spread"] = lstm_outputs(lstm, y_std, X["test"])
     test["confidence"] = calibrator.predict(certainty(test["forecast_return"], test["spread"]))
-    probabilities = forest.predict_proba(test[FEATURE_COLUMNS].to_numpy())
+    probabilities = forest.predict_proba(test[features].to_numpy())
     classes = [int(c) for c in forest.classes_]
     for label in CLASS_ORDER:
         test[f"p_{label}"] = probabilities[:, classes.index(label)] if label in classes else 0.0
@@ -270,9 +296,17 @@ def fit_and_evaluate(
         "val_direction_hit_rate": float(
             np.mean(np.sign(val_forecast[moved]) == np.sign(val_actual[moved]))
         ),
+        # All a with/without-sentiment choice may look at: validation only, never test
+        "validation": {
+            "lstm_rmse_pct": metrics.price_error_summary(
+                lstm_rows["val"]["close"].to_numpy() * (1 + val_forecast),
+                lstm_rows["val"]["next_close"].to_numpy(),
+            )["rmse_pct"],
+            "rf_balanced_accuracy": max(score[f"val_{RF_SELECTION_METRIC}"] for score in rf_scores),
+        },
     }
     models = FittedModels(scaler, y_std, lstm, calibrator, forest, training)
-    evaluation = evaluate(test, train, training["val_direction_hit_rate"])
+    evaluation = evaluate(test, train, training["val_direction_hit_rate"], horizon)
     evaluation["periods"] = period_summary
     return models, evaluation, test
 
@@ -306,7 +340,9 @@ def _ticker_lstm_summary(rows: pd.DataFrame, majority_direction: int) -> dict:
     }
 
 
-def evaluate(test: pd.DataFrame, train: pd.DataFrame, val_hit_rate: float) -> dict:
+def evaluate(
+    test: pd.DataFrame, train: pd.DataFrame, val_hit_rate: float, horizon: int = 1
+) -> dict:
     """Test-period metrics for both models and every baseline."""
     actual = test["next_close"].to_numpy()
     close = test["close"].to_numpy()
@@ -363,7 +399,7 @@ def evaluate(test: pd.DataFrame, train: pd.DataFrame, val_hit_rate: float) -> di
             **lstm_err,
             "theil_u": lstm_err["rmse_pct"] / naive_err["rmse_pct"],
             "diebold_mariano_vs_naive": metrics.diebold_mariano(
-                daily["model"].to_numpy(), daily["naive"].to_numpy()
+                daily["model"].to_numpy(), daily["naive"].to_numpy(), lag=horizon - 1
             ),
             "direction": metrics.direction_summary(
                 test["forecast_return"].to_numpy(), target, majority_rate
@@ -467,28 +503,35 @@ def train_and_save(
     lstm_epochs: int = LSTM_HYPERPARAMS["max_epochs"],
     rf_base: dict = RF_PARAMS,
     rf_grid: dict = RF_GRID,
+    headlines: dict[str, pd.DataFrame] | None = None,
+    news: dict | None = None,
+    fallback_model_version: str | None = None,
 ) -> dict:
     """
     Fit the final 70/15/15 models, optionally the walk-forward folds, and save the artifacts
     and the evaluation report under <model_dir>/<version>/. This only ever creates a
     candidate: it never touches the active pointer (ml/promote.py, Workflow.md Appendix E).
     `dataset` describes the input (name and per-file hashes) and is stored with the model.
+    With `headlines` the model also reads the news inputs; `news` then describes the news
+    dataset, and `fallback_model_version` names the price-only model served when the news
+    sources are stale (PRD.md FR22).
     """
     version = version or new_model_version()
     started = time.perf_counter()
-    frames = prepare_frames(raw)
+    features = FEATURE_COLUMNS + (SENTIMENT_COLUMNS if headlines is not None else [])
+    frames = prepare_frames(raw, headlines)
     cuts = shared_cut_dates(pd.concat([f["date"] for f in frames.values()]), TRAIN_FRAC, VAL_FRAC)
-    models, evaluation, _ = fit_and_evaluate(
-        frames, cuts, lstm_epochs=lstm_epochs, rf_base=rf_base, rf_grid=rf_grid
-    )
-    folds = (
-        walk_forward(frames, lstm_epochs=lstm_epochs, rf_base=rf_base, rf_grid=rf_grid)
-        if run_walk_forward
-        else None
-    )
+    fit_kwargs = {
+        "lstm_epochs": lstm_epochs,
+        "rf_base": rf_base,
+        "rf_grid": rf_grid,
+        "features": features,
+    }
+    models, evaluation, _ = fit_and_evaluate(frames, cuts, **fit_kwargs)
+    folds = walk_forward(frames, **fit_kwargs) if run_walk_forward else None
 
     importances = sorted(
-        zip(FEATURE_COLUMNS, models.forest.feature_importances_, strict=True), key=lambda kv: -kv[1]
+        zip(features, models.forest.feature_importances_, strict=True), key=lambda kv: -kv[1]
     )
     metadata = {
         "model_version": version,
@@ -509,7 +552,9 @@ def train_and_save(
             "periods": evaluation.pop("periods"),
             "label_threshold": SIGNAL_THRESHOLD,
         },
-        "features": FEATURE_COLUMNS,
+        "features": features,
+        "news": news,
+        "fallback_model_version": fallback_model_version,
         "seed": SEED,
         "lstm": {
             "hyperparameters": {**LSTM_HYPERPARAMS, "max_epochs": lstm_epochs},
@@ -550,7 +595,7 @@ def save_artifacts(models: FittedModels, metadata: dict, model_dir: Path, versio
             "scaler": models.scaler,
             "y_std": models.y_std,
             "seq_length": SEQ_LENGTH,
-            "features": FEATURE_COLUMNS,
+            "features": metadata["features"],
         },
         out / "preprocess.joblib",
     )
