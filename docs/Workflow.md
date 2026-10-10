@@ -280,12 +280,12 @@ _(Repeat this same discipline — DB models → backend logic → tests → fron
 
 ### Step 4.2 — Scraper Module
 
-**Do:** Build scraper(s) with respectful request intervals, retries, and explicit error handling from the start (Rules.md §3.3). Store raw scraped articles/headlines with timestamps.
+**Do:** Build scraper(s) in `services/api/integrations/news/` with respectful request intervals, retries, and explicit error handling from the start (Rules.md §3.3). Store headlines with source, URL and timestamps (never article text; decided 2026-10-11).
 **Checkpoint ✅:** Running the scraper once against a live source returns real, correctly-parsed headlines for at least one test company.
 
 ### Step 4.3 — FinBERT Inference Module
 
-**Do:** Load a pre-trained FinBERT model (HuggingFace), build `services/sentiment-engine/finbert_infer.py` — takes text, returns label + confidence.
+**Do:** Load a pre-trained FinBERT model (HuggingFace), build `services/api/ml/sentiment.py` — takes text, returns label + confidence. (Path updated 2026-10-11: ML code lives inside `services/api`, Architecture.md §5/§6.5.)
 **Checkpoint ✅:** Running on a known clearly-positive and clearly-negative headline returns the expected label.
 
 ### Step 4.4 — VADER Fallback Logic
