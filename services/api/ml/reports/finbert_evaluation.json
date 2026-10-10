@@ -1,0 +1,282 @@
+{
+  "created_at": "2026-10-10T20:51:01.745201+00:00",
+  "finbert": "ProsusAI/finbert@4556d13",
+  "vader": "vaderSentiment==3.3.2",
+  "fallback_rule": "VADER when FinBERT top probability < 0.5 or the text has 3 words or fewer",
+  "prd_target_accuracy": 0.85,
+  "financial_phrasebank": {
+    "revision": "8d3fe0c36d5feec6b3cc5e455b0fcb4820fb9964",
+    "caveat": "optimistic: FinBERT was fine-tuned on Financial PhraseBank",
+    "all_agree": {
+      "rows": 2264,
+      "finbert": {
+        "accuracy": 0.9717314487632509,
+        "balanced_accuracy": 0.9758738660956036,
+        "f1_macro": 0.962503461452302,
+        "per_class": {
+          "positive": {
+            "precision": 0.9472789115646258,
+            "recall": 0.9771929824561404,
+            "support": 570
+          },
+          "negative": {
+            "precision": 0.9057750759878419,
+            "recall": 0.9834983498349835,
+            "support": 303
+          },
+          "neutral": {
+            "precision": 0.9985152190051967,
+            "recall": 0.9669302659956865,
+            "support": 1391
+          }
+        },
+        "confusion_matrix": [
+          [
+            557,
+            12,
+            1
+          ],
+          [
+            4,
+            298,
+            1
+          ],
+          [
+            27,
+            19,
+            1345
+          ]
+        ],
+        "accuracy_ci95": [
+          0.9646643109540636,
+          0.9783568904593639
+        ]
+      },
+      "vader": {
+        "accuracy": 0.571113074204947,
+        "balanced_accuracy": 0.5133282975276225,
+        "f1_macro": 0.48714886272316676,
+        "per_class": {
+          "positive": {
+            "precision": 0.38924930491195553,
+            "recall": 0.7368421052631579,
+            "support": 570
+          },
+          "negative": {
+            "precision": 0.3675675675675676,
+            "recall": 0.22442244224422442,
+            "support": 303
+          },
+          "neutral": {
+            "precision": 0.805,
+            "recall": 0.5787203450754853,
+            "support": 1391
+          }
+        },
+        "confusion_matrix": [
+          [
+            420,
+            38,
+            112
+          ],
+          [
+            152,
+            68,
+            83
+          ],
+          [
+            507,
+            79,
+            805
+          ]
+        ],
+        "accuracy_ci95": [
+          0.551678445229682,
+          0.5914310954063604
+        ]
+      },
+      "finbert_with_vader_fallback": {
+        "accuracy": 0.9721731448763251,
+        "balanced_accuracy": 0.9761135018492579,
+        "f1_macro": 0.9633485413728041,
+        "per_class": {
+          "positive": {
+            "precision": 0.9456706281833617,
+            "recall": 0.9771929824561404,
+            "support": 570
+          },
+          "negative": {
+            "precision": 0.9113149847094801,
+            "recall": 0.9834983498349835,
+            "support": 303
+          },
+          "neutral": {
+            "precision": 0.9985163204747775,
+            "recall": 0.9676491732566499,
+            "support": 1391
+          }
+        },
+        "confusion_matrix": [
+          [
+            557,
+            12,
+            1
+          ],
+          [
+            4,
+            298,
+            1
+          ],
+          [
+            28,
+            17,
+            1346
+          ]
+        ],
+        "accuracy_ci95": [
+          0.9651060070671378,
+          0.9783568904593639
+        ]
+      },
+      "vader_changed_label_share": 0.0017667844522968198
+    },
+    "50_agree": {
+      "rows": 4846,
+      "finbert": {
+        "accuracy": 0.8895996698307883,
+        "balanced_accuracy": 0.9162994939486847,
+        "f1_macro": 0.8825330133105712,
+        "per_class": {
+          "positive": {
+            "precision": 0.8102001291155584,
+            "recall": 0.9207630227439472,
+            "support": 1363
+          },
+          "negative": {
+            "precision": 0.8027397260273973,
+            "recall": 0.9701986754966887,
+            "support": 604
+          },
+          "neutral": {
+            "precision": 0.9622126996493962,
+            "recall": 0.8579367836054186,
+            "support": 2879
+          }
+        },
+        "confusion_matrix": [
+          [
+            1255,
+            22,
+            86
+          ],
+          [
+            7,
+            586,
+            11
+          ],
+          [
+            287,
+            122,
+            2470
+          ]
+        ],
+        "accuracy_ci95": [
+          0.8809327280231118,
+          0.8982666116384647
+        ]
+      },
+      "vader": {
+        "accuracy": 0.5433347090383822,
+        "balanced_accuracy": 0.5074900348565876,
+        "f1_macro": 0.48886695974685684,
+        "per_class": {
+          "positive": {
+            "precision": 0.40166666666666667,
+            "recall": 0.7072633895818048,
+            "support": 1363
+          },
+          "negative": {
+            "precision": 0.40816326530612246,
+            "recall": 0.2980132450331126,
+            "support": 604
+          },
+          "neutral": {
+            "precision": 0.742643391521197,
+            "recall": 0.5171934699548454,
+            "support": 2879
+          }
+        },
+        "confusion_matrix": [
+          [
+            964,
+            68,
+            331
+          ],
+          [
+            239,
+            180,
+            185
+          ],
+          [
+            1197,
+            193,
+            1489
+          ]
+        ],
+        "accuracy_ci95": [
+          0.5295037144036319,
+          0.5575784151877837
+        ]
+      },
+      "finbert_with_vader_fallback": {
+        "accuracy": 0.8893933140734627,
+        "balanced_accuracy": 0.9160549353769069,
+        "f1_macro": 0.8827545977335163,
+        "per_class": {
+          "positive": {
+            "precision": 0.8090322580645162,
+            "recall": 0.9200293470286134,
+            "support": 1363
+          },
+          "negative": {
+            "precision": 0.8060522696011004,
+            "recall": 0.9701986754966887,
+            "support": 604
+          },
+          "neutral": {
+            "precision": 0.9614636045153756,
+            "recall": 0.8579367836054186,
+            "support": 2879
+          }
+        },
+        "confusion_matrix": [
+          [
+            1254,
+            22,
+            87
+          ],
+          [
+            6,
+            586,
+            12
+          ],
+          [
+            290,
+            119,
+            2470
+          ]
+        ],
+        "accuracy_ci95": [
+          0.8805200165084606,
+          0.8982666116384647
+        ]
+      },
+      "vader_changed_label_share": 0.0024762690879075525
+    }
+  },
+  "psx_headlines": {
+    "status": "pending team labels",
+    "rows": 162,
+    "rows_with_final_label": 0
+  }
+}
