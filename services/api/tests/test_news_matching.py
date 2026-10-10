@@ -21,6 +21,9 @@ def test_routine_items_carrying_a_bank_name_are_excluded():
     assert matcher.match("NBP issues foreign exchange rates") == set()
     assert matcher.match("HBL PMI: manufacturing activity rises") == set()
     assert matcher.match("NBP posts record profit") == {"NBP"}
+    # PSO also means an SBP payment system operator licence
+    assert matcher.match("Fintech secures PSO/PSP approval") == set()
+    assert matcher.match("PSO, OQ Trading sign petroleum supply agreement") == {"PSO"}
 
 
 def test_an_article_needs_a_tracked_stock_in_its_url_slug():

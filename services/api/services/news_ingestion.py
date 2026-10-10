@@ -206,18 +206,44 @@ def collect_all(
     return results
 
 
+def rematch(db: Session, matcher: TickerMatcher | None = None) -> list[tuple[str, str]]:
+    """
+    Remove stored rows whose stock the current alias and exclusion lists no longer match
+    (after a matching rule is corrected). Returns (ticker, url) for every row removed.
+    The rows are derived from public pages and can be collected again at any time.
+    """
+    matcher = matcher or default_matcher()
+    removed = []
+    rows = db.query(SentimentScore, Stock.ticker).join(Stock, Stock.id == SentimentScore.stock_id)
+    for row, ticker in rows:
+        if ticker not in matcher.match_article(row.url, row.headline):
+            removed.append((ticker, row.url))
+            db.delete(row)
+    db.commit()
+    return removed
+
+
 def main() -> None:
-    """`python -m services.news_ingestion backfill [--since YYYY-MM-DD]`"""
+    """
+    `python -m services.news_ingestion backfill [--since YYYY-MM-DD]`, or `rematch` after a
+    change to the alias or exclusion lists.
+    """
     from core.database import SessionLocal
 
     parser = argparse.ArgumentParser(description=main.__doc__)
-    parser.add_argument("command", choices=["backfill"])
+    parser.add_argument("command", choices=["backfill", "rematch"])
     parser.add_argument("--since", type=datetime.date.fromisoformat, default=BACKFILL_START)
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     db = SessionLocal()
     try:
-        print(collect_all(db, args.since))
+        if args.command == "rematch":
+            removed = rematch(db)
+            for ticker, url in removed:
+                print(f"removed {ticker} {url}")
+            print(f"{len(removed)} rows no longer match")
+        else:
+            print(collect_all(db, args.since))
     finally:
         db.close()
 

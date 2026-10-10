@@ -118,6 +118,28 @@ def test_a_failing_source_is_recorded_and_the_others_still_run(db, monkeypatch):
     assert db.get(NewsSourceStatus, METTIS).last_success_at is not None
 
 
+def test_rematch_removes_rows_a_corrected_rule_no_longer_matches(db):
+    collector = Collector(db)
+    collector.store(_article(PROFIT, "pso-psp-licence-for-fintech", "MOCK_ fintech gets PSO/PSP"))
+    collector.store(_article(PROFIT, "pso-profit-rises", "MOCK_ PSO profit rises"))
+    # Stored under an older rule set; the current exclusions drop the payment-licence sense
+    db.add(
+        SentimentScore(
+            stock_id=collector.stock_ids["PSO"],
+            source=PROFIT,
+            url="https://example.com/MOCK/2026/10/08/meet-pso-the-fintech",
+            headline="MOCK_ Meet PSO, the fintech company",
+            published_at=datetime.datetime(2026, 10, 8, tzinfo=UTC),
+        )
+    )
+    db.commit()
+
+    removed = news_ingestion.rematch(db)
+
+    assert removed == [("PSO", "https://example.com/MOCK/2026/10/08/meet-pso-the-fintech")]
+    assert [r.url.rsplit("/", 1)[-1] for r in _rows(db)] == ["pso-profit-rises"]
+
+
 def test_articles_older_than_the_window_are_ignored(db):
     since = datetime.date(2026, 10, 9)
     assert Collector(db).store_articles([_article(PROFIT, "ogdc-x", "MOCK_ OGDC")], since) == 0
