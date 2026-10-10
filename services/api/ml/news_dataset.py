@@ -107,3 +107,23 @@ def news_reference(manifest: dict) -> dict:
         "sha256": manifest["sha256"],
         "scorer_versions": manifest["scorer_versions"],
     }
+
+
+def main() -> None:
+    """
+    `python -m ml.news_dataset`: write a news dataset version for the tracked tickers to the
+    git-ignored candidate folder; it is committed only by copying it into DATASET_DIR.
+    """
+    from core.config import settings
+    from core.database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        path = build_news_dataset(db, settings.tracked_tickers, settings.candidate_dataset_dir)
+    finally:
+        db.close()
+    print(f"News dataset written to {path}")
+
+
+if __name__ == "__main__":
+    main()
