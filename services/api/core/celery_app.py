@@ -34,14 +34,11 @@ celery_app.conf.beat_schedule = {
         # After the EOD price refresh: new ex-dates and re-assessment against current closes
         "schedule": crontab(hour=18, minute=15, day_of_week="mon-fri"),
     },
-    "fetch-hourly-news": {
-        "task": "worker.tasks.fetch_news_for_tickers",
-        "schedule": crontab(minute=0),
-    },
-    "analyze-hourly-news": {
-        "task": "worker.tasks.analyze_news_sentiment",
-        # Run at 5 minutes past the hour, right after fetching news
-        "schedule": crontab(minute=5),
+    "scrape-news-sentiment": {
+        "task": "worker.tasks.scrape_news_sentiment",
+        # Every 3 hours (decided 2026-10-11); sentiment is stale after 24 hours without a
+        # successful scrape of Profit and Mettis
+        "schedule": crontab(minute=0, hour="*/3"),
     },
     "run-daily-predictions": {
         "task": "worker.tasks.run_predictions",

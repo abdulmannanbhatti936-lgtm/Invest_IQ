@@ -29,7 +29,9 @@ class Stock(Base):
 
     # Relationship to price points
     price_points = relationship("PricePoint", back_populates="stock", cascade="all, delete-orphan")
-    sentiments = relationship("NewsSentiment", back_populates="stock", cascade="all, delete-orphan")
+    sentiments = relationship(
+        "SentimentScore", back_populates="stock", cascade="all, delete-orphan"
+    )
     predictions = relationship("Prediction", back_populates="stock", cascade="all, delete-orphan")
     splits = relationship("StockSplit", back_populates="stock", cascade="all, delete-orphan")
     dividends = relationship("StockDividend", back_populates="stock", cascade="all, delete-orphan")

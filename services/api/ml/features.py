@@ -11,10 +11,15 @@ Every feature uses trailing windows only (value at day t depends on days <= t), 
 inputs are scale-free (returns and ratios), so the backward dividend adjustment, which
 rescales whole stretches of history, cannot leak a future price level into a feature.
 
-The module is generic over an optional `sentiment_score` column so Phase 4 can
-merge sentiment in without restructuring (Workflow.md Step 4.6).
+News sentiment (Workflow.md Step 4.6, decided 2026-10-11) adds two inputs per day:
+`news_weight`, the time-decayed count of headlines over the last NEWS_WINDOW_DAYS trading
+days (half-life NEWS_HALF_LIFE_DAYS; 0 means no news), and `sentiment`, the decayed mean of
+their scores. A day without news gets sentiment 0 together with news_weight 0, so the model
+can tell "no news" apart from "neutral news". A headline published after the 15:30 PKT close
+counts for the next trading day, so a row never sees news from after its own close.
 """
 
+import datetime
 from collections.abc import Iterable
 
 import numpy as np
@@ -51,6 +56,13 @@ FEATURE_COLUMNS = [
     "volume_ratio_20d",
     "range_pct",
 ]
+
+# News inputs, used only by the with-sentiment models (Phase 4)
+SENTIMENT_COLUMNS = ["news_weight", "sentiment"]
+NEWS_WINDOW_DAYS = 10
+NEWS_HALF_LIFE_DAYS = 3
+MARKET_CLOSE = datetime.time(15, 30)
+PSX_TIMEZONE = "Asia/Karachi"
 
 # Next-day return thresholds for the buy/sell/hold label
 SIGNAL_THRESHOLD = 0.01
@@ -191,32 +203,71 @@ def add_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def add_sentiment_feature(df: pd.DataFrame, sentiments: Iterable | None) -> pd.DataFrame:
+def headline_trading_days(published_at: pd.Series, trading_days: pd.Series) -> pd.Series:
     """
-    Merge a daily mean sentiment score (missing days = 0.0 neutral).
-    Unscored headlines (sentiment_score is None) are ignored.
+    The trading day each headline counts for: the first trading day on or after its PSX
+    date, or after it when published after the close. NaT when that day is not in
+    `trading_days` yet (news after the last stored close).
+    """
+    local = pd.to_datetime(published_at, utc=True).dt.tz_convert(PSX_TIMEZONE)
+    after_close = local.dt.time > MARKET_CLOSE
+    day = local.dt.tz_localize(None).dt.normalize() + pd.to_timedelta(
+        after_close.astype(int), unit="D"
+    )
+    calendar = pd.DatetimeIndex(trading_days).sort_values()
+    if calendar.empty:
+        return pd.Series(pd.NaT, index=published_at.index, dtype="datetime64[ns]")
+    position = calendar.searchsorted(day.to_numpy())
+    inside = position < len(calendar)
+    return pd.Series(
+        np.where(inside, calendar[np.minimum(position, len(calendar) - 1)], pd.NaT),
+        index=published_at.index,
+        dtype="datetime64[ns]",
+    )
+
+
+def news_weights(age_in_trading_days: np.ndarray) -> np.ndarray:
+    """Weight of a headline by its age; zero outside the window."""
+    age = np.asarray(age_in_trading_days, dtype=float)
+    inside = (age >= 0) & (age < NEWS_WINDOW_DAYS)
+    return np.where(inside, 0.5 ** (age / NEWS_HALF_LIFE_DAYS), 0.0)
+
+
+def add_news_features(df: pd.DataFrame, headlines: pd.DataFrame) -> pd.DataFrame:
+    """
+    `news_weight` and `sentiment` per row from scored headlines (columns `published_at`,
+    UTC, and `score`). Rows are one stock's trading days in date order.
     """
     df = df.copy()
-    rows = [
-        {"date": pd.Timestamp(s.timestamp).normalize(), "score": float(s.sentiment_score)}
-        for s in (sentiments or [])
-        if s.sentiment_score is not None and s.timestamp is not None
-    ]
-    if not rows:
-        df["sentiment_score"] = 0.0
-        return df
-    daily = pd.DataFrame(rows).groupby("date")["score"].mean()
-    df["sentiment_score"] = df["date"].map(daily).fillna(0.0).astype(float)
+    weight = np.zeros(len(df))
+    weighted_score = np.zeros(len(df))
+    if len(df) and len(headlines):
+        days = headline_trading_days(headlines["published_at"], df["date"])
+        row_of_day = pd.Series(np.arange(len(df)), index=pd.DatetimeIndex(df["date"]))
+        known = days.notna()
+        rows = row_of_day.reindex(days[known]).to_numpy()
+        scores = headlines.loc[known, "score"].astype(float).to_numpy()
+        for offset in range(NEWS_WINDOW_DAYS):
+            target = rows + offset
+            inside = target < len(df)
+            w = news_weights(np.full(inside.sum(), offset))
+            np.add.at(weight, target[inside], w)
+            np.add.at(weighted_score, target[inside], w * scores[inside])
+    df["news_weight"] = weight
+    df["sentiment"] = np.divide(weighted_score, weight, out=np.zeros(len(df)), where=weight > 0)
     return df
 
 
-def add_targets(df: pd.DataFrame, threshold: float = SIGNAL_THRESHOLD) -> pd.DataFrame:
+def add_targets(
+    df: pd.DataFrame, threshold: float = SIGNAL_THRESHOLD, horizon: int = 1
+) -> pd.DataFrame:
     """
-    Targets for row t describe day t -> t+1. The last row has no target (NaN);
-    it is the row we predict for at inference time, so it is never dropped here.
+    Targets for row t describe day t -> t+horizon (next_close is the close `horizon`
+    trading days later). The last `horizon` rows have no target (NaN); the last one is the
+    row we predict for at inference time, so none is dropped here.
     """
     df = df.copy()
-    df["next_close"] = df["close"].shift(-1)
+    df["next_close"] = df["close"].shift(-horizon)
     df["target_return"] = df["next_close"] / df["close"] - 1
     signal = np.where(
         df["target_return"] > threshold, 1, np.where(df["target_return"] < -threshold, -1, 0)
@@ -225,17 +276,25 @@ def add_targets(df: pd.DataFrame, threshold: float = SIGNAL_THRESHOLD) -> pd.Dat
     return df
 
 
-def build_feature_frame(df: pd.DataFrame, sentiments: Iterable | None = None) -> pd.DataFrame:
+def build_feature_frame(
+    df: pd.DataFrame,
+    headlines: pd.DataFrame | None = None,
+    *,
+    horizon: int = 1,
+    threshold: float = SIGNAL_THRESHOLD,
+) -> pd.DataFrame:
     """
     OHLCV frame -> features + targets, with only the indicator warm-up rows removed.
-    The most recent row is always kept (its targets are NaN).
+    The most recent row is always kept (its targets are NaN). The news inputs are added
+    only when `headlines` is given (an empty frame means "no news at all").
     """
     df = normalize_ohlcv(df)
     if df.empty:
         return df
     df = add_technical_indicators(df)
-    df = add_sentiment_feature(df, sentiments)
-    df = add_targets(df)
+    if headlines is not None:
+        df = add_news_features(df, headlines)
+    df = add_targets(df, threshold, horizon)
     df = df.replace([np.inf, -np.inf], np.nan)
     df = df.dropna(subset=FEATURE_COLUMNS).reset_index(drop=True)
     return df

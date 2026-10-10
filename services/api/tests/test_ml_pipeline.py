@@ -9,10 +9,12 @@ import pytest
 
 from ml.features import (
     FEATURE_COLUMNS,
+    NEWS_HALF_LIFE_DAYS,
     WARMUP_ROWS,
-    add_sentiment_feature,
+    add_news_features,
     add_targets,
     build_feature_frame,
+    headline_trading_days,
     training_rows,
 )
 from ml.inference import ModelNotFoundError, load_bundle, models_agree, predict_next_day
@@ -52,14 +54,71 @@ def test_targets_are_next_day():
     assert pd.isna(t["target_signal"].iloc[3])  # no tomorrow yet
 
 
-def test_sentiment_merge_ignores_unscored():
-    df = pd.DataFrame({"date": pd.to_datetime(["2026-01-01", "2026-01-02"])})
-    s = [
-        SimpleNamespace(timestamp=pd.Timestamp("2026-01-01 10:00"), sentiment_score=0.5),
-        SimpleNamespace(timestamp=pd.Timestamp("2026-01-01 12:00"), sentiment_score=None),
-    ]
-    out = add_sentiment_feature(df, s)
-    assert out["sentiment_score"].tolist() == [0.5, 0.0]
+def test_targets_at_a_longer_horizon():
+    df = pd.DataFrame({"close": [100.0, 101.0, 99.0, 103.0]})
+    t = add_targets(df, threshold=0.0224, horizon=2)
+    assert t["next_close"].iloc[0] == 99.0
+    assert t["target_return"].iloc[1] == pytest.approx(103 / 101 - 1)
+    assert t["target_signal"].iloc[1] == 0  # +1.98% is inside the ±2.24% band
+    assert t[["target_return", "target_signal"]].iloc[2:].isna().all().all()
+
+
+# ---- News inputs (Workflow.md Step 4.6, decided 2026-10-11)
+
+TRADING_DAYS = pd.to_datetime(
+    ["2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08", "2026-01-09", "2026-01-12"]
+)
+
+
+def _headlines(*rows):
+    return pd.DataFrame(
+        {
+            "published_at": pd.to_datetime([r[0] for r in rows], utc=True),
+            "score": [r[1] for r in rows],
+        }
+    )
+
+
+def test_headline_after_the_close_counts_for_the_next_trading_day():
+    # 10:00 and 10:31 UTC are 15:00 and 15:31 PKT; Saturday news waits for Monday
+    published = _headlines(
+        ("2026-01-05 10:00", 0.0), ("2026-01-05 10:31", 0.0), ("2026-01-10 06:00", 0.0)
+    )["published_at"]
+    days = headline_trading_days(published, pd.Series(TRADING_DAYS))
+    assert list(days) == list(pd.to_datetime(["2026-01-05", "2026-01-06", "2026-01-12"]))
+
+
+def test_news_after_the_last_stored_close_is_not_used():
+    published = _headlines(("2026-01-12 11:00", 0.5))["published_at"]
+    assert headline_trading_days(published, pd.Series(TRADING_DAYS)).isna().all()
+
+
+def test_news_features_decay_and_mark_days_without_news():
+    frame = pd.DataFrame({"date": TRADING_DAYS})
+    out = add_news_features(
+        frame, _headlines(("2026-01-06 05:00", 0.8), ("2026-01-06 06:00", -0.2))
+    )
+    # No news yet on the first day: weight 0 and sentiment 0, never a guessed value
+    assert out["news_weight"].iloc[0] == 0 and out["sentiment"].iloc[0] == 0
+    assert out["news_weight"].iloc[1] == pytest.approx(2.0)
+    assert out["sentiment"].iloc[1] == pytest.approx(0.3)
+    # Three trading days later each headline counts half
+    assert out["news_weight"].iloc[1 + NEWS_HALF_LIFE_DAYS] == pytest.approx(1.0)
+    assert out["sentiment"].iloc[1 + NEWS_HALF_LIFE_DAYS] == pytest.approx(0.3)
+
+
+def test_news_older_than_the_window_is_dropped():
+    days = pd.Series(pd.bdate_range("2026-01-05", periods=12))
+    out = add_news_features(pd.DataFrame({"date": days}), _headlines(("2026-01-05 05:00", 1.0)))
+    assert out["news_weight"].iloc[9] > 0
+    assert out["news_weight"].iloc[10] == 0 and out["sentiment"].iloc[10] == 0
+
+
+def test_feature_frame_adds_news_inputs_only_when_asked():
+    raw = make_ohlcv(120)
+    assert "news_weight" not in build_feature_frame(raw)
+    with_news = build_feature_frame(raw, _headlines())
+    assert (with_news["news_weight"] == 0).all() and (with_news["sentiment"] == 0).all()
 
 
 def test_chronological_split_never_leaks_future_dates():
