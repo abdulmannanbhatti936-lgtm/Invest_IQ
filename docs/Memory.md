@@ -111,6 +111,7 @@ Carried over from PRD.md §17 and Architecture.md §21 — resolve these before/
 - [ ] **Next semester — npm updates blocked by ERESOLVE (2026-10-10):** `@react-navigation/native` (7.3.16 → 7.5.x) and the `expo` patch 57.0.13 → 57.0.27 both fail `npm update` with ERESOLVE (peer ranges in `@react-navigation/bottom-tabs`). Retry when the peer ranges allow; never with `--force` or `--legacy-peer-deps`.
 - [ ] **Next semester — Task 3B:** `@typescript-eslint` 6 → 8 (dev-only; clears the `minimatch` 9.0.3 and lint-side `braces`/`globby`/`fast-glob` findings). Config changes allowed; lint results must stay equivalent, and any rule that newly flags code is reported, not silenced.
 - [ ] **Next semester — Task 3D:** Python dependency audit, report only: `pip-audit` in the venv as a dev tool against `services/api/requirements.txt`, triaged like the npm audit, plus a recommendation on adding it to CI.
+- [ ] **Next semester — LSTM grid (logged 2026-10-10):** Run a pre-declared LSTM hyperparameter grid selected on validation only (window, units, dropout, learning rate), like the RF grid.
 - [ ] **Admin endpoints (Phase 9):** `require_admin` (`core/deps.py`) exists and was probed on 2026-10-09 (admin 200, non-admin 403, no token 401), and is covered by `tests/test_admin_guard.py` on a test-only route (admin 200, non-admin 403, no token 401). No real endpoint uses it yet — Step 9.4 must still test every real admin endpoint.
 
 ## 5. Known Constraints
