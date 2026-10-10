@@ -493,10 +493,17 @@ def walk_forward(frames: dict[str, pd.DataFrame], **fit_kwargs) -> dict:
     }
 
 
-def train_and_save(
+@dataclass
+class Candidate:
+    models: FittedModels
+    metadata: dict
+    frames: dict[str, pd.DataFrame]
+    test: pd.DataFrame
+
+
+def fit_candidate(
     raw: dict[str, pd.DataFrame],
     dataset: dict,
-    model_dir: str | Path,
     *,
     version: str | None = None,
     run_walk_forward: bool = True,
@@ -506,11 +513,12 @@ def train_and_save(
     headlines: dict[str, pd.DataFrame] | None = None,
     news: dict | None = None,
     fallback_model_version: str | None = None,
-) -> dict:
+    horizon: int = 1,
+    threshold: float = SIGNAL_THRESHOLD,
+) -> Candidate:
     """
-    Fit the final 70/15/15 models, optionally the walk-forward folds, and save the artifacts
-    and the evaluation report under <model_dir>/<version>/. This only ever creates a
-    candidate: it never touches the active pointer (ml/promote.py, Workflow.md Appendix E).
+    Fit the final 70/15/15 models and, optionally, the walk-forward folds; return the models,
+    their metadata, the feature frames and the scored test rows (nothing is written).
     `dataset` describes the input (name and per-file hashes) and is stored with the model.
     With `headlines` the model also reads the news inputs; `news` then describes the news
     dataset, and `fallback_model_version` names the price-only model served when the news
@@ -519,15 +527,16 @@ def train_and_save(
     version = version or new_model_version()
     started = time.perf_counter()
     features = FEATURE_COLUMNS + (SENTIMENT_COLUMNS if headlines is not None else [])
-    frames = prepare_frames(raw, headlines)
+    frames = prepare_frames(raw, headlines, horizon, threshold)
     cuts = shared_cut_dates(pd.concat([f["date"] for f in frames.values()]), TRAIN_FRAC, VAL_FRAC)
     fit_kwargs = {
         "lstm_epochs": lstm_epochs,
         "rf_base": rf_base,
         "rf_grid": rf_grid,
         "features": features,
+        "horizon": horizon,
     }
-    models, evaluation, _ = fit_and_evaluate(frames, cuts, **fit_kwargs)
+    models, evaluation, test = fit_and_evaluate(frames, cuts, **fit_kwargs)
     folds = walk_forward(frames, **fit_kwargs) if run_walk_forward else None
 
     importances = sorted(
@@ -550,7 +559,8 @@ def train_and_save(
                 "test_end": cuts.test_end.date().isoformat(),
             },
             "periods": evaluation.pop("periods"),
-            "label_threshold": SIGNAL_THRESHOLD,
+            "horizon_trading_days": horizon,
+            "label_threshold": threshold,
         },
         "features": features,
         "news": news,
@@ -575,14 +585,27 @@ def train_and_save(
             "numpy": np.__version__,
         },
     }
-    save_artifacts(models, metadata, Path(model_dir), version)
     lstm_eval = evaluation["lstm"]
     logger.info(
         f"{version}: LSTM Theil U {lstm_eval['theil_u']:.3f}, direction "
         f"{lstm_eval['direction']['directional_accuracy']:.3f}; "
         f"RF accuracy {evaluation['random_forest']['accuracy']:.3f}"
     )
-    return metadata
+    return Candidate(models, metadata, frames, test)
+
+
+def train_and_save(
+    raw: dict[str, pd.DataFrame], dataset: dict, model_dir: str | Path, **kwargs
+) -> dict:
+    """
+    `fit_candidate` and save the artifacts and evaluation report under
+    <model_dir>/<version>/. This only ever creates a candidate: it never touches the active
+    pointer (ml/promote.py, Workflow.md Appendix E).
+    """
+    candidate = fit_candidate(raw, dataset, **kwargs)
+    version = candidate.metadata["model_version"]
+    save_artifacts(candidate.models, candidate.metadata, Path(model_dir), version)
+    return candidate.metadata
 
 
 def save_artifacts(models: FittedModels, metadata: dict, model_dir: Path, version: str) -> None:

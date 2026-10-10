@@ -158,6 +158,18 @@ def write_report(meta: dict, path: Path) -> Path:
         f"({', '.join(meta['tickers'])}), served Yahoo `.KA` daily bars, split-adjusted "
         f"(`split-v1`) and dividend-adjusted for the model (`div-v1`).",
         "",
+        *(
+            [
+                f"Inputs: the price and indicator inputs plus the news inputs (`news_weight`, "
+                f"`sentiment`) from news dataset `{meta['news']['version']}` "
+                f"({', '.join(meta['news']['sources'])}). When the news sources are stale the "
+                f"price-only model `{meta['fallback_model_version']}` makes the forecast "
+                "(PRD.md FR22).",
+                "",
+            ]
+            if meta.get("news")
+            else []
+        ),
         "Chronological split with the same cut dates for every stock "
         "(the row at each boundary is purged):",
         "",
