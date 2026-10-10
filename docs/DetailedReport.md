@@ -52,7 +52,7 @@ InvestIQ is a bilingual (English/Urdu) AI-powered investment advisory platform b
 │  risk_profiles       │             └────────────────────────┘
 │  stocks              │
 │  price_points        │             ┌────────────────────────┐
-│  news_sentiments     │◄────────────│  Celery Worker         │
+│  sentiment_scores    │◄────────────│  Celery Worker         │
 │  predictions         │             │  Background Jobs:      │
 └──────────────────────┘             │  - fetch market data   │
                                      │  - scrape news         │
@@ -436,6 +436,51 @@ A retrain never replaces the live model (Workflow.md Appendix E). The weekly `tr
 
 ---
 
+## Phase 4: Sentiment Analysis (complete 2026-10-11)
+
+Branch `feat/phase-4-sentiment`. Decisions and numbers are in Memory.md §3; the plain-language account is `docs/ml-explained.md` §8.
+
+### Step 4.1 - Sources and decisions
+
+Profit and Mettis Global (history and live), Business Recorder (live display only); Dawn, Express Tribune, PSX announcements and Yahoo RSS rejected (Memory.md §9). The old Yahoo RSS scraper and its browser user agent were deleted. Permission emails to the three sources are logged as a pre-deployment item (Memory.md §4).
+
+### Step 4.2 - Scrapers (`services/api/integrations/news/`)
+
+`http.py` is the one polite fetcher: identifying user agent, robots.txt, 3 s per host, 3 retries with backoff on network errors, 429 and 5xx; 4xx pages are skipped, outages raise `NewsSourceUnavailable`. `sources.py` has a client per site (Profit: article sitemaps then the page's title and publish time; Mettis: sitemaps to 2025-12-01, then its own `Home/LoadMore` JSON; Business Recorder: RSS). `matching.py` attaches a headline to a stock only if the stock appears in the article's link slug. `services/news_ingestion.py` stores headline, source, URL and time only. Backfill: 2,164 headlines (Profit 872, Mettis 1,292) from 2021-09 to 2026-10-09.
+
+### Steps 4.3-4.4 - FinBERT and VADER (`ml/sentiment.py`)
+
+`ProsusAI/finbert` pinned to revision `4556d13`; score = P(positive) - P(negative). VADER (`vaderSentiment==3.3.2`) when FinBERT's top probability is below 0.50 or the text has 3 words or fewer; cut-offs +-0.05. If FinBERT cannot load, headlines stay unscored (no fake 0.0).
+
+### Step 4.5 - Storage, endpoint, job
+
+Table `sentiment_scores` (unique on stock + URL) replaces `news_sentiments`; `news_source_status` records each source's last success. `GET /stocks/{ticker}/sentiment` returns the badge, score, counted headlines and source freshness (404 for an unknown or uncovered stock). One Celery task `scrape_news_sentiment` runs every 3 hours and replaces the two hourly jobs. A day with no news is `news_weight` 0, not a fake neutral score.
+
+### Step 4.6 - With vs without sentiment
+
+Run once, as declared in advance (`ml/reports/sentiment_experiment_2026-10-10.md`): validation LSTM RMSE 2.263% (news) vs 2.274% (price only); validation RF balanced accuracy 43.1% vs 43.2%. The rule requires both, so the news model was **not promoted**. Test: 2.687% vs 2.702% (naive 2.653%); direction 48.7% vs 48.9%. News inputs rank 16 and 17 of 17 in RF importance. 5-day extra (evaluation only): no better. FinBERT on Financial PhraseBank: 97.2% (all-agree) and 89.0% (50%-agree), optimistic by construction; PSX headline accuracy pending team labels.
+
+### Step 4.7 - Graceful degradation (FR22)
+
+A news model falls back to its price-only `fallback_model_version` when Profit and Mettis have had no successful scrape for 24 hours; `predictions.sentiment_status` is 'used' or 'unavailable' and the forecast carries the reason `sentiment_unavailable`. `ml.promote` refuses a news candidate whose fallback is not already promoted. Forced-failure test: all sources fail, last success 30 h ago, the forecast equals the price-only forecast and is flagged.
+
+### Step 4.8 - Frontend
+
+Sentiment panel on the stock page (badge with Smile/Frown/Meh icons, distinct from the signal badges; "What's driving this" list with source, date, weight and a link; loading, empty, stale and error states), en and ur. Screenshots: `docs/screenshots/phase4/`.
+
+### Step 4.9 - Docs
+
+Architecture §3, §7, §9, §10, §15.3, README section 5, `services/sentiment-engine/README.md`.
+
+### Deviations from the docs
+
+- Code lives in `services/api/ml/sentiment.py` and `services/api/integrations/news/`, not `services/sentiment-engine/` (Workflow.md updated).
+- Prediction and sentiment endpoints are not Redis-cached (Architecture §10 as-built note).
+- The committed news dataset keeps URL, time and score but not the headline text.
+- The sentiment evaluation on PSX headlines is not yet run (labels pending); SEntFiN skipped.
+
+---
+
 ## Frontend Pages Summary
 
 Code is organised by feature (Rules.md §4.2) under `apps/web/src/features/`.
@@ -452,7 +497,7 @@ Code is organised by feature (Rules.md §4.2) under `apps/web/src/features/`.
 
 ---
 
-## Database Schema (current, Alembic head `c81f3d5a9e64`)
+## Database Schema (current, Alembic head `f3c8a2d6b417`)
 
 ```sql
 users
@@ -486,44 +531,60 @@ stock_dividends
   | review_flag NULL | method_version
   UNIQUE (stock_id, ex_date)
 
-news_sentiments
-  id SERIAL PK | stock_id FK(stocks) | headline | sentiment_score FLOAT NULL (= not yet scored) | timestamp TIMESTAMPTZ
+sentiment_scores   -- replaces news_sentiments (2026-10-11); headline only, never article text
+  id UUID PK | stock_id FK(stocks) | source | url | headline | published_at TIMESTAMPTZ | fetched_at TIMESTAMPTZ
+  | score NUMERIC(5,4) NULL (= not yet scored) | label NULL | scorer NULL ('finbert'/'vader') | scorer_version NULL
+  | finbert_confidence NUMERIC(5,4) NULL | UNIQUE (stock_id, url)
+
+news_source_status
+  source PK | last_attempt_at | last_success_at | last_error | last_new_headlines
 
 predictions
   id UUID PK | stock_id FK(stocks) | model_version | forecast_price NUMERIC(14,4) | last_close NUMERIC(14,4)
   | confidence_score NUMERIC(5,4)  -- calibrated chance the LSTM direction is right
-  | signal | signal_probability NUMERIC(5,4) NULL | as_of_date DATE NULL | generated_at TIMESTAMPTZ
+  | signal | signal_probability NUMERIC(5,4) NULL | as_of_date DATE NULL
+  | sentiment_status VARCHAR NULL ('used'/'unavailable') | generated_at TIMESTAMPTZ
 ```
 
 ---
 
 ## Automated Tests
 
-| Suite                  | File                                | Tests                                                             |
-| ---------------------- | ----------------------------------- | ----------------------------------------------------------------- |
-| Backend (pytest)       | `tests/test_auth.py`                | 25                                                                |
-|                        | `tests/test_config.py`              | 14                                                                |
-|                        | `tests/test_admin_guard.py`         | 4                                                                 |
-|                        | `tests/test_risk_profile.py`        | 35                                                                |
-|                        | `tests/test_i18n_labels.py`         | 3                                                                 |
-|                        | `tests/test_datetimes.py`           | 4                                                                 |
-|                        | `tests/test_health.py`              | 1                                                                 |
-|                        | `tests/test_stocks.py`              | 25                                                                |
-|                        | `tests/test_split_adjustment.py`    | 9                                                                 |
-|                        | `tests/test_data_quality.py`        | 3                                                                 |
-|                        | `tests/test_dividend_adjustment.py` | 10                                                                |
-|                        | `tests/test_ml_dataset.py`          | 3                                                                 |
-|                        | `tests/test_indicators.py`          | 14                                                                |
-|                        | `tests/test_splits.py`              | 5                                                                 |
-|                        | `tests/test_ml_metrics.py`          | 8                                                                 |
-|                        | `tests/test_ml_pipeline.py`         | 17                                                                |
-|                        | `tests/test_predictions.py`         | 18                                                                |
-|                        | `tests/test_ml_promotion.py`        | 7                                                                 |
-| Web (Node test runner) | `apps/web/src/**/*.test.ts`         | 17 (draft-save ordering, route guards, formatting, forecast view) |
-| API client             | `packages/api-client/src/*.test.ts` | 6 (token refresh coordination)                                    |
-| i18n                   | `packages/i18n/scripts/*.test.mjs`  | 3 (parity checker)                                                |
+| Suite                  | File                                 | Tests                                                             |
+| ---------------------- | ------------------------------------ | ----------------------------------------------------------------- |
+| Backend (pytest)       | `tests/test_auth.py`                 | 25                                                                |
+|                        | `tests/test_config.py`               | 14                                                                |
+|                        | `tests/test_admin_guard.py`          | 4                                                                 |
+|                        | `tests/test_risk_profile.py`         | 35                                                                |
+|                        | `tests/test_i18n_labels.py`          | 3                                                                 |
+|                        | `tests/test_datetimes.py`            | 4                                                                 |
+|                        | `tests/test_health.py`               | 1                                                                 |
+|                        | `tests/test_stocks.py`               | 25                                                                |
+|                        | `tests/test_split_adjustment.py`     | 9                                                                 |
+|                        | `tests/test_data_quality.py`         | 3                                                                 |
+|                        | `tests/test_dividend_adjustment.py`  | 10                                                                |
+|                        | `tests/test_ml_dataset.py`           | 3                                                                 |
+|                        | `tests/test_indicators.py`           | 14                                                                |
+|                        | `tests/test_splits.py`               | 5                                                                 |
+|                        | `tests/test_ml_metrics.py`           | 8                                                                 |
+|                        | `tests/test_ml_pipeline.py`          | 17                                                                |
+|                        | `tests/test_predictions.py`          | 18                                                                |
+|                        | `tests/test_ml_promotion.py`         | 8                                                                 |
+|                        | `tests/test_news_http.py`            | 7                                                                 |
+|                        | `tests/test_news_matching.py`        | 5                                                                 |
+|                        | `tests/test_news_sources.py`         | 6                                                                 |
+|                        | `tests/test_news_ingestion.py`       | 6                                                                 |
+|                        | `tests/test_sentiment_scoring.py`    | 5                                                                 |
+|                        | `tests/test_sentiment_api.py`        | 10                                                                |
+|                        | `tests/test_sentiment_fallback.py`   | 3                                                                 |
+|                        | `tests/test_sentiment_eval.py`       | 4                                                                 |
+|                        | `tests/test_sentiment_experiment.py` | 6                                                                 |
+|                        | `tests/test_migration_sentiment.py`  | 2                                                                 |
+| Web (Node test runner) | `apps/web/src/**/*.test.ts`          | 21 (draft-save ordering, route guards, formatting, forecast view) |
+| API client             | `packages/api-client/src/*.test.ts`  | 6 (token refresh coordination)                                    |
+| i18n                   | `packages/i18n/scripts/*.test.mjs`   | 3 (parity checker)                                                |
 
-Backend total: **205** (2026-10-10, Phase 3 audit fixes). All run in CI on every push; Playwright E2E runs locally.
+Backend total: **267** (2026-10-11, Phase 4). All run in CI on every push; Playwright E2E runs locally.
 
 ```bash
 cd services/api && python -m pytest          # backend
@@ -545,7 +606,7 @@ The root [`README.md`](../README.md) "Local Setup" section is the maintained, st
 | -------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
 | Phase 2  | Stock data & market analysis                                             | ✅ Re-audited 2026-10-10 (mobile screens deferred to Phase 10)            |
 | Phase 3  | Prediction engine                                                        | ✅ Re-audited 2026-10-10 (models do not beat their baselines; documented) |
-| Phase 4  | FinBERT sentiment endpoint + "what's driving this" panel                 | Not started                                                               |
+| Phase 4  | FinBERT sentiment endpoint + "what's driving this" panel                 | Complete 2026-10-11 (news model not promoted; PSX labels pending)         |
 | Phase 5  | Portfolio generation + cost engine (server must require a risk profile)  | Not started                                                               |
 | Phase 6  | Backtesting vs KSE-100                                                   | Not started                                                               |
 | Phase 7  | Autonomous agent & notifications                                         | Not started                                                               |
