@@ -3,7 +3,7 @@ from core.database import Base
 from .prediction import Prediction
 from .refresh_token import RefreshToken
 from .risk_profile import RiskCategory, RiskProfile
-from .sentiment import NewsSentiment
+from .sentiment import NewsSourceStatus, SentimentScore
 from .stock import PricePoint, Stock, StockDividend, StockSplit
 from .user import User, UserRole
 
@@ -19,6 +19,7 @@ __all__ = [
     "PricePoint",
     "StockSplit",
     "StockDividend",
-    "NewsSentiment",
+    "SentimentScore",
+    "NewsSourceStatus",
     "Prediction",
 ]

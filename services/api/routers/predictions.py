@@ -91,6 +91,7 @@ def get_stock_prediction(ticker: str, db: Session = Depends(get_db)):
             else None
         ),
         "models_agree": MODELS_DISAGREE not in reasons,
+        "sentiment_status": prediction.sentiment_status,
         "evaluation": model_evaluation(bundle, stock.ticker),
         "covered_stock_count": len(covered_tickers),
     }

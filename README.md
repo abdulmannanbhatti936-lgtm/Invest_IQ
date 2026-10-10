@@ -126,13 +126,13 @@ celery -A core.celery_app beat --loglevel=info
 
 Beat runs on Asia/Karachi time. It schedules:
 
-| Job                      | When                                                                             |
-| ------------------------ | -------------------------------------------------------------------------------- |
-| Price refresh            | 18:00 Mon-Fri (last month); full 5-year resync Sundays at 06:00                  |
-| Dividend refresh         | 18:15 Mon-Fri (dividend events and their adjustment decision)                    |
-| News fetch and sentiment | Hourly                                                                           |
-| Predictions              | 18:30 Mon-Fri                                                                    |
-| Model retraining         | Saturdays at 22:00 (a candidate with its full report; never goes live by itself) |
+| Job                | When                                                                             |
+| ------------------ | -------------------------------------------------------------------------------- |
+| Price refresh      | 18:00 Mon-Fri (last month); full 5-year resync Sundays at 06:00                  |
+| Dividend refresh   | 18:15 Mon-Fri (dividend events and their adjustment decision)                    |
+| News and sentiment | Every 3 hours (Profit, Mettis Global, Business Recorder; then FinBERT scoring)   |
+| Predictions        | 18:30 Mon-Fri                                                                    |
+| Model retraining   | Saturdays at 22:00 (a candidate with its full report; never goes live by itself) |
 
 ### 4. ML models (first run only)
 
@@ -148,7 +148,22 @@ python -c "from worker.tasks import run_predictions; print(run_predictions.run()
 
 Training never changes the live model: `ml.train` and the weekly job write a candidate (artifacts plus `report.md`) to `ml/candidates/` (gitignored). `ml.promote` refuses a candidate without a complete evaluation report; on success it copies the candidate to `ml/artifacts/<model_version>/`, points `ml/artifacts/latest.json` at it, copies the report to `ml/reports/evaluation_<model_version>.md` (commit it) and logs the promotion in `ml/artifacts/promotions.jsonl`. To build a newer dataset from the prices in your database first (needs the price and dividend jobs to have run), use `python -m ml.dataset` (it writes to `ml/candidates/data/`) and pass the folder name it prints to `--dataset`. Tests never train the real model: they load the frozen MOCK model in `tests/fixtures/model/` (rebuild it with `python -m tests.fixtures.build_model_fixture` if the pipeline changes).
 
-### 5. Web app
+### 5. News sentiment (first run only)
+
+The live job collects only the last 7 days. To fill the history the sentiment model trains on (Profit and Mettis Global back to 2021-09-15), run the backfill once. It fetches politely (one request every 3 s per site, robots.txt respected), takes a few hours, and resumes where it stopped if interrupted. Then score the headlines (FinBERT downloads on first use, about 440 MB):
+
+```bash
+cd services/api
+python -m services.news_ingestion backfill
+python -c "from core.database import SessionLocal; from services.sentiment_service import score_pending; print(score_pending(SessionLocal()))"
+python -m ml.sentiment_eval          # FinBERT accuracy: ml/reports/finbert_evaluation.md
+python -m ml.news_dataset            # versioned news dataset in ml/candidates/data/
+python -m ml.sentiment_experiment psx18-2026-10-07 <news dataset>   # with vs without sentiment
+```
+
+Only the headline, source, link and publish time are stored, never the article text. The committed news dataset (`ml/data/news18-*`) keeps the link, time and score but not the headline.
+
+### 6. Web app
 
 ```bash
 npm install                        # from the repo root: installs every workspace
@@ -159,7 +174,7 @@ npm run dev
 
 Open `http://localhost:5173`, register, and complete the risk questionnaire.
 
-### 6. Mobile app
+### 7. Mobile app
 
 ```bash
 cd apps/mobile

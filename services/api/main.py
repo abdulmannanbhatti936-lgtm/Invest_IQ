@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import settings, warn_if_weak_jwt_secrets
-from routers import auth, predictions, stocks, users
+from routers import auth, predictions, sentiment, stocks, users
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -30,6 +30,7 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(stocks.router)
 app.include_router(predictions.router)
+app.include_router(sentiment.router)
 
 
 @app.get("/health")

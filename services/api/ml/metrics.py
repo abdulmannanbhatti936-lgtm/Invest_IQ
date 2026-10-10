@@ -44,17 +44,25 @@ def proportion_above_p_value(hits: int, n: int, p0: float) -> float:
     return _normal_sf(z)
 
 
-def diebold_mariano(loss_model: np.ndarray, loss_baseline: np.ndarray) -> dict:
+def diebold_mariano(loss_model: np.ndarray, loss_baseline: np.ndarray, lag: int = 0) -> dict:
     """
-    One-step-ahead Diebold-Mariano test on a daily loss-difference series
-    (model minus baseline; negative mean = model better). Two-sided p-value.
+    Diebold-Mariano test on a daily loss-difference series (model minus baseline; negative
+    mean = model better). Two-sided p-value. For forecasts h days ahead the daily
+    differences overlap, so `lag` = h - 1 adds the Newey-West autocovariance terms.
     """
     d = np.asarray(loss_model) - np.asarray(loss_baseline)
     n = len(d)
     if n < 2 or np.std(d, ddof=1) == 0:
-        return {"statistic": math.nan, "p_value": math.nan, "days": n}
-    stat = float(np.mean(d) / (np.std(d, ddof=1) / math.sqrt(n)))
-    return {"statistic": stat, "p_value": 2 * _normal_sf(abs(stat)), "days": n}
+        return {"statistic": math.nan, "p_value": math.nan, "days": n, "lag": lag}
+    centred = d - np.mean(d)
+    variance = np.var(d, ddof=1) + 2 * sum(
+        (1 - k / (lag + 1)) * float(np.dot(centred[k:], centred[:-k])) / n
+        for k in range(1, min(lag, n - 1) + 1)
+    )
+    if variance <= 0:
+        return {"statistic": math.nan, "p_value": math.nan, "days": n, "lag": lag}
+    stat = float(np.mean(d) / math.sqrt(variance / n))
+    return {"statistic": stat, "p_value": 2 * _normal_sf(abs(stat)), "days": n, "lag": lag}
 
 
 def direction_hits(predicted: np.ndarray, actual: np.ndarray) -> tuple[int, int]:

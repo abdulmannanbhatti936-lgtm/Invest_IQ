@@ -5,7 +5,8 @@ Appendix E, decision 2026-10-10). Training writes candidates; a person promotes 
     python -m ml.promote <model_version>
 
 A candidate is refused unless its artifacts and full evaluation report are present and the
-report matches its metadata (including the walk-forward check and the RF grid). On success
+report matches its metadata (including the walk-forward check and the RF grid), and a model
+that reads news is refused until its price-only fallback has been promoted. On success
 the candidate is copied next to the models already promoted (a version is never overwritten),
 its report is copied to REPORTS_DIR to be committed, latest.json is switched, and a line is
 appended to the promotion log. The admin panel button (Phase 9) will call `promote`.
@@ -105,6 +106,12 @@ def promote(
         )
 
     meta = json.loads((candidate / "metadata.json").read_text(encoding="utf-8"))
+    fallback = meta.get("fallback_model_version")
+    if fallback and not (models / fallback / "metadata.json").exists():
+        raise PromotionRefused(
+            f"{version} reads news; its price-only fallback {fallback} must be promoted "
+            "first, so a forecast is still possible when the news sources are down (FR22)"
+        )
     previous = active_version(models)
     models.mkdir(parents=True, exist_ok=True)
     reports.mkdir(parents=True, exist_ok=True)

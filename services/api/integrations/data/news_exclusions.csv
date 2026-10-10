@@ -1,0 +1,20 @@
+ticker,phrase,reason
+NBP,nbp issues foreign exchange,daily exchange-rate notice published by the bank; not company news
+NBP,nbp funds,asset-management arm; fund notices are not about the listed bank
+NBP,nbp fund,asset-management arm
+HBL,hbl pmi,manufacturing index sponsored by the bank; macro news
+HBL,hbl asset management,asset-management arm
+HBL,hbl microfinance,separately rated microfinance arm
+HBL,hbl psl,cricket league sponsorship
+HBL,hbl pakistan super league,cricket league sponsorship
+HBL,habib bank ag zurich,a different bank
+UBL,ubl funds,asset-management arm
+UBL,ubl fund managers,asset-management arm
+MEBL,al meezan,asset-management arm
+PPL,pakistan petroleum exploration,industry association (PPEPCA)
+PSO,pso psp,payment system operator licence (SBP fintech category); not Pakistan State Oil
+PSO,psp pso,payment system operator licence
+PSO,payment system operator,not Pakistan State Oil
+PSO,pso licence,payment system operator licence
+PSO,pso license,payment system operator licence
+PSO,pso the fintech,a fintech company licensed as a payment system operator

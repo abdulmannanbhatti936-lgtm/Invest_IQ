@@ -11,15 +11,17 @@ from integrations.market_data import MarketDataClient, MarketDataUnavailable
 from integrations.psx_catalog import CATALOG_BY_TICKER
 from ml.dataset import build_dataset, dataset_reference, load_dataset
 from ml.inference import ModelNotFoundError, load_bundle
+from ml.sentiment import SentimentModelUnavailable
 from ml.training import InsufficientDataError, train_and_save
-from models.sentiment import NewsSentiment
 from models.stock import PricePoint, Stock, StockDividend, StockSplit
 from services import dividend_adjustment
+from services.news_ingestion import LIVE_WINDOW_DAYS, collect_all
 from services.prediction_service import (
     InsufficientHistoryError,
     StockNotCoveredError,
     generate_prediction,
 )
+from services.sentiment_service import score_pending
 from services.split_adjustment import METHOD_VERSION, SUSPECT_FLAG, Split, adjust
 from services.stock_service import PriceDataUnavailable, StockService
 
@@ -252,37 +254,29 @@ def _update_shares_outstanding(db, stock: Stock) -> None:
         db.commit()
 
 
-@celery_app.task(name="worker.tasks.fetch_news_for_tickers")
-def fetch_news_for_tickers(tickers: list | None = None):
+@celery_app.task(name="worker.tasks.scrape_news_sentiment")
+def scrape_news_sentiment():
     """
-    Background task to fetch latest news headlines for tickers.
+    Every 3 hours (Architecture.md §9): collect the last LIVE_WINDOW_DAYS of news from every
+    source, then score the new headlines. A failing source is recorded and skipped
+    (news_source_status); if FinBERT cannot be loaded the headlines stay unscored rather
+    than getting a made-up score.
     """
-    from integrations.news_scraper import NewsScraperClient
-
-    total_saved = 0
-    for ticker in _tickers(tickers):
-        total_saved += NewsScraperClient.fetch_and_save_news(ticker)
-    return {"status": "completed", "total_headlines_saved": total_saved}
-
-
-@celery_app.task(name="worker.tasks.analyze_news_sentiment")
-def analyze_news_sentiment():
-    """
-    Background task to score unscored (NULL) news headlines with FinBERT.
-    """
-    from ml.sentiment import sentiment_model
-
+    since = datetime.date.today() - datetime.timedelta(days=LIVE_WINDOW_DAYS)
     db = SessionLocal()
     try:
-        unscored = db.query(NewsSentiment).filter(NewsSentiment.sentiment_score.is_(None)).all()
-        for news in unscored:
-            news.sentiment_score = sentiment_model.analyze_headline(news.headline)
-        db.commit()
-        logger.info(f"Analyzed {len(unscored)} headlines.")
-        return {"status": "completed", "analyzed_count": len(unscored)}
-    except Exception:
-        db.rollback()
-        raise
+        sources = collect_all(db, since)
+        try:
+            scored, scoring_error = score_pending(db), None
+        except SentimentModelUnavailable as e:
+            logger.error(f"Headlines left unscored: {e}")
+            scored, scoring_error = 0, str(e)
+        return {
+            "status": "completed" if scoring_error is None else "scoring_failed",
+            "sources": sources,
+            "scored": scored,
+            "scoring_error": scoring_error,
+        }
     finally:
         db.close()
 

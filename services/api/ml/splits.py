@@ -81,16 +81,19 @@ def walk_forward_folds(dates, n_folds: int = 3, test_frac: float = 0.30) -> list
     return folds
 
 
-def assign_periods(dates: pd.Series, cuts: CutDates) -> pd.Series:
+def assign_periods(dates: pd.Series, cuts: CutDates, horizon: int = 1) -> pd.Series:
     """
     'train' / 'val' / 'test' (or None) for one ticker's rows, in date order. A row's label is
-    the next day's close, so the last row of a period would be labelled with a price from the
-    next period; that row is purged (None) so no label crosses a boundary.
+    the close `horizon` trading days later, so the last `horizon` rows of a period would be
+    labelled with prices from the next period; they are purged (None) so no label crosses a
+    boundary (the embargo).
     """
     period = pd.Series(None, index=dates.index, dtype=object)
     period[dates < cuts.val_start] = "train"
     period[(dates >= cuts.val_start) & (dates < cuts.test_start)] = "val"
     period[(dates >= cuts.test_start) & (dates <= cuts.test_end)] = "test"
-    crosses = period.ne(period.shift(-1)) & period.isin(["train", "val"])
-    period[crosses] = None
+    crosses = pd.Series(False, index=dates.index)
+    for step in range(1, horizon + 1):
+        crosses |= period.ne(period.shift(-step))
+    period[crosses & period.isin(["train", "val"])] = None
     return period

@@ -24,6 +24,7 @@ const prediction = (overrides: Partial<Prediction> = {}): Prediction => ({
   signal: 'HOLD',
   signal_probability: 0.5,
   models_agree: true,
+  sentiment_status: null,
   evaluation: {
     test_start_date: '2026-01-14',
     test_end_date: '2026-10-06',

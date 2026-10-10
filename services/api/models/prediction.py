@@ -38,6 +38,10 @@ class Prediction(Base):
     # PSX trading date of the close the forecast was made from
     as_of_date = Column(Date, nullable=True)
 
+    # 'used': the forecast read the news inputs; 'unavailable': the news sources were stale,
+    # so the model's price-only fallback made it (PRD.md FR22); NULL: a price-only model
+    sentiment_status = Column(String, nullable=True)
+
     generated_at = Column(
         DateTime(timezone=True),
         default=lambda: datetime.datetime.now(datetime.timezone.utc),

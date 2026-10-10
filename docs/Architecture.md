@@ -59,7 +59,7 @@ One backend, multiple clients. The web app and mobile app are both thin clients 
 | Technical Indicators     | Hand-written in pandas (`services/api/ml/features.py`) with TA-Lib's exact definitions; **TA-Lib is not a dependency** (decided 2026-10-10)                                                       | RSI, MACD, Bollinger Bands, SMA. Verified against TA-Lib 0.8.1 reference values and the published Wilder RSI example (`tests/test_indicators.py`); TA-Lib's native C build is painful on Windows and CI. One deliberate difference: RSI of a flat window is 50 (TA-Lib: 0) |
 | Backtesting              | Backtrader or QuantStats                                                                                                                                                                          | Historical strategy simulation                                                                                                                                                                                                                                             |
 | Data Sources             | Yahoo Finance API, PSX Data API/website                                                                                                                                                           | Price + fundamentals                                                                                                                                                                                                                                                       |
-| News/Sentiment Ingestion | Custom scrapers (`requests`/`BeautifulSoup` or `Scrapy`), optional Tweepy for Twitter/X                                                                                                           | Feeds FinBERT pipeline                                                                                                                                                                                                                                                     |
+| News/Sentiment Ingestion | Custom scrapers (`requests`/`BeautifulSoup` or `Scrapy`), optional Tweepy for Twitter/X                                                                                                           | Feeds FinBERT pipeline. As built: `requests` + `BeautifulSoup`/`lxml` over sitemaps, RSS and Mettis's JSON feed (no Scrapy, no Tweepy); `vaderSentiment==3.3.2` for the fallback                                                                                           |
 | Auth                     | JWT (access + refresh tokens), bcrypt/argon2 password hashing                                                                                                                                     | Stateless auth across web + mobile                                                                                                                                                                                                                                         |
 | Deployment               | Backend: Railway or AWS/GCP; Web: Vercel; Mobile: Expo EAS Build                                                                                                                                  | Matches Manam's existing deployment patterns (Vercel + Railway)                                                                                                                                                                                                            |
 | Version Control          | Git / GitHub, monorepo                                                                                                                                                                            | See Section 5                                                                                                                                                                                                                                                              |
@@ -197,16 +197,25 @@ predictions
   confidence_score NUMERIC                   -- calibrated chance the LSTM direction is right
   signal VARCHAR, signal_probability NUMERIC NULL   -- Random Forest BUY/SELL/HOLD
   as_of_date DATE NULL                       -- trading date of the close it starts from
+  sentiment_status VARCHAR NULL              -- 'used' / 'unavailable' (news stale, FR22) / NULL
   generated_at TIMESTAMPTZ
 
-sentiment_scores
+sentiment_scores                             -- one headline matched to one stock (Phase 4)
   id UUID PK
   stock_id UUID FK -> stocks.id
-  source VARCHAR
-  score NUMERIC
-  label ENUM('positive','negative','neutral')
-  headline TEXT
-  timestamp TIMESTAMP
+  source VARCHAR                             -- 'profit' / 'mettis' / 'brecorder'
+  url VARCHAR                                -- UNIQUE (stock_id, url)
+  headline TEXT                              -- the headline only; article text is never stored
+  published_at TIMESTAMPTZ, fetched_at TIMESTAMPTZ
+  score NUMERIC NULL                         -- P(pos) - P(neg), or VADER compound; NULL = unscored
+  label VARCHAR NULL                         -- CHECK positive / negative / neutral
+  scorer VARCHAR NULL                        -- CHECK finbert / vader
+  scorer_version VARCHAR NULL, finbert_confidence NUMERIC NULL
+
+news_source_status                           -- last attempt / success per source (FR22, §18)
+  source VARCHAR PK
+  last_attempt_at TIMESTAMPTZ NULL, last_success_at TIMESTAMPTZ NULL
+  last_error TEXT NULL, last_new_headlines INT NULL
 
 portfolios
   id UUID PK
@@ -306,20 +315,20 @@ All endpoints documented automatically via FastAPI's built-in OpenAPI/Swagger �
 
 ## 9. Background Jobs (Celery + Redis)
 
-| Job                     | Trigger                                                                                    | Purpose                                                                                                                                                                                                                         |
-| ----------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `refresh_stock_prices`  | Scheduled: Mon-Fri 18:00 PKT (last month); Sunday 06:00 PKT (5 years + shares outstanding) | Pull end-of-day PSX prices and splits into `price_points`/`stock_splits`, recompute split factors, invalidate cached responses. The API never calls the provider (Memory.md §3)                                                 |
-| `scrape_news_sentiment` | Scheduled (e.g., every few hours)                                                          | Pull news, run FinBERT/VADER, write `sentiment_scores`                                                                                                                                                                          |
-| `refresh_dividends`     | Scheduled: Mon-Fri 18:15 PKT                                                               | Store dividend events in `stock_dividends` and re-assess each against the served closes (`div-v1`)                                                                                                                              |
-| `run_predictions`       | Scheduled: Mon-Fri 18:30 PKT, or on-demand                                                 | Run the current pooled LSTM + Random Forest for every stock the model covers, write `predictions`                                                                                                                               |
-| `train_models`          | Scheduled: Saturday 22:00 PKT (FR15), or `python -m ml.train`                              | Build a new dataset version from `price_points` and train a **candidate** with its full evaluation report, both in the git-ignored `ml/candidates/`; never changes the live model (promotion: `python -m ml.promote <version>`) |
-| `monitor_portfolios`    | Scheduled (e.g., every few min)                                                            | Check active portfolios against fresh predictions, trigger notifications                                                                                                                                                        |
-| `send_notification`     | Triggered by `monitor_portfolios`                                                          | Dispatch via FCM, target latency < 5s                                                                                                                                                                                           |
+| Job                     | Trigger                                                                                    | Purpose                                                                                                                                                                                                                                                                                                                   |
+| ----------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `refresh_stock_prices`  | Scheduled: Mon-Fri 18:00 PKT (last month); Sunday 06:00 PKT (5 years + shares outstanding) | Pull end-of-day PSX prices and splits into `price_points`/`stock_splits`, recompute split factors, invalidate cached responses. The API never calls the provider (Memory.md §3)                                                                                                                                           |
+| `scrape_news_sentiment` | Scheduled: every 3 hours (decided 2026-10-11)                                              | Collect the last 7 days from Profit, Mettis Global and Business Recorder (`services/news_ingestion.py`), score new headlines with FinBERT/VADER, write `sentiment_scores`; record each source's status in `news_source_status`. A failing source is skipped, never fatal; if FinBERT cannot load, headlines stay unscored |
+| `refresh_dividends`     | Scheduled: Mon-Fri 18:15 PKT                                                               | Store dividend events in `stock_dividends` and re-assess each against the served closes (`div-v1`)                                                                                                                                                                                                                        |
+| `run_predictions`       | Scheduled: Mon-Fri 18:30 PKT, or on-demand                                                 | Run the current pooled LSTM + Random Forest for every stock the model covers, write `predictions`                                                                                                                                                                                                                         |
+| `train_models`          | Scheduled: Saturday 22:00 PKT (FR15), or `python -m ml.train`                              | Build a new dataset version from `price_points` and train a **candidate** with its full evaluation report, both in the git-ignored `ml/candidates/`; never changes the live model (promotion: `python -m ml.promote <version>`)                                                                                           |
+| `monitor_portfolios`    | Scheduled (e.g., every few min)                                                            | Check active portfolios against fresh predictions, trigger notifications                                                                                                                                                                                                                                                  |
+| `send_notification`     | Triggered by `monitor_portfolios`                                                          | Dispatch via FCM, target latency < 5s                                                                                                                                                                                                                                                                                     |
 
 ## 10. Caching Strategy (Redis)
 
 - Cache stock quote and history responses (15 min TTL), built from `price_points`; the refresh job invalidates a stock's entries when it stores new prices. The provider is only called by the refresh job, so rate limits and outages never reach a request (decided 2026-10-10)
-- Cache latest prediction + sentiment per stock (invalidated on `run_predictions`/`scrape_news_sentiment` completion)
+- Cache latest prediction + sentiment per stock (invalidated on `run_predictions`/`scrape_news_sentiment` completion). **As built (2026-10-11):** neither the prediction nor the sentiment endpoint is cached yet: both read a few indexed rows written by the background jobs, so a request never reaches a model or a news site
 - Celery uses Redis as its message broker/result backend
 
 ## 11. Security Architecture
@@ -388,6 +397,7 @@ No portfolio or price figures are ever generated freeform by the LLM — they're
 - Output: positive/negative/neutral label + confidence
 - VADER fallback triggers when FinBERT confidence < defined threshold or input text is very short (e.g., tweet-length)
 - Sentiment scores aggregated (e.g., time-decayed average) per stock per day, merged as an LSTM input feature
+- **As built (2026-10-11, Phase 4):** sources Profit and Mettis Global (history and live) and Business Recorder (live display only); polite scraping (identifying user agent, robots.txt, 1 request / 3 s per site, retries with backoff) in `services/api/integrations/news/`; only headline, source, URL and publish time are stored. FinBERT is `ProsusAI/finbert` pinned to revision `4556d13`; a headline's score is P(positive) - P(negative). VADER scores a headline when FinBERT's top probability is below 0.50 or it has 3 words or fewer (label cut-offs ±0.05). The model inputs are `news_weight` (decayed headline count, half-life 3 trading days, 10-day window; 0 = no news) and `sentiment` (decayed mean score); a headline after the 15:30 PKT close counts for the next trading day (`ml/features.py`). Sentiment is stale after 24 hours without a successful scrape of Profit and Mettis; a model that reads news then falls back to its price-only model and the forecast is flagged (FR22). Evaluation: `ml/reports/finbert_evaluation.md`; with vs without: `ml/reports/sentiment_experiment_*.md`
 
 ### 15.4 Model Versioning
 

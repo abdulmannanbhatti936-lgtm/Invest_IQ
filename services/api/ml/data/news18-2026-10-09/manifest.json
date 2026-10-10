@@ -1,0 +1,45 @@
+{
+  "version": "news18-2026-10-09",
+  "created_at": "2026-10-10T22:14:45.805892+00:00",
+  "sources": [
+    "profit",
+    "mettis"
+  ],
+  "collection": "Memory.md \u00a73 (2026-10-11): slug-matched articles, polite scraping",
+  "scorer_versions": [
+    "ProsusAI/finbert@4556d13",
+    "vaderSentiment==3.3.2"
+  ],
+  "rows": 2164,
+  "first_published_at": "2021-09-15T15:09:42Z",
+  "last_published_at": "2026-10-09T17:12:11Z",
+  "rows_per_ticker": {
+    "OGDC": 320,
+    "PPL": 152,
+    "MARI": 184,
+    "HBL": 240,
+    "UBL": 107,
+    "MEBL": 110,
+    "NBP": 156,
+    "PSO": 152,
+    "FFC": 140,
+    "EFERT": 102,
+    "LUCK": 46,
+    "MLCF": 63,
+    "DGKC": 41,
+    "HUBC": 88,
+    "ATRL": 62,
+    "SYS": 42,
+    "PAEL": 24,
+    "SAZEW": 135
+  },
+  "rows_per_source": {
+    "profit": 872,
+    "mettis": 1292
+  },
+  "rows_per_scorer": {
+    "finbert": 2133,
+    "vader": 31
+  },
+  "sha256": "ae5c14543c00b1ac6580f6c254bd202e411af2c8fc092dd3ddfd81cfbb3c6ec0"
+}

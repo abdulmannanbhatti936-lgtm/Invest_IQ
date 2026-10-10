@@ -37,6 +37,10 @@ class ModelBundle:
         """Forecasts are served only for the stocks the model was trained and tested on."""
         return ticker.upper() in self.metadata["tickers"]
 
+    @property
+    def uses_news(self) -> bool:
+        return "news_weight" in self.features
+
     def ticker_evaluation(self, ticker: str) -> dict | None:
         return self.metadata["evaluation"]["per_ticker"].get(ticker.upper())
 

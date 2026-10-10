@@ -55,3 +55,10 @@ def test_walk_forward_folds_expand_and_never_overlap():
 def test_walk_forward_rejects_too_few_dates():
     with pytest.raises(ValueError):
         walk_forward_folds(calendar(4), n_folds=3)
+
+
+def test_a_five_day_horizon_purges_five_rows_before_each_boundary():
+    dates = calendar(100)
+    periods = assign_periods(dates, shared_cut_dates(dates), horizon=5)
+    assert periods.isna().sum() == 10
+    assert list(periods.iloc[64:71]) == ["train", None, None, None, None, None, "val"]

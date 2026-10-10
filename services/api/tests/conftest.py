@@ -61,6 +61,17 @@ def _no_market_data_network(monkeypatch):
     monkeypatch.setattr("integrations.market_data.yf.Ticker", blocked)
 
 
+@pytest.fixture(autouse=True)
+def _no_news_or_finbert_network(monkeypatch):
+    """Tests never reach a news site or download FinBERT: use fakes instead."""
+
+    def blocked(*args, **kwargs):
+        raise RuntimeError("News/FinBERT network calls are disabled in tests; use a fake")
+
+    monkeypatch.setattr("integrations.news.http.requests.Session.get", blocked)
+    monkeypatch.setattr("ml.sentiment.build_pipeline", blocked)
+
+
 @pytest.fixture
 def client():
     return TestClient(app)

@@ -3,6 +3,7 @@ import type {
   Prediction,
   PricePoint,
   StockQuote,
+  StockSentiment,
   StockSummary,
 } from '@investiq/shared-types';
 import { apiClient } from './client';
@@ -33,6 +34,12 @@ export const stocksApi = {
   /** Rejects with a 404 whose detail.code explains why there is no prediction. */
   getPrediction: async (ticker: string): Promise<Prediction> => {
     const { data } = await apiClient.get<Prediction>(`${path(ticker)}/prediction`);
+    return data;
+  },
+
+  /** News sentiment and the headlines behind it; a 404 `not_covered` outside the tracked stocks. */
+  getSentiment: async (ticker: string): Promise<StockSentiment> => {
+    const { data } = await apiClient.get<StockSentiment>(`${path(ticker)}/sentiment`);
     return data;
   },
 };
