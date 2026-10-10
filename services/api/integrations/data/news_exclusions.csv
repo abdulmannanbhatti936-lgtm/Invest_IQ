@@ -1,0 +1,14 @@
+ticker,phrase,reason
+NBP,nbp issues foreign exchange,daily exchange-rate notice published by the bank; not company news
+NBP,nbp funds,asset-management arm; fund notices are not about the listed bank
+NBP,nbp fund,asset-management arm
+HBL,hbl pmi,manufacturing index sponsored by the bank; macro news
+HBL,hbl asset management,asset-management arm
+HBL,hbl microfinance,separately rated microfinance arm
+HBL,hbl psl,cricket league sponsorship
+HBL,hbl pakistan super league,cricket league sponsorship
+HBL,habib bank ag zurich,a different bank
+UBL,ubl funds,asset-management arm
+UBL,ubl fund managers,asset-management arm
+MEBL,al meezan,asset-management arm
+PPL,pakistan petroleum exploration,industry association (PPEPCA)
