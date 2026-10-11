@@ -23,7 +23,6 @@ from integrations.news.http import (
 )
 from integrations.news.matching import TickerMatcher, default_matcher
 from integrations.news.sources import (
-    BRECORDER,
     METTIS,
     PROFIT,
     Article,
@@ -165,6 +164,12 @@ def collect_mettis(collector: Collector, client: MettisClient, since: datetime.d
 
 
 def collect_brecorder(collector: Collector, client: BusinessRecorderClient) -> int:
+    """
+    Business Recorder's live RSS feeds. Disabled (decided 2026-10-11): not part of
+    `collect_all`, because its feeds carry almost only international wire news and have
+    never yielded a headline about a tracked stock (Memory.md §4, a possible source for next
+    semester). Re-enable by adding it to the jobs in `collect_all`.
+    """
     since = (_now() - datetime.timedelta(days=LIVE_WINDOW_DAYS)).date()
     return collector.store_articles(client.latest(), since)
 
@@ -186,13 +191,15 @@ def record_status(
 def collect_all(
     db: Session, since: datetime.date, fetcher: PoliteFetcher | None = None
 ) -> dict[str, dict]:
-    """Run every source; one failing source never stops the others (PRD.md FR22)."""
+    """
+    Run every enabled source (Profit and Mettis); one failing source never stops the other
+    (PRD.md FR22).
+    """
     fetcher = fetcher or PoliteFetcher()
     collector = Collector(db)
     jobs = {
         PROFIT: lambda: collect_profit(collector, ProfitClient(fetcher), since),
         METTIS: lambda: collect_mettis(collector, MettisClient(fetcher), since),
-        BRECORDER: lambda: collect_brecorder(collector, BusinessRecorderClient(fetcher)),
     }
     results = {}
     for source, job in jobs.items():

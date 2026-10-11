@@ -102,20 +102,25 @@ class _RecorderClient:
         return [_article(BRECORDER, "ogdc-profit-rises", "MOCK_ OGDC profit rises")]
 
 
-def test_a_failing_source_is_recorded_and_the_others_still_run(db, monkeypatch):
+def test_a_failing_source_is_recorded_and_the_other_still_runs(db, monkeypatch):
     monkeypatch.setattr(news_ingestion, "ProfitClient", _FailingClient)
     monkeypatch.setattr(news_ingestion, "MettisClient", _MettisClient)
-    monkeypatch.setattr(news_ingestion, "BusinessRecorderClient", _RecorderClient)
-    monkeypatch.setattr(news_ingestion, "_now", lambda: datetime.datetime(2026, 10, 9, tzinfo=UTC))
 
     results = collect_all(db, SINCE, fetcher=object())
 
+    # Business Recorder is disabled: it is not collected at all
+    assert set(results) == {PROFIT, METTIS}
     assert results[PROFIT]["status"] == "failed"
     assert results[METTIS] == {"status": "ok", "new_headlines": 1}
-    assert results[BRECORDER] == {"status": "ok", "new_headlines": 1}
     profit = db.get(NewsSourceStatus, PROFIT)
     assert profit.last_success_at is None and "503" in profit.last_error
     assert db.get(NewsSourceStatus, METTIS).last_success_at is not None
+
+
+def test_disabled_business_recorder_collector_still_works(db, monkeypatch):
+    monkeypatch.setattr(news_ingestion, "_now", lambda: datetime.datetime(2026, 10, 9, tzinfo=UTC))
+    assert news_ingestion.collect_brecorder(Collector(db), _RecorderClient(None)) == 1
+    assert [r.source for r in _rows(db)] == [BRECORDER]
 
 
 def test_rematch_removes_rows_a_corrected_rule_no_longer_matches(db):
