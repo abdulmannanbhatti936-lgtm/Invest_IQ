@@ -143,3 +143,26 @@ def test_rematch_removes_rows_a_corrected_rule_no_longer_matches(db):
 def test_articles_older_than_the_window_are_ignored(db):
     since = datetime.date(2026, 10, 9)
     assert Collector(db).store_articles([_article(PROFIT, "ogdc-x", "MOCK_ OGDC")], since) == 0
+
+
+def test_a_headline_that_does_not_match_its_url_is_not_stored(db):
+    article = _article(PROFIT, "ogdc-output-rises-at-rajian", "MOCK_ FBR launches customs system")
+    assert Collector(db).store(article) == 0
+    assert _rows(db) == []
+
+
+def test_rematch_removes_rows_whose_headline_does_not_match_the_url(db):
+    collector = Collector(db)
+    db.add(
+        SentimentScore(
+            stock_id=collector.stock_ids["OGDC"],
+            source=PROFIT,
+            url="https://example.com/MOCK/2026/10/08/ogdc-output-rises-at-rajian",
+            headline="MOCK_ FBR launches customs system",
+            published_at=datetime.datetime(2026, 10, 8, tzinfo=UTC),
+        )
+    )
+    db.commit()
+    assert news_ingestion.rematch(db) == [
+        ("OGDC", "https://example.com/MOCK/2026/10/08/ogdc-output-rises-at-rajian")
+    ]

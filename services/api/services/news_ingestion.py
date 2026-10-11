@@ -75,6 +75,10 @@ class Collector:
 
     def store(self, article: Article) -> int:
         """Insert one row per matched stock; returns how many were new."""
+        self.known_urls(article.source).add(article.url)
+        if not self.matcher.title_matches_slug(article.headline, article.url):
+            logger.warning(f"Not stored, title does not match its URL: {article.url}")
+            return 0
         tickers = self.matcher.match_article(article.url, article.headline)
         rows = [
             {
@@ -88,7 +92,6 @@ class Collector:
             for t in sorted(tickers)
             if t in self.stock_ids
         ]
-        self.known_urls(article.source).add(article.url)
         if not rows:
             return 0
         stmt = (
@@ -208,15 +211,18 @@ def collect_all(
 
 def rematch(db: Session, matcher: TickerMatcher | None = None) -> list[tuple[str, str]]:
     """
-    Remove stored rows whose stock the current alias and exclusion lists no longer match
-    (after a matching rule is corrected). Returns (ticker, url) for every row removed.
-    The rows are derived from public pages and can be collected again at any time.
+    Remove stored rows that the current matching rules would not store (after a rule is
+    corrected): the stock is no longer matched, or the headline does not match its URL.
+    Returns (ticker, url) for every row removed. The rows are derived from public pages and
+    can be collected again at any time.
     """
     matcher = matcher or default_matcher()
     removed = []
     rows = db.query(SentimentScore, Stock.ticker).join(Stock, Stock.id == SentimentScore.stock_id)
     for row, ticker in rows:
-        if ticker not in matcher.match_article(row.url, row.headline):
+        if ticker not in matcher.match_article(
+            row.url, row.headline
+        ) or not matcher.title_matches_slug(row.headline, row.url):
             removed.append((ticker, row.url))
             db.delete(row)
     db.commit()
