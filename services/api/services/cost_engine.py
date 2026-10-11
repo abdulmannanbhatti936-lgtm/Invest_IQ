@@ -15,7 +15,8 @@ from decimal import ROUND_HALF_UP, Decimal
 from functools import lru_cache
 from pathlib import Path
 
-RATES_FILE = Path(__file__).resolve().parents[1] / "integrations" / "data" / "psx_costs_2026-10-11.json"
+DATA_DIR = Path(__file__).resolve().parents[1] / "integrations" / "data"
+RATES_FILE = DATA_DIR / "psx_costs_2026-10-11.json"
 
 PAISA = Decimal("0.01")
 ZERO = Decimal("0")
@@ -101,7 +102,8 @@ def check_commission_rate(rate: Decimal, rates: Rates) -> Decimal:
     """A user's own broker rate must lie between the PSX floor and the PSX ceiling."""
     if rate < rates.commission_rate or rate > rates.commission_max_rate:
         raise InvalidCommissionRate(
-            f"Commission rate must be between {rates.commission_rate} and {rates.commission_max_rate}"
+            "Commission rate must be between "
+            f"{rates.commission_rate} and {rates.commission_max_rate}"
         )
     return rate
 
@@ -147,9 +149,8 @@ class Purchase:
 def buy(
     shares: int, price: Decimal, rates: Rates, commission_rate: Decimal | None = None
 ) -> Purchase:
-    return Purchase(
-        shares, price, to_paisa(shares * price), trade_charges(shares, price, rates, commission_rate)
-    )
+    charges = trade_charges(shares, price, rates, commission_rate)
+    return Purchase(shares, price, to_paisa(shares * price), charges)
 
 
 def max_affordable_shares(
