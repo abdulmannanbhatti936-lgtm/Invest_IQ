@@ -1,0 +1,113 @@
+{
+  "version": "psx-costs-2026-10-11.2",
+  "checked_on": "2026-10-11",
+  "currency": "PKR",
+  "note": "Trading costs and taxes for PSX ready-market trades by individuals, read by services/cost_engine.py only. Version .1 was the Phase 5 proposal of 2026-10-11 and was never used; .2 applies the team's decisions of the same day. Every rate keeps its source and status: verified = read in the official document; unverified = the official page could not be read or only a secondary source states it.",
+  "rounding": "Each charge line is rounded to the paisa (0.01, half up) per holding and side, as on a contract note; sales tax is computed on the rounded commission line; totals are sums of rounded lines.",
+  "commission": {
+    "rate": "0.0015",
+    "per_share_minimum": "0.03",
+    "max_rate": "0.025",
+    "applies_to": "buy value and sell value, each side",
+    "effective_from": "2019-10-14",
+    "source_url": "https://www.psx.com.pk/psx/files/?file=136748-1.pdf",
+    "status": "verified",
+    "note": "PSX/N-1258: higher of Rs 0.03 per share or 0.15% of the value, up to 2.5%. This is the lowest a broker may charge; the user may enter a higher rate."
+  },
+  "sales_tax_on_commission": {
+    "rate": "0.15",
+    "applies_to": "commission (rounded line)",
+    "effective_from": "2024-07-01",
+    "source_url": "https://www.srb.gos.pk/srb/wp-content/uploads/2024/07/Final-Working-tariff.pdf",
+    "status": "verified",
+    "note": "Sindh Sales Tax on stockbrokers' services (tariff heading 9819.1000). Confirmed against a broker tariff (KASB commission structure, January 2025: 'Sindh Sales Tax 15% on brokerage'). The 2026-27 Sindh schedule has not been confirmed."
+  },
+  "fees": [
+    {
+      "key": "cdc_fee",
+      "rate": "0.000036",
+      "applies_to": "trade value, each side",
+      "effective_from": "2025-03-01",
+      "source_url": "https://www.cdcpakistan.com/assets/uploads/2025/03/Fees-and-Deposits-Schedule-Updated-March-2025-Final.pdf",
+      "status": "unverified",
+      "note": "CDC transaction fee 0.0036% of market value. The CDC site refuses scripted requests, so the schedule was not read. No minimum: CDC waived minimum fees from 1 July 2024."
+    },
+    {
+      "key": "psx_trading_fee",
+      "rate": "0.000035",
+      "applies_to": "trade value, each side",
+      "effective_from": "2024-12-18",
+      "source_url": "https://psx.com.pk/psx/themes/psx/uploads/Schedule-of-Charges-Updated-as-on-December-18-2024.pdf",
+      "status": "verified",
+      "note": "Rs 3.50 per Rs 100,000 value traded, ready market. The schedule says sales tax applies 'on the trading fee amount' at 'the applicable rate as notified from time to time', without a rate and without saying the client pays it, so that sales tax is not modelled."
+    },
+    {
+      "key": "psx_regulatory_fee",
+      "rate": "0",
+      "applies_to": "trade value, each side",
+      "effective_from": "2025-08-29",
+      "source_url": "https://psx.com.pk/psx/themes/psx/uploads/Schedule-of-Charges-Updated-as-on-December-18-2024.pdf",
+      "status": "verified",
+      "note": "Rs 0.62084 per Rs 100,000 until the schedule's discontinuation date, 29 August 2025; 0 since then."
+    },
+    {
+      "key": "secp_levy",
+      "rate": "0.0000065",
+      "applies_to": "trade value, each side",
+      "effective_from": "2024-12-18",
+      "source_url": "https://psx.com.pk/psx/themes/psx/uploads/Schedule-of-Charges-Updated-as-on-December-18-2024.pdf",
+      "status": "verified",
+      "note": "SECP levy PKR 0.65 per Rs 100,000 value traded, collected by PSX."
+    },
+    {
+      "key": "nccpl_trade_fee",
+      "rate": "0.0000081",
+      "applies_to": "trade value, each side",
+      "effective_from": "2026-07-22",
+      "source_url": "https://www.tickeranalysts.com/blog/psx-trading-fees-charges-explained",
+      "status": "unverified",
+      "note": "Rs 0.81 per Rs 100,000; secondary source only (NCCPL's site refuses scripted requests)."
+    },
+    {
+      "key": "nccpl_secp_fee",
+      "rate": "0.0000030",
+      "applies_to": "trade value, each side",
+      "effective_from": "2026-07-22",
+      "source_url": "https://www.tickeranalysts.com/blog/psx-trading-fees-charges-explained",
+      "status": "unverified",
+      "note": "Rs 0.30 per Rs 100,000 charged by NCCPL; secondary source only. The same source lists it separately from the PSX-collected SECP levy, and the PSX schedule does not mention NCCPL, so both are counted."
+    }
+  ],
+  "cvt": {
+    "rate": "0",
+    "source_url": "https://psx.com.pk/psx/themes/psx/uploads/Schedule-of-Charges-Updated-as-on-December-18-2024.pdf",
+    "status": "verified",
+    "note": "Capital Value Tax on the purchase of listed shares is 0.00% in the PSX schedule (abolished from 19 April 2020)."
+  },
+  "cgt": {
+    "acquired_from": "2025-07-01",
+    "filer_rate": "0.15",
+    "non_filer_rate": "0.15",
+    "applies_to": "gain on sale = sale proceeds after sell charges minus total cost including buy charges; no tax on a loss",
+    "source_url": "https://profit.pakistantoday.com.pk/2025/08/05/nccpl-announces-revised-capital-gains-tax-rates-effective-in-fy26/",
+    "status": "unverified",
+    "note": "15% on PSX securities acquired from 1 July 2025 (Finance Act 2025, unchanged by Finance Act 2026). NCCPL reports collecting 15% regardless of ATL status; KPMG reads the law as normal income-tax rates for non-filers. The Division VII text was not found in the scanned Finance Act 2025 (First Schedule Part I amendments, pages 85-91).",
+    "non_filer_label": "Non-filer: NCCPL deducts 15%; individuals may owe more at normal income-tax rates."
+  },
+  "dividend_wht": {
+    "filer_rate": "0.15",
+    "non_filer_rate": "0.30",
+    "applies_to": "gross dividend",
+    "effective_from": "2026-07-01",
+    "source_url": "https://download1.fbr.gov.pk/Docs/202681113864992WithholdingTaxRatesCard2027.pdf",
+    "status": "verified",
+    "note": "Section 150, general rate (FBR rate card for tax year 2027). Dividends from IPPs (7.5% / 15%) and from companies paying no tax because of exemptions, losses or credits (25% / 50%) are taxed differently; the general rate is applied to every stock."
+  },
+  "not_modelled": [
+    "Super tax (section 4C) on high incomes",
+    "Setting a capital loss off against other gains, or carrying it forward",
+    "Zakat",
+    "NCCPL's charges for computing capital gains tax",
+    "Sales tax on the PSX trading fee"
+  ]
+}
