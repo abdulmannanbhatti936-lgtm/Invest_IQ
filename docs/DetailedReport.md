@@ -525,25 +525,120 @@ Ticker matching: 155 of 162 (95.7%) are about the matched company; 4 of the 7 th
 - The committed news dataset keeps URL, time and score but not the headline text.
 - SEntFiN skipped; the PSX headline set (162 rows) is the in-domain evaluation.
 
+## Phase 5: Portfolio Management & Cost Engine (complete 2026-10-11)
+
+Branch `feat/phase-5-portfolio`. The proposals (rates, allocation, rolling, low capital, data model, UI) were reviewed by the team before any code was written; the decisions are in Memory.md §3.
+
+### Step 5.1 - Cost engine (`services/api/services/cost_engine.py`)
+
+Decimal only, no portfolio imports. Every rate comes from the versioned file `integrations/data/psx_costs_2026-10-11.json` (version `psx-costs-2026-10-11.2`), where each line keeps its source URL and status (verified = read in the official document; unverified = the official page could not be read or only a secondary source states it):
+
+| Item                                                                   | Rate                                                                                                             | Applies to                               | Source                                                                 | Status                                                                           |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Broker commission (default, user may enter own rate within 0.15%-2.5%) | higher of 0.15% or Rs 0.03 per share                                                                             | each side                                | PSX/N-1258 (14 Oct 2019)                                               | verified                                                                         |
+| Sales tax on commission (Sindh, 9819.1000)                             | 15% of the rounded commission line                                                                               | commission                               | SRB working tariff (Jul 2024); KASB tariff Jan 2025                    | verified; 2026-27 Sindh schedule not confirmed                                   |
+| CDC transaction fee                                                    | 0.0036%, no minimum                                                                                              | each side                                | CDC schedule (Mar 2025)                                                | unverified (site refuses scripted requests)                                      |
+| PSX trading fee                                                        | Rs 3.50 per Rs 100,000                                                                                           | each side                                | PSX Schedule of Charges, 18 Dec 2024                                   | verified                                                                         |
+| PSX regulatory fee                                                     | 0 (Rs 0.62084 until 29 Aug 2025)                                                                                 | each side                                | same                                                                   | verified                                                                         |
+| SECP levy (collected by PSX)                                           | Rs 0.65 per Rs 100,000                                                                                           | each side                                | same                                                                   | verified                                                                         |
+| NCCPL trade fee                                                        | Rs 0.81 per Rs 100,000                                                                                           | each side                                | tickeranalysts.com explainer                                           | unverified                                                                       |
+| NCCPL SECP fee                                                         | Rs 0.30 per Rs 100,000                                                                                           | each side                                | same; listed separately from the PSX-collected levy                    | unverified                                                                       |
+| CVT on listed shares                                                   | 0                                                                                                                | -                                        | PSX schedule (0.00%)                                                   | verified                                                                         |
+| CGT, shares bought from 1 Jul 2025                                     | 15% filer; 15% non-filer with the label "NCCPL deducts 15%; individuals may owe more at normal income-tax rates" | gain after all charges; no tax on a loss | NCCPL notice as reported by Profit; KPMG on Finance Acts 2025 and 2026 | unverified (Division VII not found in the scanned Finance Act 2025, pages 85-91) |
+| WHT on dividends                                                       | 15% filer, 30% non-filer (IPP and non-taxpaying company rates noted, not applied)                                | gross dividend                           | FBR WHT rate card, tax year 2027                                       | verified                                                                         |
+| Lot size                                                               | 1 share                                                                                                          | -                                        | PSX one-share lot (2024)                                               | verified                                                                         |
+
+The PSX schedule says sales tax applies "on the trading fee amount" at "the applicable rate as notified from time to time"; it states no rate and does not say the client pays it, so it is not modelled. Also not modelled (shown on the screen): super tax (s. 4C), loss set-off and carry-forward, Zakat, NCCPL's CGT-computation charges.
+
+Rounding rule: each charge line is rounded to the paisa (half up) per holding and side, like a contract note; sales tax is charged on the rounded commission line; totals are sums of rounded lines.
+
+Functions: `trade_charges`, `buy`, `sell` (proceeds, gain, CGT, net), `capital_gains_tax`, `dividend_income`, `break_even_price` (lowest paisa price at which selling returns the total cost), `round_trip_rate`, `max_affordable_shares`, `check_commission_rate`. Tests (`tests/test_cost_engine.py`, 22): the worked example below as exact matches, zero gain, loss, the per-share minimum, sales tax on the rounded commission, tiny trades, the commission override limits, and invariants on 2,000 random trades (charges never negative, net never above gross).
+
+### Worked example (by hand, then the exact-match fixtures)
+
+Rs 100,000, Moderate, filer, no Shariah filter; dev DB, model `lstm-rf-20261009T233529Z`, prices and forecasts as of the 7 Oct 2026 close; volatility over the 250 served closes to that date. Weights: risk weight 1/volatility, tilt t = (forecast + signal + news) / 3, raw = risk x (1 + 0.10 t); top 8 by raw weight (SYS ninth at 42.62 vs HBL 42.73); no stock or sector cap binds.
+
+| Stock     | Shares |  Price |         Gross | Commission | Sales tax |  CDC | PSX fee | Reg. fee | SECP | NCCPL trade | NCCPL SECP |    Charges |    Total cost |
+| --------- | -----: | -----: | ------------: | ---------: | --------: | ---: | ------: | -------: | ---: | ----------: | ---------: | ---------: | ------------: |
+| MARI      |     23 | 642.42 |     14,775.66 |      22.16 |      3.32 | 0.53 |    0.52 |        0 | 0.10 |        0.12 |       0.04 |      26.79 |     14,802.45 |
+| EFERT     |     73 | 193.00 |     14,089.00 |      21.13 |      3.17 | 0.51 |    0.49 |        0 | 0.09 |        0.11 |       0.04 |      25.54 |     14,114.54 |
+| OGDC      |     40 | 315.91 |     12,636.40 |      18.95 |      2.84 | 0.45 |    0.44 |        0 | 0.08 |        0.10 |       0.04 |      22.90 |     12,659.30 |
+| FFC       |     23 | 539.51 |     12,408.73 |      18.61 |      2.79 | 0.45 |    0.43 |        0 | 0.08 |        0.10 |       0.04 |      22.50 |     12,431.23 |
+| HUBC      |     58 | 200.49 |     11,628.42 |      17.44 |      2.62 | 0.42 |    0.41 |        0 | 0.08 |        0.09 |       0.03 |      21.09 |     11,649.51 |
+| MEBL      |     21 | 550.10 |     11,552.10 |      17.33 |      2.60 | 0.42 |    0.40 |        0 | 0.08 |        0.09 |       0.03 |      20.95 |     11,573.05 |
+| PSO       |     33 | 355.86 |     11,743.38 |      17.62 |      2.64 | 0.42 |    0.41 |        0 | 0.08 |        0.10 |       0.04 |      21.31 |     11,764.69 |
+| HBL       |     36 | 302.02 |     10,872.72 |      16.31 |      2.45 | 0.39 |    0.38 |        0 | 0.07 |        0.09 |       0.03 |      19.72 |     10,892.44 |
+| **Total** |        |        | **99,706.41** |            |           |      |         |          |      |             |            | **180.80** | **99,887.21** |
+
+Leftover Rs 112.79 (less than one more share of any holding, so not flagged). Flooring to whole shares left Rs 785.79; the top-up gave OGDC and PSO one more share each.
+
+FFC if sold at the forecast Rs 539.94: gross 12,418.62; charges 22.52 (18.63 + 2.79 + 0.45 + 0.43 + 0 + 0.08 + 0.10 + 0.04); proceeds 12,396.10; gain -35.13, so no CGT; net -Rs 35.13 (-0.28%). Break-even Rs 541.48 (at 541.47 the result is -0.01). Round trip 0.36%. Dividends in the last 12 months Rs 41.00 a share (Yahoo) x 23 = 943.00, WHT 15% = 141.45, net 801.55. CGT fixture (test only): sold at Rs 600.00, charges 25.03, gain 1,343.74, CGT 201.56, net return 1,142.18.
+
+Non-filer: buy side, forecast exit and CGT unchanged (CGT 15% as decided; 201.56 in the Rs 600 fixture); dividend WHT 30% = 282.90, net 660.10.
+
+The hand figures matched the engine on the first run, and the live generator on the dev DB returned the same table.
+
+### Step 5.2 - Database models
+
+`portfolios` and `portfolio_holdings` (migration `259b1d19deaa`, upgrade/downgrade round trip tested on the dev DB). Money is NUMERIC(16,2), weights NUMERIC(7,4), timestamps TIMESTAMPTZ like the existing tables. A portfolio stores its inputs, rates version, model version, prices date, Shariah list version, and the per-stock calculation (`input_snapshot`: volatility, forecast, signal, news score, tilt components, raw weight, rank, why it was left out); each holding stores every buy-side charge line, the prediction it used, and its projections (`projection`). A partial unique index keeps one active portfolio per user.
+
+### Step 5.3 - Generation (`services/allocation.py`, `services/portfolio_service.py`, `core/portfolio_rules.py`)
+
+| Category     | Weights          | Holdings | Max per stock | Max per sector | Tilt strength | Largest tilt at the cap |
+| ------------ | ---------------- | -------- | ------------- | -------------- | ------------- | ----------------------- |
+| Conservative | 1 / volatility^2 | 7-10     | 15%           | 30%            | 0.05          | 1.58 pp                 |
+| Moderate     | 1 / volatility   | 5-8      | 20%           | 35%            | 0.10          | 4.44 pp                 |
+| Aggressive   | equal            | 4-6      | 25%           | 40%            | 0.15          | 8.82 pp                 |
+
+forecast = clamp(expected return / 1%, -1, 1); signal = +P(BUY), -P(SELL), 0 for HOLD; news = decayed sentiment score (0 without a counted headline); tilt = mean of the three. Each weight is multiplied by 1 + lambda x tilt, so it moves by at most 2 lambda / (1 - lambda) of its untilted size; a property test checks the bound after capping on 300 random universes per category. No deliberate cash. Universe: the current model's forecast stocks whose forecast starts from the stock's latest served close, with 251 served closes; then exclusions and the Shariah filter (PSX/N-610 compliance pool, effective 25 May 2026: 404 companies; 15 of the 18 forecast stocks compliant; HBL, UBL and NBP non-compliant by nature). Whole shares; a stock whose target cannot buy one share is replaced by the next in the ranking. Tests: `tests/test_allocation.py` (11), `tests/test_portfolio_universe.py` (4).
+
+### Steps 5.4-5.5 - No Money Hold, rolling, low capital
+
+- **No Money Hold (FR24):** leftover cash is always shown; it is flagged, with the limit that blocked it and a suggestion, when it could buy another share of a holding but a stock or sector cap stopped it (test: four stocks in two sectors at Aggressive leave about 20% idle).
+- **Rolling (FR25, `services/rolling.py`):** after 20 trading days, a holding that trails the benchmark by more than its own 20-day volatility (daily sigma x sqrt(20)) with a SELL signal or a falling forecast is a candidate; a switch is suggested only if (replacement's expected return - holding's) x money moved beats selling charges + CGT on any gain + buying charges. Benchmark: the equal-weight average of the 18 forecast stocks, because Yahoo has no KSE-100 series (`^KSE`, `^KSE100` and `KSE100.KA` returned no data on 2026-10-11 while `HBL.KA` did). With today's forecasts the one-day gain rarely beats the 0.36% round trip; e.g. HBL to SYS: expected gain Rs 28.98 against Rs 38.80 of costs. Tests: `tests/test_rolling.py` (7, hand-worked).
+- **Low capital (FR28):** the generator refuses to build a portfolio that cannot hold the category's minimum number of stocks within the caps, and reports the smallest workable amount, found with the same generator in Rs 500 steps (Moderate today: Rs 1,500). Rs 500 at Moderate is impossible by construction (only PAEL and MLCF cost Rs 100 or less a share).
+
+### Steps 5.6-5.7 - Endpoints and integration tests
+
+`POST /portfolio/generate`, `GET /portfolio/current`, `POST /portfolio/{id}/roll-check`, `PATCH /portfolio/{id}/exclude-stock` (returns the regenerated portfolio, archives the old one). All require a login and a completed risk profile on the server (409 `risk_profile_required`, Memory.md §4). Errors: 422 `capital_below_minimum` (with `minimum_capital`), `too_few_eligible_stocks`, `invalid_commission_rate` (with the PSX range), `ticker_not_in_portfolio`; 409 `portfolio_archived`; 404 for another user's portfolio; 503 `predictions_unavailable`. Money and percentages are decimal strings. `tests/test_portfolio_api.py` (15) feeds the worked example through the real endpoint and asserts every line equals the Step 5.1 fixtures. Live check on the dev DB with a temporary account: identical totals (Rs 99,887.21, leftover 112.79), exclude HBL brings in SYS, roll-check reports "too early" (0 of 20 days), Rs 500 returns the low-capital explanation.
+
+### Step 5.8 - Frontend (`apps/web/src/features/portfolio/`)
+
+Plain-language summary first, totals (value of shares, buying charges, total cost, cash), prices and rates dates, idle-cash notice, "what these figures leave out", and the guidance line ("guidance, not a trade; InvestIQ places no orders"). Each holding card: allocation, break-even price as the main number, the buy side with every charge (unverified rates marked), the one-day forecast exit with the engine's round-trip figure, last year's dividends with WHT and the Yahoo note, "why this stock" from the stored forecast, signal and news, with the tilt in percentage points, and "Leave out" with a confirmation. Form: capital, filer status, Shariah filter, optional broker commission, excluded companies that can be added back. Low-capital explanation with a "Use Rs X" button. Roll-check panel. Skeleton, empty and error states. en and ur; percentages are wrapped in a left-to-right isolate so the % stays after the number in Urdu. Dashboard card shows the current portfolio. Screenshots: `docs/screenshots/phase5/`.
+
+### Step 5.9 - Docs
+
+Architecture §7 and §8, Memory §2/§3/§4, Phases.md Phase 0 and Phase 5 criteria, this report.
+
+### Deviations from the docs
+
+- Architecture §7's draft (`brokerage_fee`, `gross_price`, `net_price`, `generated_at TIMESTAMP`) replaced by the schema above (one column per charge line, TIMESTAMPTZ, input snapshot); Architecture §7 updated.
+- CGT and WHT are projections: CGT on the one-day forecast exit, WHT on last year's dividends; the buy side is exact under the stated rates.
+- Rolling benchmark is the forecast stocks' equal-weight average, not the KSE-100 index (no Yahoo series).
+- Only the 18 forecast stocks can be held (Memory.md §4).
+- Unverified rates (CDC, NCCPL, non-filer CGT) are included and marked; a broker contract note would confirm them.
+- Step 5.5 is built inside the allocation module rather than as separate code; its test is in `tests/test_allocation.py` and `tests/test_portfolio_api.py`.
+
 ---
 
 ## Frontend Pages Summary
 
 Code is organised by feature (Rules.md §4.2) under `apps/web/src/features/`.
 
-| Route                                                | Component                                     | Access                                                  |
-| ---------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------- |
-| `/`                                                  | redirect                                      | → `/dashboard`                                          |
-| `/login`, `/register`                                | `auth/LoginPage`, `auth/RegisterPage`         | Logged-out only                                         |
-| `/onboarding`                                        | `onboarding/OnboardingPage`                   | Logged in; with a completed profile only as `?retake=1` |
-| `/dashboard`                                         | `dashboard/DashboardPage`                     | Logged in + completed risk profile                      |
-| `/stocks`, `/stocks/:ticker`                         | `stocks/StocksPage`, `stocks/StockDetailPage` | Logged in + completed risk profile (Phases 2-3)         |
-| `/portfolio`, `/backtest`, `/chat`, `/notifications` | `common/ComingSoonPage`                       | Logged in + completed risk profile (Phases 5–8)         |
-| `/admin`                                             | `common/ComingSoonPage`                       | Admin role only (Phase 9)                               |
+| Route                                  | Component                                     | Access                                                  |
+| -------------------------------------- | --------------------------------------------- | ------------------------------------------------------- |
+| `/`                                    | redirect                                      | → `/dashboard`                                          |
+| `/login`, `/register`                  | `auth/LoginPage`, `auth/RegisterPage`         | Logged-out only                                         |
+| `/onboarding`                          | `onboarding/OnboardingPage`                   | Logged in; with a completed profile only as `?retake=1` |
+| `/dashboard`                           | `dashboard/DashboardPage`                     | Logged in + completed risk profile                      |
+| `/stocks`, `/stocks/:ticker`           | `stocks/StocksPage`, `stocks/StockDetailPage` | Logged in + completed risk profile (Phases 2-3)         |
+| `/portfolio`                           | `portfolio/PortfolioPage`                     | Logged in + completed risk profile (Phase 5)            |
+| `/backtest`, `/chat`, `/notifications` | `common/ComingSoonPage`                       | Logged in + completed risk profile (Phases 6–8)         |
+| `/admin`                               | `common/ComingSoonPage`                       | Admin role only (Phase 9)                               |
 
 ---
 
-## Database Schema (current, Alembic head `f3c8a2d6b417`)
+## Database Schema (current, Alembic head `259b1d19deaa`)
 
 ```sql
 users
@@ -590,47 +685,64 @@ predictions
   | confidence_score NUMERIC(5,4)  -- calibrated chance the LSTM direction is right
   | signal | signal_probability NUMERIC(5,4) NULL | as_of_date DATE NULL
   | sentiment_status VARCHAR NULL ('used'/'unavailable') | generated_at TIMESTAMPTZ
+
+portfolios         -- Phase 5; one active per user (partial unique index)
+  id UUID PK | user_id FK(users) ON DELETE CASCADE | status ('active'/'archived') | generated_at TIMESTAMPTZ
+  | risk_category | capital NUMERIC(16,2) | filer_status ('filer'/'non_filer') | shariah_only | excluded_tickers JSONB
+  | commission_rate NUMERIC(6,5) | rates_version | model_version | prices_as_of DATE | shariah_list_version NULL
+  | input_snapshot JSONB | gross_total | charges_total | cost_total | idle_cash  -- NUMERIC(16,2)
+
+portfolio_holdings
+  id UUID PK | portfolio_id FK(portfolios) ON DELETE CASCADE | stock_id FK(stocks) | prediction_id FK(predictions) NULL
+  | position | shares INT | reference_price NUMERIC(14,2) | target_weight | allocation_pct  -- NUMERIC(7,4), percent
+  | gross_value | commission | sales_tax | cdc_fee | psx_trading_fee | psx_regulatory_fee | secp_levy
+  | nccpl_trade_fee | nccpl_secp_fee | buy_charges | total_cost  -- NUMERIC(16,2) | projection JSONB
 ```
 
 ---
 
 ## Automated Tests
 
-| Suite                  | File                                 | Tests                                                             |
-| ---------------------- | ------------------------------------ | ----------------------------------------------------------------- |
-| Backend (pytest)       | `tests/test_auth.py`                 | 25                                                                |
-|                        | `tests/test_config.py`               | 14                                                                |
-|                        | `tests/test_admin_guard.py`          | 4                                                                 |
-|                        | `tests/test_risk_profile.py`         | 35                                                                |
-|                        | `tests/test_i18n_labels.py`          | 3                                                                 |
-|                        | `tests/test_datetimes.py`            | 4                                                                 |
-|                        | `tests/test_health.py`               | 1                                                                 |
-|                        | `tests/test_stocks.py`               | 25                                                                |
-|                        | `tests/test_split_adjustment.py`     | 9                                                                 |
-|                        | `tests/test_data_quality.py`         | 3                                                                 |
-|                        | `tests/test_dividend_adjustment.py`  | 10                                                                |
-|                        | `tests/test_ml_dataset.py`           | 3                                                                 |
-|                        | `tests/test_indicators.py`           | 14                                                                |
-|                        | `tests/test_splits.py`               | 5                                                                 |
-|                        | `tests/test_ml_metrics.py`           | 8                                                                 |
-|                        | `tests/test_ml_pipeline.py`          | 17                                                                |
-|                        | `tests/test_predictions.py`          | 18                                                                |
-|                        | `tests/test_ml_promotion.py`         | 8                                                                 |
-|                        | `tests/test_news_http.py`            | 7                                                                 |
-|                        | `tests/test_news_matching.py`        | 5                                                                 |
-|                        | `tests/test_news_sources.py`         | 6                                                                 |
-|                        | `tests/test_news_ingestion.py`       | 6                                                                 |
-|                        | `tests/test_sentiment_scoring.py`    | 5                                                                 |
-|                        | `tests/test_sentiment_api.py`        | 10                                                                |
-|                        | `tests/test_sentiment_fallback.py`   | 3                                                                 |
-|                        | `tests/test_sentiment_eval.py`       | 4                                                                 |
-|                        | `tests/test_sentiment_experiment.py` | 6                                                                 |
-|                        | `tests/test_migration_sentiment.py`  | 2                                                                 |
-| Web (Node test runner) | `apps/web/src/**/*.test.ts`          | 21 (draft-save ordering, route guards, formatting, forecast view) |
-| API client             | `packages/api-client/src/*.test.ts`  | 6 (token refresh coordination)                                    |
-| i18n                   | `packages/i18n/scripts/*.test.mjs`   | 3 (parity checker)                                                |
+| Suite                  | File                                 | Tests                                                                            |
+| ---------------------- | ------------------------------------ | -------------------------------------------------------------------------------- |
+| Backend (pytest)       | `tests/test_auth.py`                 | 25                                                                               |
+|                        | `tests/test_config.py`               | 14                                                                               |
+|                        | `tests/test_admin_guard.py`          | 4                                                                                |
+|                        | `tests/test_risk_profile.py`         | 35                                                                               |
+|                        | `tests/test_i18n_labels.py`          | 3                                                                                |
+|                        | `tests/test_datetimes.py`            | 4                                                                                |
+|                        | `tests/test_health.py`               | 1                                                                                |
+|                        | `tests/test_stocks.py`               | 25                                                                               |
+|                        | `tests/test_split_adjustment.py`     | 9                                                                                |
+|                        | `tests/test_data_quality.py`         | 3                                                                                |
+|                        | `tests/test_dividend_adjustment.py`  | 10                                                                               |
+|                        | `tests/test_ml_dataset.py`           | 3                                                                                |
+|                        | `tests/test_indicators.py`           | 14                                                                               |
+|                        | `tests/test_splits.py`               | 5                                                                                |
+|                        | `tests/test_ml_metrics.py`           | 8                                                                                |
+|                        | `tests/test_ml_pipeline.py`          | 17                                                                               |
+|                        | `tests/test_predictions.py`          | 18                                                                               |
+|                        | `tests/test_ml_promotion.py`         | 8                                                                                |
+|                        | `tests/test_news_http.py`            | 7                                                                                |
+|                        | `tests/test_news_matching.py`        | 5                                                                                |
+|                        | `tests/test_news_sources.py`         | 6                                                                                |
+|                        | `tests/test_news_ingestion.py`       | 6                                                                                |
+|                        | `tests/test_sentiment_scoring.py`    | 5                                                                                |
+|                        | `tests/test_sentiment_api.py`        | 10                                                                               |
+|                        | `tests/test_sentiment_fallback.py`   | 3                                                                                |
+|                        | `tests/test_sentiment_eval.py`       | 4                                                                                |
+|                        | `tests/test_sentiment_experiment.py` | 6                                                                                |
+|                        | `tests/test_migration_sentiment.py`  | 2                                                                                |
+|                        | `tests/test_cost_engine.py`          | 22                                                                               |
+|                        | `tests/test_allocation.py`           | 11                                                                               |
+|                        | `tests/test_rolling.py`              | 7                                                                                |
+|                        | `tests/test_portfolio_universe.py`   | 4                                                                                |
+|                        | `tests/test_portfolio_api.py`        | 15                                                                               |
+| Web (Node test runner) | `apps/web/src/**/*.test.ts`          | 27 (draft-save ordering, route guards, formatting, forecast and portfolio views) |
+| API client             | `packages/api-client/src/*.test.ts`  | 6 (token refresh coordination)                                                   |
+| i18n                   | `packages/i18n/scripts/*.test.mjs`   | 3 (parity checker)                                                               |
 
-Backend total: **267** (2026-10-11, Phase 4). All run in CI on every push; Playwright E2E runs locally.
+Backend total: **345** (2026-10-11, Phase 5). All run in CI on every push; Playwright E2E runs locally.
 
 ```bash
 cd services/api && python -m pytest          # backend
@@ -648,18 +760,18 @@ The root [`README.md`](../README.md) "Local Setup" section is the maintained, st
 
 ## What Still Needs to Be Built / Re-audited
 
-| Phase    | Item                                                                     | Status                                                                        |
-| -------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| Phase 2  | Stock data & market analysis                                             | ✅ Re-audited 2026-10-10 (mobile screens deferred to Phase 10)                |
-| Phase 3  | Prediction engine                                                        | ✅ Re-audited 2026-10-10 (models do not beat their baselines; documented)     |
-| Phase 4  | FinBERT sentiment endpoint + "what's driving this" panel                 | Complete 2026-10-11 (news model not promoted; FinBERT 67.7% on PSX headlines) |
-| Phase 5  | Portfolio generation + cost engine (server must require a risk profile)  | Not started                                                                   |
-| Phase 6  | Backtesting vs KSE-100                                                   | Not started                                                                   |
-| Phase 7  | Autonomous agent & notifications                                         | Not started                                                                   |
-| Phase 8  | LLM chatbot (bilingual)                                                  | Not started                                                                   |
-| Phase 9  | Admin panel                                                              | Not started                                                                   |
-| Phase 10 | Mobile app parity                                                        | Not started                                                                   |
-| Phase 11 | Testing, polish, defense prep (incl. hardening backlog in Memory.md §11) | Not started                                                                   |
+| Phase    | Item                                                                     | Status                                                                                             |
+| -------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| Phase 2  | Stock data & market analysis                                             | ✅ Re-audited 2026-10-10 (mobile screens deferred to Phase 10)                                     |
+| Phase 3  | Prediction engine                                                        | ✅ Re-audited 2026-10-10 (models do not beat their baselines; documented)                          |
+| Phase 4  | FinBERT sentiment endpoint + "what's driving this" panel                 | Complete 2026-10-11 (news model not promoted; FinBERT 67.7% on PSX headlines)                      |
+| Phase 5  | Portfolio generation + cost engine                                       | Complete 2026-10-11 (CDC, NCCPL and non-filer CGT rates unverified; KSE-100 benchmark unavailable) |
+| Phase 6  | Backtesting vs KSE-100                                                   | Not started                                                                                        |
+| Phase 7  | Autonomous agent & notifications                                         | Not started                                                                                        |
+| Phase 8  | LLM chatbot (bilingual)                                                  | Not started                                                                                        |
+| Phase 9  | Admin panel                                                              | Not started                                                                                        |
+| Phase 10 | Mobile app parity                                                        | Not started                                                                                        |
+| Phase 11 | Testing, polish, defense prep (incl. hardening backlog in Memory.md §11) | Not started                                                                                        |
 
 ---
 
@@ -671,4 +783,4 @@ The root [`README.md`](../README.md) "Local Setup" section is the maintained, st
 
 ---
 
-_Last updated: 2026-10-09_
+_Last updated: 2026-10-11_
