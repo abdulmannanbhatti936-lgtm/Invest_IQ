@@ -11,7 +11,13 @@ from sqlalchemy.orm import Session
 from core.config import settings
 from ml.dataset import dividend_adjusted, served_frame
 from ml.features import build_feature_frame
-from ml.inference import ModelBundle, load_bundle, models_agree, predict_next_day
+from ml.inference import (
+    ModelBundle,
+    ModelNotFoundError,
+    load_bundle,
+    models_agree,
+    predict_next_day,
+)
 from models.prediction import Prediction
 from models.stock import Stock
 from services.sentiment_service import headline_frame, source_freshness
@@ -27,6 +33,13 @@ SENTIMENT_UNAVAILABLE = "sentiment_unavailable"
 # predictions.sentiment_status values
 SENTIMENT_USED = "used"
 SENTIMENT_STALE = "unavailable"
+
+
+class FallbackModelMissing(Exception):
+    """
+    The news sources are stale and the price-only model a news model falls back to is not
+    on disk, so no honest forecast can be made; nothing is stored (PRD.md FR22).
+    """
 
 
 class InsufficientHistoryError(Exception):
@@ -64,7 +77,12 @@ def generate_prediction(db: Session, stock: Stock, bundle: ModelBundle | None = 
     if not bundle.uses_news:
         result = predict_next_day(bundle, build_feature_frame(series))
     elif source_freshness(db)["stale"]:
-        fallback = load_bundle(settings.MODEL_DIR, bundle.metadata["fallback_model_version"])
+        try:
+            fallback = load_bundle(settings.MODEL_DIR, bundle.metadata["fallback_model_version"])
+        except ModelNotFoundError as e:
+            raise FallbackModelMissing(
+                f"News sources are stale and the fallback model is missing: {e}"
+            ) from e
         logger.warning(f"{stock.ticker}: news sources stale, using {fallback.version}")
         result = predict_next_day(fallback, build_feature_frame(series))
         sentiment_status = SENTIMENT_STALE
