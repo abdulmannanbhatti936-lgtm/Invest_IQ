@@ -7,7 +7,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Card } from '../../components/ui/Card';
 import { ErrorState, Figure, Notice, Skeleton } from '../../components/ui/Feedback';
 import { formatDate, formatPct } from '../../lib/format';
-import { formatScore, lastUpdated, splitHeadlines, weightShare } from './sentimentView';
+import { formatScore, lastUpdated, weightShare } from './sentimentView';
 
 // Mood icons, never the arrow icons of the buy/sell/hold signal (Design.md §17)
 const SENTIMENT_BADGE: Record<
@@ -89,28 +89,21 @@ const HeadlineList = ({
 
 const Drivers = ({ sentiment }: { sentiment: StockSentiment }) => {
   const { t } = useTranslation();
-  const { counted, context } = splitHeadlines(sentiment);
+  const listed = sentiment.headlines;
   const after = sentiment.after_close_headlines;
-  if (!counted.length && !context.length && !after.length) return null;
+  if (!listed.length && !after.length) return null;
   return (
     // Open by default: the headlines are the reason the badge says what it says (PRD FR21)
     <details open className="rounded-lg bg-gray-50 p-4 text-sm">
       <summary className="cursor-pointer font-medium text-gray-900">
         {t('sentiment.driversTitle')}
       </summary>
-      {counted.length > 0 && <HeadlineList headlines={counted} sentiment={sentiment} />}
+      {listed.length > 0 && <HeadlineList headlines={listed} sentiment={sentiment} />}
       {after.length > 0 && (
         <div className="mt-4">
           <p className="font-medium text-gray-900">{t('sentiment.afterCloseTitle')}</p>
           <p className="text-xs text-gray-500">{t('sentiment.afterCloseNote')}</p>
           <HeadlineList headlines={after} sentiment={sentiment} />
-        </div>
-      )}
-      {context.length > 0 && (
-        <div className="mt-4">
-          <p className="font-medium text-gray-900">{t('sentiment.contextTitle')}</p>
-          <p className="text-xs text-gray-500">{t('sentiment.contextNote')}</p>
-          <HeadlineList headlines={context} sentiment={sentiment} />
         </div>
       )}
     </details>

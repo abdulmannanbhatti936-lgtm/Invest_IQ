@@ -75,9 +75,8 @@ def test_counts_the_window_and_lists_news_after_the_close_separately(client, db,
     assert body["news_weight"] == pytest.approx(1.5)
     assert body["score"] == pytest.approx(0.4)
     assert body["label"] == "positive"
-    counted = {h["source"]: h["weight"] for h in body["headlines"]}
-    # Business Recorder is shown but carries no weight: it is not a training source
-    assert counted["brecorder"] is None
+    # Business Recorder is not listed until it yields headlines about tracked stocks
+    assert {h["source"] for h in body["headlines"]} == {"profit"}
     assert [h["label"] for h in body["after_close_headlines"]] == ["negative"]
     assert body["freshness"]["stale"] is False
 
@@ -146,3 +145,12 @@ def test_finbert_failure_leaves_rows_unscored(db, mocka):
         score_pending(db, _Scorer(fail=True))
     row = db.query(SentimentScore).one()
     assert row.score is None and row.label is None
+
+
+def test_an_unscored_headline_is_listed_but_not_counted(client, db, mocka):
+    _fresh(db)
+    _headline(db, mocka, datetime.datetime(2022, 2, 25, 5, 0, tzinfo=UTC), None, None)
+    body = client.get("/stocks/MOCKA/sentiment").json()
+    assert body["counted_headlines"] == 0
+    assert [h["weight"] for h in body["headlines"]] == [None]
+    assert body["label"] is None

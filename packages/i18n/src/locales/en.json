@@ -283,8 +283,6 @@
     "share": "{{pct}} of the score",
     "pending": "Not scored yet",
     "scoredByVader": "Scored by VADER because FinBERT was unsure",
-    "contextTitle": "Also in the news, not counted",
-    "contextNote": "Business Recorder headlines are shown for context only: its archive does not reach back far enough to be part of the score.",
     "afterCloseTitle": "Published after the last close",
     "afterCloseNote": "These count from the next trading day.",
     "openSource": "{{source}}, {{date}} (opens in a new tab)",

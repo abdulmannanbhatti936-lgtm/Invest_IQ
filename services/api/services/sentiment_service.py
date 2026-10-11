@@ -7,6 +7,10 @@ last NEWS_WINDOW_DAYS trading days up to the latest stored close (ml/features.py
 training sources only. Headlines published after that close are listed separately: they
 count from the next trading day. The badge is the label with the largest decayed weight
 among the counted headlines (a tie is neutral), so no extra cut-off is needed.
+
+Business Recorder is still collected but not listed: its RSS feeds carry almost only wire
+and international market news, and none of their items has named a tracked stock in its
+link (checked 2026-10-11), so it adds nothing yet (Memory.md §9).
 """
 
 import datetime
@@ -140,7 +144,10 @@ def stock_sentiment(db: Session, stock: Stock) -> dict:
     as_of = trading_days.iloc[-1] if len(trading_days) else None
     rows = (
         db.query(SentimentScore)
-        .filter(SentimentScore.stock_id == stock.id)
+        .filter(
+            SentimentScore.stock_id == stock.id,
+            SentimentScore.source.in_(TRAINING_SOURCES),
+        )
         .order_by(SentimentScore.published_at.desc())
         .limit(200)
         .all()
@@ -157,10 +164,11 @@ def stock_sentiment(db: Session, stock: Stock) -> dict:
                 after_close.append(_headline_payload(row, None))
             continue
         weight = float(news_weights([len(trading_days) - 1 - position[day]])[0])
-        # Business Recorder is shown but never counted: it is not a training source
-        if weight == 0 or row.source not in TRAINING_SOURCES or row.score is None:
-            if weight > 0:
-                counted.append(_headline_payload(row, None))
+        if weight == 0:
+            continue
+        # A headline not scored yet is listed, but counts only once it has a score
+        if row.score is None:
+            counted.append(_headline_payload(row, None))
             continue
         counted.append(_headline_payload(row, weight))
         labels.append(row.label)

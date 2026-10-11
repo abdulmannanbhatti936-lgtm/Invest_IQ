@@ -15,12 +15,6 @@ export const weightShare = (
     ? null
     : headline.weight / sentiment.news_weight;
 
-/** Headlines inside the window: those that count, then those shown for context only. */
-export const splitHeadlines = (sentiment: StockSentiment) => ({
-  counted: sentiment.headlines.filter((h) => h.weight != null),
-  context: sentiment.headlines.filter((h) => h.weight == null),
-});
-
 /** The newest successful scrape among the sources that feed the score, if any. */
 export const lastUpdated = (sentiment: StockSentiment): string | null =>
   sentiment.freshness.sources
