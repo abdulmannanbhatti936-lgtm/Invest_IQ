@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 
 from integrations.news.sources import SOURCE_NAMES, TRAINING_SOURCES
 from ml.features import NEWS_HALF_LIFE_DAYS, NEWS_WINDOW_DAYS, headline_trading_days, news_weights
-from ml.sentiment import HeadlineScorer
+from ml.sentiment import FINBERT, HeadlineScorer
 from models.sentiment import NewsSourceStatus, SentimentScore
 from models.stock import Stock
 from services.stock_service import PriceDataUnavailable, StockService
@@ -121,6 +121,12 @@ def _headline_payload(row: SentimentScore, weight: float | None) -> dict:
         "url": row.url,
         "published_at": row.published_at,
         "label": row.label,
+        # When FinBERT scored the headline, its confidence is the probability of this label
+        "label_probability": (
+            float(row.finbert_confidence)
+            if row.scorer == FINBERT and row.finbert_confidence is not None
+            else None
+        ),
         "score": float(row.score) if row.score is not None else None,
         "scorer": row.scorer,
         "weight": weight,

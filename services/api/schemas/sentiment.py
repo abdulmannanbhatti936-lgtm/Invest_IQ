@@ -17,7 +17,9 @@ class SentimentHeadline(BaseModel):
     url: str
     published_at: UTCDateTime
     label: SentimentLabel | None  # None while the headline waits to be scored
-    score: float | None  # -1 .. +1
+    # FinBERT's probability for `label`; None when VADER scored it or it is not scored yet
+    label_probability: float | None
+    score: float | None  # -1 .. +1, the model input P(positive) - P(negative); not shown
     scorer: Literal["finbert", "vader"] | None
     weight: float | None  # share in today's sentiment; None = not counted
 

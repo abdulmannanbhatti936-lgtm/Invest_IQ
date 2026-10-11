@@ -33,7 +33,9 @@ def mocka(db, monkeypatch, fake_redis):
     return stock
 
 
-def _headline(db, stock, when, score, label, source="profit", slug=None):
+def _headline(
+    db, stock, when, score, label, source="profit", slug=None, scorer="finbert", confidence=None
+):
     row = SentimentScore(
         stock_id=stock.id,
         source=source,
@@ -42,7 +44,8 @@ def _headline(db, stock, when, score, label, source="profit", slug=None):
         published_at=when,
         score=None if score is None else Decimal(str(score)),
         label=label,
-        scorer=None if score is None else "finbert",
+        scorer=None if score is None else scorer,
+        finbert_confidence=None if confidence is None else Decimal(str(confidence)),
     )
     db.add(row)
     db.commit()
@@ -154,3 +157,15 @@ def test_an_unscored_headline_is_listed_but_not_counted(client, db, mocka):
     assert body["counted_headlines"] == 0
     assert [h["weight"] for h in body["headlines"]] == [None]
     assert body["label"] is None
+
+
+def test_each_headline_carries_finbert_probability_for_its_label(client, db, mocka):
+    _fresh(db)
+    day = datetime.datetime(2022, 2, 25, 5, 0, tzinfo=UTC)
+    _headline(db, mocka, day, 0.42, "neutral", slug="fb", confidence=0.61)
+    # VADER scored it because FinBERT was unsure: no FinBERT probability for VADER's label
+    _headline(db, mocka, day, 0.3, "positive", slug="vd", scorer="vader", confidence=0.45)
+    body = client.get("/stocks/MOCKA/sentiment").json()
+    by_slug = {h["url"].rsplit("/", 1)[-1]: h for h in body["headlines"]}
+    assert by_slug["fb"]["label_probability"] == pytest.approx(0.61)
+    assert by_slug["vd"]["label_probability"] is None

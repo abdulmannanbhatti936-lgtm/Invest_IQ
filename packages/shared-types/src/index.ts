@@ -156,7 +156,9 @@ export interface SentimentHeadline {
   published_at: string;
   /** null while the headline waits to be scored */
   label: SentimentLabel | null;
-  /** -1 (negative) to +1 (positive) */
+  /** FinBERT's probability for `label`; null when VADER scored it or it is not scored yet */
+  label_probability: number | null;
+  /** Model input P(positive) - P(negative), -1 to +1; not shown in the UI */
   score: number | null;
   scorer: 'finbert' | 'vader' | null;
   /** Share in today's sentiment (decayed weight); null = shown but not counted */

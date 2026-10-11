@@ -1,11 +1,5 @@
 import type { SentimentHeadline, StockSentiment } from '@investiq/shared-types';
 
-/** A score on the -1..+1 scale with its sign, e.g. "+0.40". */
-export const formatScore = (score: number): string => {
-  const rounded = Math.round(score * 100) / 100;
-  return `${rounded > 0 ? '+' : rounded < 0 ? '−' : ''}${Math.abs(rounded).toFixed(2)}`;
-};
-
 /** Each counted headline's share of today's sentiment (its decayed weight / the total). */
 export const weightShare = (
   headline: SentimentHeadline,
