@@ -2,11 +2,16 @@
 
 `psx_headlines_labeling.csv` holds real headlines about the 18 stocks the model covers, drawn at random (fixed seed) from Profit (Pakistan Today) and Mettis Global, October 2021 to October 2026: 162 headlines, nine per stock. Only the headline, source, date and link are kept. They measure how well FinBERT scores PSX news, which a public benchmark cannot show (PRD target: accuracy above 85%).
 
-## Who labels
+## How this sheet was labelled (2026-10-11)
 
-Both team members label **every row, separately**. Do not look at each other's labels until both are done. Person A fills `label_A`, person B fills `label_B`. It takes about 30 to 40 minutes each.
+- label_A: human annotator (team member).
+- label_B: an AI assistant (Claude), labelled independently before seeing A.
+- 37 disagreements (agreement 77.2%, Cohen's kappa 0.62) were resolved by the human annotator with a written rule: completed actions (acquisitions, launches, signed stakes) = positive; announcements/MoUs/talks/requests = neutral. The human approved every final_label.
+- The 7 rows with about_company = N are reported separately and excluded from sentiment accuracy.
 
-## What to fill in
+The labels are never to be described as two human annotators. Results: `services/api/ml/reports/finbert_evaluation.md` (FinBERT 67.7% on the 155 headlines about the company, below the 85% target).
+
+## Labelling guide
 
 Do not edit `id`, `matched_ticker`, `source`, `published_date`, `headline` or `url`.
 
@@ -18,16 +23,10 @@ Do not edit `id`, `matched_ticker`, `source`, `published_date`, `headline` or `u
    - If you are unsure, choose `neutral` and write why in `notes`.
 3. Label every row, including rows you marked `about_company = N`.
 
-## After both of you finish
+## What is reported
 
-1. Put both columns in one file.
-2. Go through every row where `label_A` and `label_B` differ, agree on one answer, and write it in `final_label`. Where they match, copy the label into `final_label`. Do not use the FinBERT output to settle a disagreement.
-3. Return the file. Do not relabel anything after the FinBERT results have been shown.
-
-## What will be reported
-
-- Agreement between the two of you (Cohen's kappa), before discussion.
-- On rows with `about_company = Y`: accuracy, macro-F1, per-class recall and the confusion matrix with a 95% bootstrap interval, for FinBERT alone, VADER alone, and FinBERT with the VADER fallback (the deployed setup).
-- Share of `about_company = Y`: how often the ticker matching picks the right company.
+- Agreement between label_A and label_B (share and Cohen's kappa), before resolution.
+- On rows with `about_company = Y`: accuracy and macro-F1 with 95% bootstrap intervals, per-class recall and the confusion matrix, for FinBERT alone, VADER alone, and FinBERT with the VADER fallback (the deployed setup).
+- Share of `about_company = Y`: how often the ticker matching picks the right company (155 of 162). The `N` rows are listed separately.
 
 With 162 headlines the accuracy interval is roughly plus or minus 6 points, so this set shows whether FinBERT is near the 85% target on PSX news, not a precise figure.

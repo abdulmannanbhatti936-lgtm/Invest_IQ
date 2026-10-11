@@ -130,7 +130,7 @@ Beat runs on Asia/Karachi time. It schedules:
 | ------------------ | -------------------------------------------------------------------------------- |
 | Price refresh      | 18:00 Mon-Fri (last month); full 5-year resync Sundays at 06:00                  |
 | Dividend refresh   | 18:15 Mon-Fri (dividend events and their adjustment decision)                    |
-| News and sentiment | Every 3 hours (Profit, Mettis Global, Business Recorder; then FinBERT scoring)   |
+| News and sentiment | Every 3 hours (Profit and Mettis Global; then FinBERT scoring)                   |
 | Predictions        | 18:30 Mon-Fri                                                                    |
 | Model retraining   | Saturdays at 22:00 (a candidate with its full report; never goes live by itself) |
 
