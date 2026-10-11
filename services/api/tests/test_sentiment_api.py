@@ -33,7 +33,9 @@ def mocka(db, monkeypatch, fake_redis):
     return stock
 
 
-def _headline(db, stock, when, score, label, source="profit", slug=None):
+def _headline(
+    db, stock, when, score, label, source="profit", slug=None, scorer="finbert", confidence=None
+):
     row = SentimentScore(
         stock_id=stock.id,
         source=source,
@@ -42,7 +44,8 @@ def _headline(db, stock, when, score, label, source="profit", slug=None):
         published_at=when,
         score=None if score is None else Decimal(str(score)),
         label=label,
-        scorer=None if score is None else "finbert",
+        scorer=None if score is None else scorer,
+        finbert_confidence=None if confidence is None else Decimal(str(confidence)),
     )
     db.add(row)
     db.commit()
@@ -75,9 +78,8 @@ def test_counts_the_window_and_lists_news_after_the_close_separately(client, db,
     assert body["news_weight"] == pytest.approx(1.5)
     assert body["score"] == pytest.approx(0.4)
     assert body["label"] == "positive"
-    counted = {h["source"]: h["weight"] for h in body["headlines"]}
-    # Business Recorder is shown but carries no weight: it is not a training source
-    assert counted["brecorder"] is None
+    # Business Recorder is not listed until it yields headlines about tracked stocks
+    assert {h["source"] for h in body["headlines"]} == {"profit"}
     assert [h["label"] for h in body["after_close_headlines"]] == ["negative"]
     assert body["freshness"]["stale"] is False
 
@@ -146,3 +148,24 @@ def test_finbert_failure_leaves_rows_unscored(db, mocka):
         score_pending(db, _Scorer(fail=True))
     row = db.query(SentimentScore).one()
     assert row.score is None and row.label is None
+
+
+def test_an_unscored_headline_is_listed_but_not_counted(client, db, mocka):
+    _fresh(db)
+    _headline(db, mocka, datetime.datetime(2022, 2, 25, 5, 0, tzinfo=UTC), None, None)
+    body = client.get("/stocks/MOCKA/sentiment").json()
+    assert body["counted_headlines"] == 0
+    assert [h["weight"] for h in body["headlines"]] == [None]
+    assert body["label"] is None
+
+
+def test_each_headline_carries_finbert_probability_for_its_label(client, db, mocka):
+    _fresh(db)
+    day = datetime.datetime(2022, 2, 25, 5, 0, tzinfo=UTC)
+    _headline(db, mocka, day, 0.42, "neutral", slug="fb", confidence=0.61)
+    # VADER scored it because FinBERT was unsure: no FinBERT probability for VADER's label
+    _headline(db, mocka, day, 0.3, "positive", slug="vd", scorer="vader", confidence=0.45)
+    body = client.get("/stocks/MOCKA/sentiment").json()
+    by_slug = {h["url"].rsplit("/", 1)[-1]: h for h in body["headlines"]}
+    assert by_slug["fb"]["label_probability"] == pytest.approx(0.61)
+    assert by_slug["vd"]["label_probability"] is None

@@ -16,7 +16,8 @@ News sentiment (Workflow.md Step 4.6, decided 2026-10-11) adds two inputs per da
 days (half-life NEWS_HALF_LIFE_DAYS; 0 means no news), and `sentiment`, the decayed mean of
 their scores. A day without news gets sentiment 0 together with news_weight 0, so the model
 can tell "no news" apart from "neutral news". A headline published after the 15:30 PKT close
-counts for the next trading day, so a row never sees news from after its own close.
+counts for the next trading day (earlier in Ramadan, `market_close`), so a row never sees
+news from after its own close.
 """
 
 import datetime
@@ -63,6 +64,53 @@ NEWS_WINDOW_DAYS = 10
 NEWS_HALF_LIFE_DAYS = 3
 MARKET_CLOSE = datetime.time(15, 30)
 PSX_TIMEZONE = "Asia/Karachi"
+# PSX closes early in Ramadan (PSX Trading & TREC Affairs notices, as reported by Mettis
+# Global and ProPakistani): 2022 at 14:00 Mon-Thu and 13:00 Fri; 2023-2026 at 13:30 and
+# 12:30. Each range runs from the day before the first fast to Eid, a day wider than the
+# month on each side for moon sighting: an early close applied to a normal day only moves
+# news to the next day, never into a day it was not known on. A new year's row is added
+# when PSX publishes its timings (Memory.md §4).
+# First fast and Eid in Pakistan (Central Ruet-e-Hilal Committee, as reported; links in
+# Memory.md §11): 2022-04-03 / 2022-05-03 (Dawn 1683073, Aaj 30285304); 2023-03-23 /
+# 2023-04-22 (Daily Pakistan 22-Mar-2023, Aaj 30318743); 2024-03-12 / 2024-04-10 (Dunya
+# 797274, Dawn 1826713); 2025-03-02 / 2025-03-31 (Business Recorder 40350589, Dawn
+# 1901319); 2026-02-19 / 2026-03-21 (Dawn 1974092, Express Tribune 2598455). Ramadan 2021
+# (2021-04-14 / 2021-05-13, Dawn 1618028, Express Tribune 2299641) is before the news window.
+# Outside Ramadan the close was 15:30 or later throughout (16:00 from 2021-10-25, Friday
+# 16:30 or 17:00), so 15:30 never lets news after the close count for the same day.
+RAMADAN_CLOSES = (
+    (
+        datetime.date(2022, 4, 2),
+        datetime.date(2022, 5, 3),
+        datetime.time(14, 0),
+        datetime.time(13, 0),
+    ),
+    (
+        datetime.date(2023, 3, 22),
+        datetime.date(2023, 4, 22),
+        datetime.time(13, 30),
+        datetime.time(12, 30),
+    ),
+    (
+        datetime.date(2024, 3, 11),
+        datetime.date(2024, 4, 10),
+        datetime.time(13, 30),
+        datetime.time(12, 30),
+    ),
+    (
+        datetime.date(2025, 3, 1),
+        datetime.date(2025, 3, 31),
+        datetime.time(13, 30),
+        datetime.time(12, 30),
+    ),
+    (
+        datetime.date(2026, 2, 18),
+        datetime.date(2026, 3, 21),
+        datetime.time(13, 30),
+        datetime.time(12, 30),
+    ),
+)
+FRIDAY = 4
 
 # Next-day return thresholds for the buy/sell/hold label
 SIGNAL_THRESHOLD = 0.01
@@ -203,6 +251,14 @@ def add_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def market_close(day: datetime.date) -> datetime.time:
+    """The PSX close on a PSX calendar day (RAMADAN_CLOSES, else MARKET_CLOSE)."""
+    for first, last, mon_to_thu, friday in RAMADAN_CLOSES:
+        if first <= day <= last:
+            return friday if day.weekday() == FRIDAY else mon_to_thu
+    return MARKET_CLOSE
+
+
 def headline_trading_days(published_at: pd.Series, trading_days: pd.Series) -> pd.Series:
     """
     The trading day each headline counts for: the first trading day on or after its PSX
@@ -210,7 +266,11 @@ def headline_trading_days(published_at: pd.Series, trading_days: pd.Series) -> p
     `trading_days` yet (news after the last stored close).
     """
     local = pd.to_datetime(published_at, utc=True).dt.tz_convert(PSX_TIMEZONE)
-    after_close = local.dt.time > MARKET_CLOSE
+    after_close = pd.Series(
+        [stamp.time() > market_close(stamp.date()) for stamp in local],
+        index=published_at.index,
+        dtype=bool,
+    )
     day = local.dt.tz_localize(None).dt.normalize() + pd.to_timedelta(
         after_close.astype(int), unit="D"
     )

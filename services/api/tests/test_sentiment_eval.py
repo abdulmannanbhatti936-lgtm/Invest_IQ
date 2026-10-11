@@ -91,24 +91,32 @@ def test_labelled_sheet_is_scored_on_headlines_about_the_company(tmp_path):
     result = psx_set(sheet, KeywordFinBERT(), ZeroVader())
     assert result["status"] == "labelled"
     assert result["ticker_match_precision"] == pytest.approx(0.75)
-    assert result["rows"] == 3
-    assert result["finbert"]["accuracy"] == pytest.approx(2 / 3)
-    assert result["vader"]["accuracy"] == pytest.approx(0.0)
+    assert (result["rows"], result["about_company_rows"]) == (4, 3)
+    assert [row["id"] for row in result["not_about_company"]] == ["H004"]
+    assert result["label_a_b_disagreements"] == 1
+    assert result["label_a_b_agreement"] == pytest.approx(0.75)
+    evaluation = result["evaluation"]
+    assert evaluation["rows"] == 3
+    assert evaluation["finbert"]["accuracy"] == pytest.approx(2 / 3)
+    assert evaluation["vader"]["accuracy"] == pytest.approx(0.0)
+    low, high = evaluation["finbert"]["f1_macro_ci95"]
+    assert 0.0 <= low <= high <= 1.0
     write_report(
         {
             "finbert": "MOCK",
             "vader": "MOCK",
             "fallback_rule": "MOCK",
             "prd_target_accuracy": 0.85,
-            "financial_phrasebank": {
-                subset: {**result, "vader_changed_label_share": 0.0}
-                for subset in ("all_agree", "50_agree")
-            },
+            "financial_phrasebank": {subset: evaluation for subset in ("all_agree", "50_agree")},
             "psx_headlines": result,
         },
         tmp_path / "out",
     )
-    assert "Labeller agreement" in (tmp_path / "out" / "finbert_evaluation.md").read_text()
+    report = (tmp_path / "out" / "finbert_evaluation.md").read_text(encoding="utf-8")
+    assert "label_B: an AI assistant (Claude)" in report
+    assert "two human" not in report
+    assert "- H004 (MOCKA): MOCK_ sponsor of the cricket league" in report
+    assert "rows: true label; columns: predicted" in report
 
 
 def test_kappa():

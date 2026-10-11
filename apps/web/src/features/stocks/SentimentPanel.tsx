@@ -5,9 +5,9 @@ import { useTranslation } from '@investiq/i18n';
 import type { SentimentHeadline, SentimentLabel, StockSentiment } from '@investiq/shared-types';
 import { Badge } from '../../components/ui/Badge';
 import { Card } from '../../components/ui/Card';
-import { ErrorState, Figure, Notice, Skeleton } from '../../components/ui/Feedback';
+import { ErrorState, Notice, Skeleton } from '../../components/ui/Feedback';
 import { formatDate, formatPct } from '../../lib/format';
-import { formatScore, lastUpdated, splitHeadlines, weightShare } from './sentimentView';
+import { lastUpdated, weightShare } from './sentimentView';
 
 // Mood icons, never the arrow icons of the buy/sell/hold signal (Design.md §17)
 const SENTIMENT_BADGE: Record<
@@ -19,13 +19,29 @@ const SENTIMENT_BADGE: Record<
   neutral: { variant: 'neutral', icon: Meh },
 };
 
-const SentimentBadge = ({ label, large = false }: { label: SentimentLabel; large?: boolean }) => {
+const SentimentBadge = ({
+  label,
+  probability = null,
+  large = false,
+}: {
+  label: SentimentLabel;
+  /** FinBERT's probability for this label, shown next to it when FinBERT scored it */
+  probability?: number | null;
+  large?: boolean;
+}) => {
   const { t } = useTranslation();
   const { variant, icon: Icon } = SENTIMENT_BADGE[label];
+  const name = t(`sentiment.label.${label}`);
   return (
     <Badge variant={variant} className={`gap-1 ${large ? 'text-sm' : ''}`}>
       <Icon className={large ? 'h-4 w-4' : 'h-3.5 w-3.5'} aria-hidden="true" />
-      {t(`sentiment.label.${label}`)}
+      {probability == null ? (
+        name
+      ) : (
+        <span className="tabular-nums">
+          {t('sentiment.labelWithProbability', { label: name, pct: formatPct(probability) })}
+        </span>
+      )}
     </Badge>
   );
 };
@@ -61,11 +77,10 @@ const HeadlineItem = ({
           {headline.source_name} · {date}
         </span>
         {headline.label ? (
-          <SentimentBadge label={headline.label} />
+          <SentimentBadge label={headline.label} probability={headline.label_probability} />
         ) : (
           <span>{t('sentiment.pending')}</span>
         )}
-        {headline.score != null && <Figure>{formatScore(headline.score)}</Figure>}
         {share != null && <span>{t('sentiment.share', { pct: formatPct(share) })}</span>}
         {headline.scorer === 'vader' && <span>{t('sentiment.scoredByVader')}</span>}
       </div>
@@ -89,28 +104,22 @@ const HeadlineList = ({
 
 const Drivers = ({ sentiment }: { sentiment: StockSentiment }) => {
   const { t } = useTranslation();
-  const { counted, context } = splitHeadlines(sentiment);
+  const listed = sentiment.headlines;
   const after = sentiment.after_close_headlines;
-  if (!counted.length && !context.length && !after.length) return null;
+  if (!listed.length && !after.length) return null;
   return (
     // Open by default: the headlines are the reason the badge says what it says (PRD FR21)
     <details open className="rounded-lg bg-gray-50 p-4 text-sm">
       <summary className="cursor-pointer font-medium text-gray-900">
         {t('sentiment.driversTitle')}
       </summary>
-      {counted.length > 0 && <HeadlineList headlines={counted} sentiment={sentiment} />}
+      <p className="mt-1 text-xs text-gray-500">{t('sentiment.probabilityNote')}</p>
+      {listed.length > 0 && <HeadlineList headlines={listed} sentiment={sentiment} />}
       {after.length > 0 && (
         <div className="mt-4">
           <p className="font-medium text-gray-900">{t('sentiment.afterCloseTitle')}</p>
           <p className="text-xs text-gray-500">{t('sentiment.afterCloseNote')}</p>
           <HeadlineList headlines={after} sentiment={sentiment} />
-        </div>
-      )}
-      {context.length > 0 && (
-        <div className="mt-4">
-          <p className="font-medium text-gray-900">{t('sentiment.contextTitle')}</p>
-          <p className="text-xs text-gray-500">{t('sentiment.contextNote')}</p>
-          <HeadlineList headlines={context} sentiment={sentiment} />
         </div>
       )}
     </details>
@@ -133,7 +142,7 @@ const StaleNotice = ({ sentiment }: { sentiment: StockSentiment }) => {
 const Summary = ({ sentiment }: { sentiment: StockSentiment }) => {
   const { t, i18n } = useTranslation();
   const date = sentiment.as_of_date ? formatDate(sentiment.as_of_date, i18n.language) : '—';
-  if (!sentiment.label || sentiment.score == null) {
+  if (!sentiment.label) {
     return (
       <Notice>
         {t('sentiment.noNews', {
@@ -146,12 +155,7 @@ const Summary = ({ sentiment }: { sentiment: StockSentiment }) => {
   }
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-3">
-        <SentimentBadge label={sentiment.label} large />
-        <span className="text-sm text-gray-700">
-          {t('sentiment.score', { score: formatScore(sentiment.score) })}
-        </span>
-      </div>
+      <SentimentBadge label={sentiment.label} large />
       <p className="text-sm text-gray-600">
         {t('sentiment.basis', {
           count: sentiment.counted_headlines,

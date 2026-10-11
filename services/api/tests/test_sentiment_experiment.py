@@ -120,3 +120,12 @@ def test_news_dataset_refuses_unscored_headlines(db, tmp_path):
     _scored(db, stock, "https://example.com/MOCK/2", None)
     with pytest.raises(NewsDatasetError, match="not scored"):
         build_news_dataset(db, ["MOCKA"], tmp_path)
+
+
+def test_a_rebuild_never_reuses_a_committed_version_name(db, tmp_path):
+    stock = mock_stock(db)
+    _scored(db, stock, "https://example.com/MOCK/3", 0.5)
+    first = build_news_dataset(db, ["MOCKA"], tmp_path)
+    second = build_news_dataset(db, ["MOCKA"], tmp_path, taken={first.name})
+    assert second.name == f"{first.name}-r2"
+    assert (first / "headlines.csv").exists()

@@ -442,7 +442,7 @@ Branch `feat/phase-4-sentiment`. Decisions and numbers are in Memory.md §3; the
 
 ### Step 4.1 - Sources and decisions
 
-Profit and Mettis Global (history and live), Business Recorder (live display only); Dawn, Express Tribune, PSX announcements and Yahoo RSS rejected (Memory.md §9). The old Yahoo RSS scraper and its browser user agent were deleted. Permission emails to the three sources are logged as a pre-deployment item (Memory.md §4).
+Profit and Mettis Global (history and live), Business Recorder (live display only; disabled after the audit below, because it never yielded a headline about a tracked stock); Dawn, Express Tribune, PSX announcements and Yahoo RSS rejected (Memory.md §9). The old Yahoo RSS scraper and its browser user agent were deleted. Permission emails to the three sources are logged as a pre-deployment item (Memory.md §4).
 
 ### Step 4.2 - Scrapers (`services/api/integrations/news/`)
 
@@ -458,11 +458,11 @@ Table `sentiment_scores` (unique on stock + URL) replaces `news_sentiments`; `ne
 
 ### Step 4.6 - With vs without sentiment
 
-Run once, as declared in advance (`ml/reports/sentiment_experiment_2026-10-10.md`): validation LSTM RMSE 2.263% (news) vs 2.274% (price only); validation RF balanced accuracy 43.1% vs 43.2%. The rule requires both, so the news model was **not promoted**. Test: 2.687% vs 2.702% (naive 2.653%); direction 48.7% vs 48.9%. News inputs rank 16 and 17 of 17 in RF importance. 5-day extra (evaluation only): no better. FinBERT on Financial PhraseBank: 97.2% (all-agree) and 89.0% (50%-agree), optimistic by construction; PSX headline accuracy pending team labels.
+First run, as declared in advance (`ml/reports/sentiment_experiment_2026-10-10.md`): validation LSTM RMSE 2.263% (news) vs 2.274% (price only); validation RF balanced accuracy 43.1% vs 43.2%. The rule requires both, so the news model was **not promoted**. Test: 2.687% vs 2.702% (naive 2.653%); direction 48.7% vs 48.9%. News inputs rank 16 and 17 of 17 in RF importance. 5-day extra (evaluation only): no better. FinBERT on Financial PhraseBank: 97.2% (all-agree) and 89.0% (50%-agree), optimistic by construction; PSX headline accuracy pending team labels.
 
 ### Step 4.7 - Graceful degradation (FR22)
 
-A news model falls back to its price-only `fallback_model_version` when Profit and Mettis have had no successful scrape for 24 hours; `predictions.sentiment_status` is 'used' or 'unavailable' and the forecast carries the reason `sentiment_unavailable`. `ml.promote` refuses a news candidate whose fallback is not already promoted. Forced-failure test: all sources fail, last success 30 h ago, the forecast equals the price-only forecast and is flagged.
+A news model falls back to its price-only `fallback_model_version` when either Profit or Mettis has gone more than 24 hours without a successful scrape (one missing source would bias the news feature); `predictions.sentiment_status` is 'used' or 'unavailable' and the forecast carries the reason `sentiment_unavailable`. `ml.promote` refuses a news candidate whose fallback is not already promoted. Forced-failure test: all sources fail, last success 30 h ago, the forecast equals the price-only forecast and is flagged.
 
 ### Step 4.8 - Frontend
 
@@ -472,12 +472,58 @@ Sentiment panel on the stock page (badge with Smile/Frown/Meh icons, distinct fr
 
 Architecture §3, §7, §9, §10, §15.3, README section 5, `services/sentiment-engine/README.md`.
 
+### Phase 4 audit fixes (2026-10-11, branch `fix/phase-4-audit`)
+
+An examiner-style audit after the merge found the items below; each was fixed and tested.
+
+| Finding                                                                                                                                                                                                                                                                                                       | Fix                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Matching did not follow the documented rule: 5 rows attached by the headline alone (incl. "Pakistan petroleum sales" as PPL), 11 "NBP issues foreign exchange rates" notices passed the exclusion list (their slug lacks the excluded words), "Universal Network Systems Limited" matched SYS, 1 HBL PSL item | `matching.py`: stocks from the URL slug only; exclusions checked against headline + slug together; a UNSL exclusion. `rematch` removed the rows                  |
+| 3 stored headlines belong to other articles (pages serve a wrong `og:title`; re-fetched, unchanged)                                                                                                                                                                                                           | `title_matches_slug`: a headline must name a stock its slug names or share two content words with it; checked at storage and by `rematch`                        |
+| Fixed 15:30 close: in Ramadan PSX closes at 13:30 (Fri 12:30; 2022: 14:00 / 13:00), so about 1.8% of headlines counted for a day they came after                                                                                                                                                              | `RAMADAN_CLOSES` and `market_close` in `ml/features.py`, from PSX notices reported by Mettis Global and ProPakistani; each Ramadan widened by a day on each side |
+| `Retry-After` ignored; redirect targets not checked against robots.txt                                                                                                                                                                                                                                        | `http.py` waits at least `Retry-After` (over 300 s ends the run) and follows redirects one robots-checked hop at a time                                          |
+| A missing fallback model would crash the prediction run                                                                                                                                                                                                                                                       | `FallbackModelMissing`; the run stops with status `fallback_model_missing`, stored forecasts stay                                                                |
+| Business Recorder has never stored a row: its RSS feeds are almost all international wire news (0 of 54 items, 0 of 30 in `/feeds/markets/stocks` named a tracked stock on 2026-10-11)                                                                                                                        | Disabled: no longer collected (scraper and tests kept); the "Also in the news" section was removed                                                               |
+| Urdu "خبروں کا رجحان" can read as a price trend                                                                                                                                                                                                                                                               | "خبروں کا تاثر" in every sentiment string                                                                                                                        |
+
+**Re-run of the experiment** on the corrected dataset `news18-2026-10-09-r2` (2,143 headlines), same rule, run once (`ml/reports/sentiment_experiment_2026-10-11.md`): validation LSTM RMSE 2.263% vs 2.274% (better), RF balanced accuracy 43.0% vs 43.2% (not better): **not promoted** again. Test: 2.686% vs 2.702%; RF balanced accuracy 40.8% vs 40.9%. The price-only run reproduces the live model exactly.
+
+|                                                    | First run                   | Re-run                         |
+| -------------------------------------------------- | --------------------------- | ------------------------------ |
+| News dataset                                       | `news18-2026-10-09` (2,164) | `news18-2026-10-09-r2` (2,143) |
+| Validation LSTM RMSE, news vs price                | 2.263% vs 2.274%            | 2.263% vs 2.274%               |
+| Validation RF balanced accuracy, news vs price     | 43.1% vs 43.2%              | 43.0% vs 43.2%                 |
+| Decision                                           | not promoted                | not promoted                   |
+| Test LSTM RMSE, news vs price (naive 2.653%)       | 2.687% vs 2.702%            | 2.686% vs 2.702%               |
+| 5-day test LSTM RMSE, news vs price (naive 5.189%) | 5.444% vs 5.518%            | 5.447% vs 5.518%               |
+
+### FinBERT on PSX headlines (2026-10-11)
+
+The 162 headlines in `docs/sentiment-eval/psx_headlines_labeling.csv` (nine per stock, drawn at random from Profit and Mettis Global). How they were labelled:
+
+- label_A: human annotator (team member).
+- label_B: an AI assistant (Claude), labelled independently before seeing A.
+- 37 disagreements (agreement 77.2%, Cohen's kappa 0.62) were resolved by the human annotator with a written rule: completed actions (acquisitions, launches, signed stakes) = positive; announcements/MoUs/talks/requests = neutral. The human approved every final_label.
+- The 7 rows with about_company = N are reported separately and excluded from sentiment accuracy.
+
+Ticker matching: 155 of 162 (95.7%) are about the matched company; 4 of the 7 that are not were already removed by the audit fixes, 3 remain (Memory.md §4).
+
+| On the 155 headlines about the company | Accuracy (95% bootstrap CI) | Macro-F1 (95% CI)   | Recall positive / negative / neutral |
+| -------------------------------------- | --------------------------- | ------------------- | ------------------------------------ |
+| FinBERT alone                          | 67.7% (60.0%-75.5%)         | 0.711 (0.637-0.777) | 57.9% / 95.5% / 70.2%                |
+| VADER alone                            | 60.0% (52.3%-67.1%)         | 0.592 (0.504-0.672) | 60.5% / 63.6% / 57.9%                |
+| FinBERT + VADER fallback (deployed)    | 67.1% (59.4%-74.2%)         | 0.705 (0.629-0.770) | 57.9% / 95.5% / 68.4%                |
+
+**Below the 85% target.** FinBERT almost never calls a negative headline wrong (21 of 22), but labels 29 of 76 positive headlines neutral. Confusion matrices: `ml/reports/finbert_evaluation.md`.
+
 ### Deviations from the docs
 
+- Exit criterion "sentiment visibly influences prediction output" is met in Workflow.md's wording only: the candidate news model's predictions change when the news is switched off, but the live model has no news inputs because the pre-declared rule was not met (Memory.md §3).
+- FinBERT's 97.2% is an upper bound (PhraseBank, its fine-tuning data); on PSX headlines it is 67.7%, below the 85% target.
 - Code lives in `services/api/ml/sentiment.py` and `services/api/integrations/news/`, not `services/sentiment-engine/` (Workflow.md updated).
 - Prediction and sentiment endpoints are not Redis-cached (Architecture §10 as-built note).
 - The committed news dataset keeps URL, time and score but not the headline text.
-- The sentiment evaluation on PSX headlines is not yet run (labels pending); SEntFiN skipped.
+- SEntFiN skipped; the PSX headline set (162 rows) is the in-domain evaluation.
 
 ---
 
@@ -602,18 +648,18 @@ The root [`README.md`](../README.md) "Local Setup" section is the maintained, st
 
 ## What Still Needs to Be Built / Re-audited
 
-| Phase    | Item                                                                     | Status                                                                    |
-| -------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| Phase 2  | Stock data & market analysis                                             | ✅ Re-audited 2026-10-10 (mobile screens deferred to Phase 10)            |
-| Phase 3  | Prediction engine                                                        | ✅ Re-audited 2026-10-10 (models do not beat their baselines; documented) |
-| Phase 4  | FinBERT sentiment endpoint + "what's driving this" panel                 | Complete 2026-10-11 (news model not promoted; PSX labels pending)         |
-| Phase 5  | Portfolio generation + cost engine (server must require a risk profile)  | Not started                                                               |
-| Phase 6  | Backtesting vs KSE-100                                                   | Not started                                                               |
-| Phase 7  | Autonomous agent & notifications                                         | Not started                                                               |
-| Phase 8  | LLM chatbot (bilingual)                                                  | Not started                                                               |
-| Phase 9  | Admin panel                                                              | Not started                                                               |
-| Phase 10 | Mobile app parity                                                        | Not started                                                               |
-| Phase 11 | Testing, polish, defense prep (incl. hardening backlog in Memory.md §11) | Not started                                                               |
+| Phase    | Item                                                                     | Status                                                                        |
+| -------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| Phase 2  | Stock data & market analysis                                             | ✅ Re-audited 2026-10-10 (mobile screens deferred to Phase 10)                |
+| Phase 3  | Prediction engine                                                        | ✅ Re-audited 2026-10-10 (models do not beat their baselines; documented)     |
+| Phase 4  | FinBERT sentiment endpoint + "what's driving this" panel                 | Complete 2026-10-11 (news model not promoted; FinBERT 67.7% on PSX headlines) |
+| Phase 5  | Portfolio generation + cost engine (server must require a risk profile)  | Not started                                                                   |
+| Phase 6  | Backtesting vs KSE-100                                                   | Not started                                                                   |
+| Phase 7  | Autonomous agent & notifications                                         | Not started                                                                   |
+| Phase 8  | LLM chatbot (bilingual)                                                  | Not started                                                                   |
+| Phase 9  | Admin panel                                                              | Not started                                                                   |
+| Phase 10 | Mobile app parity                                                        | Not started                                                                   |
+| Phase 11 | Testing, polish, defense prep (incl. hardening backlog in Memory.md §11) | Not started                                                                   |
 
 ---
 

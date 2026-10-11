@@ -5,11 +5,14 @@ FinBERT accuracy (PRD.md §11 target: above 85%), reported on two sets and never
    and "50% agree" subsets. OPTIMISTIC: ProsusAI/finbert was fine-tuned on this dataset and
    its test split was never published, so most of these sentences were probably seen in
    training. Downloaded at run time from a pinned revision and never committed.
-2. The PSX headline set in docs/sentiment-eval/ (162 real headlines labelled by the team).
-   Until every `final_label` is filled in, it is reported as "pending team labels".
+2. The PSX headline set in docs/sentiment-eval/ (162 real headlines; how they were labelled
+   is ANNOTATION below). Until every `final_label` is filled in, it is reported as "pending
+   team labels". Headlines not about the matched company (`about_company` = N) measure the
+   ticker matching, not the sentiment, so they are listed apart and left out of accuracy.
 
 For each set: FinBERT alone, VADER alone, and FinBERT with the VADER fallback (the setup
-the app uses), with a 95% bootstrap interval on accuracy.
+the app uses), with 95% bootstrap intervals on accuracy and macro-F1 and the confusion
+matrix.
 
     python -m ml.sentiment_eval      # writes ml/reports/finbert_evaluation.{json,md}
 """
@@ -23,6 +26,7 @@ from pathlib import Path
 
 import numpy as np
 import requests
+from sklearn.metrics import f1_score
 
 from core.config import API_ROOT, settings
 from ml.metrics import classification_summary
@@ -43,6 +47,18 @@ PHRASEBANK_URL = (
 )
 PHRASEBANK_SUBSETS = {"all_agree": "Sentences_AllAgree.txt", "50_agree": "Sentences_50Agree.txt"}
 PSX_SHEET = API_ROOT.parent.parent / "docs" / "sentiment-eval" / "psx_headlines_labeling.csv"
+# How the PSX sheet was labelled (2026-10-11). label_B came from an AI assistant, so the
+# labels must never be described as two human annotators.
+ANNOTATION = {
+    "label_A": "human annotator (team member)",
+    "label_B": "an AI assistant (Claude), labelled independently before seeing label_A",
+    "resolution": (
+        "resolved by the human annotator with a written rule: completed actions "
+        "(acquisitions, launches, signed stakes) = positive; announcements, MoUs, talks and "
+        "requests = neutral"
+    ),
+    "approval": "The human annotator approved every final_label",
+}
 BOOTSTRAP_SAMPLES = 2000
 SEED = 42
 PRD_TARGET = 0.85
@@ -74,6 +90,22 @@ def bootstrap_accuracy(hits: np.ndarray, samples: int = BOOTSTRAP_SAMPLES) -> li
     return [float(np.percentile(means, 2.5)), float(np.percentile(means, 97.5))]
 
 
+def bootstrap_f1_macro(
+    truth: np.ndarray, predicted: np.ndarray, samples: int = BOOTSTRAP_SAMPLES
+) -> list[float]:
+    """95% percentile interval of the macro-F1, resampling rows with replacement."""
+    rng = np.random.default_rng(SEED)
+    scores = []
+    for _ in range(samples):
+        rows = rng.integers(0, len(truth), len(truth))
+        scores.append(
+            f1_score(
+                truth[rows], predicted[rows], labels=list(LABELS), average="macro", zero_division=0
+            )
+        )
+    return [float(np.percentile(scores, 2.5)), float(np.percentile(scores, 97.5))]
+
+
 def cohen_kappa(a: list[str], b: list[str]) -> float:
     a, b = np.asarray(a), np.asarray(b)
     observed = float(np.mean(a == b))
@@ -100,6 +132,7 @@ def score_set(truth: list[str], predicted: dict[str, list[str]]) -> dict:
         out[name] = {
             **classification_summary(np.asarray(truth), np.asarray(labels), list(LABELS), None),
             "accuracy_ci95": bootstrap_accuracy(hits),
+            "f1_macro_ci95": bootstrap_f1_macro(np.asarray(truth), np.asarray(labels)),
         }
     if "finbert_with_vader_fallback" in predicted:
         fallback = np.asarray(predicted["finbert_with_vader_fallback"]) != np.asarray(
@@ -121,15 +154,24 @@ def psx_set(sheet: Path, finbert: FinBERT, vader: Vader) -> dict:
         }
     about = [r for r in rows if r["about_company"].strip().upper() == "Y"]
     truth = [r["final_label"].strip().lower() for r in about]
+    label_a = [r["label_A"].strip().lower() for r in rows]
+    label_b = [r["label_B"].strip().lower() for r in rows]
+    disagreements = sum(a != b for a, b in zip(label_a, label_b, strict=True))
     return {
         "status": "labelled",
         "rows": len(rows),
-        "labeller_agreement_kappa": cohen_kappa(
-            [r["label_A"].strip().lower() for r in rows],
-            [r["label_B"].strip().lower() for r in rows],
-        ),
+        "annotation": ANNOTATION,
+        "label_a_b_disagreements": disagreements,
+        "label_a_b_agreement": 1 - disagreements / len(rows),
+        "label_a_b_kappa": cohen_kappa(label_a, label_b),
+        "about_company_rows": len(about),
         "ticker_match_precision": len(about) / len(rows),
-        **score_set(truth, predictions([r["headline"] for r in about], finbert, vader)),
+        "not_about_company": [
+            {"id": r["id"], "ticker": r["matched_ticker"], "headline": r["headline"]}
+            for r in rows
+            if r["about_company"].strip().upper() != "Y"
+        ],
+        "evaluation": score_set(truth, predictions([r["headline"] for r in about], finbert, vader)),
     }
 
 
@@ -159,21 +201,43 @@ def _pct(value: float) -> str:
     return f"{100 * value:.1f}%"
 
 
+METHODS = (
+    ("finbert", "FinBERT alone"),
+    ("vader", "VADER alone"),
+    ("finbert_with_vader_fallback", "FinBERT + VADER fallback (deployed)"),
+)
+
+
 def _method_rows(result: dict) -> list[str]:
     rows = []
-    for name, title in (
-        ("finbert", "FinBERT alone"),
-        ("vader", "VADER alone"),
-        ("finbert_with_vader_fallback", "FinBERT + VADER fallback (deployed)"),
-    ):
+    for name, title in METHODS:
         m = result[name]
         low, high = m["accuracy_ci95"]
+        f1_low, f1_high = m["f1_macro_ci95"]
         recall = " / ".join(_pct(m["per_class"][label]["recall"]) for label in LABELS)
         rows.append(
             f"| {title} | {_pct(m['accuracy'])} ({_pct(low)}-{_pct(high)}) | "
-            f"{m['f1_macro']:.3f} | {recall} |"
+            f"{m['f1_macro']:.3f} ({f1_low:.3f}-{f1_high:.3f}) | {recall} |"
         )
     return rows
+
+
+def _confusion_tables(result: dict) -> list[str]:
+    """One confusion matrix per method: rows are the true label, columns the predicted."""
+    lines = []
+    for name, title in METHODS:
+        lines += [
+            "",
+            f"{title} (rows: true label; columns: predicted)",
+            "",
+            "| | " + " | ".join(f"predicted {label}" for label in LABELS) + " |",
+            "| --- | --- | --- | --- |",
+        ]
+        lines += [
+            f"| {label} | " + " | ".join(str(n) for n in counts) + " |"
+            for label, counts in zip(LABELS, result[name]["confusion_matrix"], strict=True)
+        ]
+    return lines
 
 
 def write_report(result: dict, out_dir: Path) -> None:
@@ -182,7 +246,7 @@ def write_report(result: dict, out_dir: Path) -> None:
         json.dumps(result, indent=2) + "\n", encoding="utf-8", newline="\n"
     )
     header = [
-        "| Method | Accuracy (95% CI) | Macro-F1 | Recall positive / negative / neutral |",
+        "| Method | Accuracy (95% CI) | Macro-F1 (95% CI) | Recall positive / negative / neutral |",
         "| --- | --- | --- | --- |",
     ]
     lines = [
@@ -217,14 +281,36 @@ def write_report(result: dict, out_dir: Path) -> None:
             "have a final label. This section fills in when the sheet is complete."
         )
     else:
+        notes, evaluation = psx["annotation"], psx["evaluation"]
         lines += [
-            f"Labeller agreement (Cohen's kappa, before discussion): "
-            f"{psx['labeller_agreement_kappa']:.2f}. Ticker matching was right for "
-            f"{_pct(psx['ticker_match_precision'])} of headlines; accuracy is measured on the "
-            f"{psx['rows']} headlines about the matched company.",
+            f"{psx['rows']} real Profit and Mettis Global headlines. How they were labelled:",
+            "",
+            f"- label_A: {notes['label_A']}.",
+            f"- label_B: {notes['label_B']}.",
+            f"- {psx['label_a_b_disagreements']} disagreements (agreement "
+            f"{_pct(psx['label_a_b_agreement'])}, Cohen's kappa {psx['label_a_b_kappa']:.2f}) "
+            f"were {notes['resolution']}.",
+            f"- {notes['approval']}.",
+            "",
+            f"Ticker matching: {psx['about_company_rows']} of {psx['rows']} headlines "
+            f"({_pct(psx['ticker_match_precision'])}) are about the matched company. The "
+            f"{len(psx['not_about_company'])} that are not are left out of the sentiment "
+            "accuracy:",
+            "",
+            *[
+                f"- {row['id']} ({row['ticker']}): {row['headline']}"
+                for row in psx["not_about_company"]
+            ],
+            "",
+            f"### Sentiment accuracy on the {psx['about_company_rows']} headlines about the "
+            "company",
             "",
             *header,
-            *_method_rows(psx),
+            *_method_rows(evaluation),
+            "",
+            f"VADER replaced FinBERT's label on {_pct(evaluation['vader_changed_label_share'])} "
+            "of headlines.",
+            *_confusion_tables(evaluation),
         ]
     (out_dir / "finbert_evaluation.md").write_text(
         "\n".join(lines) + "\n", encoding="utf-8", newline="\n"

@@ -102,20 +102,25 @@ class _RecorderClient:
         return [_article(BRECORDER, "ogdc-profit-rises", "MOCK_ OGDC profit rises")]
 
 
-def test_a_failing_source_is_recorded_and_the_others_still_run(db, monkeypatch):
+def test_a_failing_source_is_recorded_and_the_other_still_runs(db, monkeypatch):
     monkeypatch.setattr(news_ingestion, "ProfitClient", _FailingClient)
     monkeypatch.setattr(news_ingestion, "MettisClient", _MettisClient)
-    monkeypatch.setattr(news_ingestion, "BusinessRecorderClient", _RecorderClient)
-    monkeypatch.setattr(news_ingestion, "_now", lambda: datetime.datetime(2026, 10, 9, tzinfo=UTC))
 
     results = collect_all(db, SINCE, fetcher=object())
 
+    # Business Recorder is disabled: it is not collected at all
+    assert set(results) == {PROFIT, METTIS}
     assert results[PROFIT]["status"] == "failed"
     assert results[METTIS] == {"status": "ok", "new_headlines": 1}
-    assert results[BRECORDER] == {"status": "ok", "new_headlines": 1}
     profit = db.get(NewsSourceStatus, PROFIT)
     assert profit.last_success_at is None and "503" in profit.last_error
     assert db.get(NewsSourceStatus, METTIS).last_success_at is not None
+
+
+def test_disabled_business_recorder_collector_still_works(db, monkeypatch):
+    monkeypatch.setattr(news_ingestion, "_now", lambda: datetime.datetime(2026, 10, 9, tzinfo=UTC))
+    assert news_ingestion.collect_brecorder(Collector(db), _RecorderClient(None)) == 1
+    assert [r.source for r in _rows(db)] == [BRECORDER]
 
 
 def test_rematch_removes_rows_a_corrected_rule_no_longer_matches(db):
@@ -143,3 +148,32 @@ def test_rematch_removes_rows_a_corrected_rule_no_longer_matches(db):
 def test_articles_older_than_the_window_are_ignored(db):
     since = datetime.date(2026, 10, 9)
     assert Collector(db).store_articles([_article(PROFIT, "ogdc-x", "MOCK_ OGDC")], since) == 0
+
+
+def test_a_headline_that_does_not_match_its_url_is_not_stored(db):
+    article = _article(PROFIT, "ogdc-output-rises-at-rajian", "MOCK_ FBR launches customs system")
+    assert Collector(db).store(article) == 0
+    assert _rows(db) == []
+
+
+def test_rematch_removes_rows_whose_headline_does_not_match_the_url(db):
+    collector = Collector(db)
+    db.add(
+        SentimentScore(
+            stock_id=collector.stock_ids["OGDC"],
+            source=PROFIT,
+            url="https://example.com/MOCK/2026/10/08/ogdc-output-rises-at-rajian",
+            headline="MOCK_ FBR launches customs system",
+            published_at=datetime.datetime(2026, 10, 8, tzinfo=UTC),
+        )
+    )
+    db.commit()
+    assert news_ingestion.rematch(db) == [
+        ("OGDC", "https://example.com/MOCK/2026/10/08/ogdc-output-rises-at-rajian")
+    ]
+
+
+def test_the_title_check_is_only_for_articles_about_tracked_stocks(db, caplog):
+    article = _article(METTIS, "first-capital-in-talks", "MOCK_ Brokerage results")
+    assert Collector(db).store(article) == 0
+    assert "does not match" not in caplog.text

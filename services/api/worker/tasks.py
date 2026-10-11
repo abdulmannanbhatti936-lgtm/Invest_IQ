@@ -17,6 +17,7 @@ from models.stock import PricePoint, Stock, StockDividend, StockSplit
 from services import dividend_adjustment
 from services.news_ingestion import LIVE_WINDOW_DAYS, collect_all
 from services.prediction_service import (
+    FallbackModelMissing,
     InsufficientHistoryError,
     StockNotCoveredError,
     generate_prediction,
@@ -334,6 +335,17 @@ def run_predictions(tickers: list | None = None):
                 )
             except (InsufficientHistoryError, StockNotCoveredError) as e:
                 skipped[ticker] = str(e)
+            except FallbackModelMissing as e:
+                # Every remaining stock would fail the same way; the stored forecasts stay
+                # as they are, with their as-of date, until the model files are restored
+                logger.error(f"Predictions stopped: {e}")
+                return {
+                    "status": "fallback_model_missing",
+                    "model_version": bundle.version,
+                    "predictions_made": made,
+                    "skipped": skipped,
+                    "error": str(e),
+                }
         return {
             "status": "completed",
             "model_version": bundle.version,

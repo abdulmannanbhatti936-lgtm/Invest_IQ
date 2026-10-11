@@ -5,6 +5,8 @@ instead of failing or silently reading "no news".
 """
 
 import datetime
+import json
+import shutil
 
 import pytest
 
@@ -13,17 +15,20 @@ from core.deps import get_current_user
 from integrations.news.http import NewsSourceUnavailable
 from main import app
 from ml.inference import load_bundle
+from models.prediction import Prediction
 from models.sentiment import NewsSourceStatus
 from services import news_ingestion
 from services.prediction_service import (
     SENTIMENT_STALE,
     SENTIMENT_UNAVAILABLE,
     SENTIMENT_USED,
+    FallbackModelMissing,
     generate_prediction,
     low_confidence_reasons,
 )
 from tests.fixtures.build_model_fixture import FIXTURE_DIR, FIXTURE_VERSION, NEWS_FIXTURE_VERSION
 from tests.test_predictions import mock_stock, store_history
+from worker.tasks import run_predictions
 
 UTC = datetime.timezone.utc
 
@@ -112,3 +117,23 @@ def test_a_price_only_model_never_reports_sentiment(db, mocka, monkeypatch, fake
     prediction = generate_prediction(db, mocka, bundle)
     assert prediction.sentiment_status is None
     assert SENTIMENT_UNAVAILABLE not in low_confidence_reasons(prediction, bundle, "MOCKA")
+
+
+def test_a_missing_fallback_model_stops_the_run_with_a_clear_status(
+    db, mocka, monkeypatch, tmp_path, fake_redis
+):
+    # Only the news model is on disk; its price-only fallback has been deleted
+    shutil.copytree(FIXTURE_DIR / NEWS_FIXTURE_VERSION, tmp_path / NEWS_FIXTURE_VERSION)
+    (tmp_path / "latest.json").write_text(json.dumps({"model_version": NEWS_FIXTURE_VERSION}))
+    monkeypatch.setattr(settings, "MODEL_DIR", str(tmp_path))
+    _sources_succeeded(db, hours_ago=30)
+    bundle = load_bundle(tmp_path, NEWS_FIXTURE_VERSION)
+
+    with pytest.raises(FallbackModelMissing):
+        generate_prediction(db, mocka, bundle)
+
+    result = run_predictions(["MOCKA"])
+    assert result["status"] == "fallback_model_missing"
+    assert result["predictions_made"] == 0
+    assert "fallback model is missing" in result["error"]
+    assert db.query(Prediction).count() == 0

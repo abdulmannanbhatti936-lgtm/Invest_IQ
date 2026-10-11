@@ -23,7 +23,6 @@ from integrations.news.http import (
 )
 from integrations.news.matching import TickerMatcher, default_matcher
 from integrations.news.sources import (
-    BRECORDER,
     METTIS,
     PROFIT,
     Article,
@@ -75,7 +74,11 @@ class Collector:
 
     def store(self, article: Article) -> int:
         """Insert one row per matched stock; returns how many were new."""
+        self.known_urls(article.source).add(article.url)
         tickers = self.matcher.match_article(article.url, article.headline)
+        if tickers and not self.matcher.title_matches_slug(article.headline, article.url):
+            logger.warning(f"Not stored, title does not match its URL: {article.url}")
+            return 0
         rows = [
             {
                 "stock_id": self.stock_ids[t],
@@ -88,7 +91,6 @@ class Collector:
             for t in sorted(tickers)
             if t in self.stock_ids
         ]
-        self.known_urls(article.source).add(article.url)
         if not rows:
             return 0
         stmt = (
@@ -162,6 +164,12 @@ def collect_mettis(collector: Collector, client: MettisClient, since: datetime.d
 
 
 def collect_brecorder(collector: Collector, client: BusinessRecorderClient) -> int:
+    """
+    Business Recorder's live RSS feeds. Disabled (decided 2026-10-11): not part of
+    `collect_all`, because its feeds carry almost only international wire news and have
+    never yielded a headline about a tracked stock (Memory.md §4, a possible source for next
+    semester). Re-enable by adding it to the jobs in `collect_all`.
+    """
     since = (_now() - datetime.timedelta(days=LIVE_WINDOW_DAYS)).date()
     return collector.store_articles(client.latest(), since)
 
@@ -183,13 +191,15 @@ def record_status(
 def collect_all(
     db: Session, since: datetime.date, fetcher: PoliteFetcher | None = None
 ) -> dict[str, dict]:
-    """Run every source; one failing source never stops the others (PRD.md FR22)."""
+    """
+    Run every enabled source (Profit and Mettis); one failing source never stops the other
+    (PRD.md FR22).
+    """
     fetcher = fetcher or PoliteFetcher()
     collector = Collector(db)
     jobs = {
         PROFIT: lambda: collect_profit(collector, ProfitClient(fetcher), since),
         METTIS: lambda: collect_mettis(collector, MettisClient(fetcher), since),
-        BRECORDER: lambda: collect_brecorder(collector, BusinessRecorderClient(fetcher)),
     }
     results = {}
     for source, job in jobs.items():
@@ -208,15 +218,18 @@ def collect_all(
 
 def rematch(db: Session, matcher: TickerMatcher | None = None) -> list[tuple[str, str]]:
     """
-    Remove stored rows whose stock the current alias and exclusion lists no longer match
-    (after a matching rule is corrected). Returns (ticker, url) for every row removed.
-    The rows are derived from public pages and can be collected again at any time.
+    Remove stored rows that the current matching rules would not store (after a rule is
+    corrected): the stock is no longer matched, or the headline does not match its URL.
+    Returns (ticker, url) for every row removed. The rows are derived from public pages and
+    can be collected again at any time.
     """
     matcher = matcher or default_matcher()
     removed = []
     rows = db.query(SentimentScore, Stock.ticker).join(Stock, Stock.id == SentimentScore.stock_id)
     for row, ticker in rows:
-        if ticker not in matcher.match_article(row.url, row.headline):
+        if ticker not in matcher.match_article(
+            row.url, row.headline
+        ) or not matcher.title_matches_slug(row.headline, row.url):
             removed.append((ticker, row.url))
             db.delete(row)
     db.commit()

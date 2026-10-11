@@ -8,24 +8,73 @@ ProsusAI/finbert was fine-tuned on this dataset and its test split was never pub
 
 ### All annotators agree (2264 sentences)
 
-| Method | Accuracy (95% CI) | Macro-F1 | Recall positive / negative / neutral |
+| Method | Accuracy (95% CI) | Macro-F1 (95% CI) | Recall positive / negative / neutral |
 | --- | --- | --- | --- |
-| FinBERT alone | 97.2% (96.5%-97.8%) | 0.963 | 97.7% / 98.3% / 96.7% |
-| VADER alone | 57.1% (55.2%-59.1%) | 0.487 | 73.7% / 22.4% / 57.9% |
-| FinBERT + VADER fallback (deployed) | 97.2% (96.5%-97.8%) | 0.963 | 97.7% / 98.3% / 96.8% |
+| FinBERT alone | 97.2% (96.5%-97.8%) | 0.963 (0.953-0.971) | 97.7% / 98.3% / 96.7% |
+| VADER alone | 57.1% (55.2%-59.1%) | 0.487 (0.465-0.511) | 73.7% / 22.4% / 57.9% |
+| FinBERT + VADER fallback (deployed) | 97.2% (96.5%-97.8%) | 0.963 (0.954-0.972) | 97.7% / 98.3% / 96.8% |
 
 VADER replaced FinBERT's label on 0.2% of sentences.
 
 ### At least 50% agree (4846 sentences)
 
-| Method | Accuracy (95% CI) | Macro-F1 | Recall positive / negative / neutral |
+| Method | Accuracy (95% CI) | Macro-F1 (95% CI) | Recall positive / negative / neutral |
 | --- | --- | --- | --- |
-| FinBERT alone | 89.0% (88.1%-89.8%) | 0.883 | 92.1% / 97.0% / 85.8% |
-| VADER alone | 54.3% (53.0%-55.8%) | 0.489 | 70.7% / 29.8% / 51.7% |
-| FinBERT + VADER fallback (deployed) | 88.9% (88.1%-89.8%) | 0.883 | 92.0% / 97.0% / 85.8% |
+| FinBERT alone | 89.0% (88.1%-89.8%) | 0.883 (0.872-0.892) | 92.1% / 97.0% / 85.8% |
+| VADER alone | 54.3% (53.0%-55.8%) | 0.489 (0.471-0.505) | 70.7% / 29.8% / 51.7% |
+| FinBERT + VADER fallback (deployed) | 88.9% (88.1%-89.8%) | 0.883 (0.873-0.893) | 92.0% / 97.0% / 85.8% |
 
 VADER replaced FinBERT's label on 0.2% of sentences.
 
 ## PSX headlines (docs/sentiment-eval)
 
-**Pending team labels**: 0 of 162 rows have a final label. This section fills in when the sheet is complete.
+162 real Profit and Mettis Global headlines. How they were labelled:
+
+- label_A: human annotator (team member).
+- label_B: an AI assistant (Claude), labelled independently before seeing label_A.
+- 37 disagreements (agreement 77.2%, Cohen's kappa 0.62) were resolved by the human annotator with a written rule: completed actions (acquisitions, launches, signed stakes) = positive; announcements, MoUs, talks and requests = neutral.
+- The human annotator approved every final_label.
+
+Ticker matching: 155 of 162 headlines (95.7%) are about the matched company. The 7 that are not are left out of the sentiment accuracy:
+
+- H012 (MLCF): VIS upgrades entity ratings of Maple Leaf Capital
+- H043 (NBP): JUBS confident of receiving NOC from NBP soon
+- H056 (SYS): Universal Network receives offer from a fintech to acquire 20% shares
+- H074 (NBP): NBP issues foreign exchange rates
+- H108 (UBL): UBL Pakistan Enterprise Index considers portfolio re-constitution
+- H124 (NBP): NBP issues foreign exchange rates
+- H154 (NBP): NBP issues foreign exchange rates
+
+### Sentiment accuracy on the 155 headlines about the company
+
+| Method | Accuracy (95% CI) | Macro-F1 (95% CI) | Recall positive / negative / neutral |
+| --- | --- | --- | --- |
+| FinBERT alone | 67.7% (60.0%-75.5%) | 0.711 (0.637-0.777) | 57.9% / 95.5% / 70.2% |
+| VADER alone | 60.0% (52.3%-67.1%) | 0.592 (0.504-0.672) | 60.5% / 63.6% / 57.9% |
+| FinBERT + VADER fallback (deployed) | 67.1% (59.4%-74.2%) | 0.705 (0.629-0.770) | 57.9% / 95.5% / 68.4% |
+
+VADER replaced FinBERT's label on 0.6% of headlines.
+
+FinBERT alone (rows: true label; columns: predicted)
+
+| | predicted positive | predicted negative | predicted neutral |
+| --- | --- | --- | --- |
+| positive | 44 | 3 | 29 |
+| negative | 0 | 21 | 1 |
+| neutral | 13 | 4 | 40 |
+
+VADER alone (rows: true label; columns: predicted)
+
+| | predicted positive | predicted negative | predicted neutral |
+| --- | --- | --- | --- |
+| positive | 46 | 8 | 22 |
+| negative | 6 | 14 | 2 |
+| neutral | 19 | 5 | 33 |
+
+FinBERT + VADER fallback (deployed) (rows: true label; columns: predicted)
+
+| | predicted positive | predicted negative | predicted neutral |
+| --- | --- | --- | --- |
+| positive | 44 | 3 | 29 |
+| negative | 0 | 21 | 1 |
+| neutral | 14 | 4 | 39 |

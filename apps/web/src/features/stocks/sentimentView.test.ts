@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { SentimentHeadline, StockSentiment } from '@investiq/shared-types';
-import { formatScore, lastUpdated, splitHeadlines, weightShare } from './sentimentView.ts';
+import { lastUpdated, weightShare } from './sentimentView.ts';
 
 const headline = (overrides: Partial<SentimentHeadline> = {}): SentimentHeadline => ({
   headline: 'MOCK_ OGDC output rises',
@@ -11,6 +11,7 @@ const headline = (overrides: Partial<SentimentHeadline> = {}): SentimentHeadline
   url: 'https://example.com/MOCK/1',
   published_at: '2026-10-07T05:00:00Z',
   label: 'positive',
+  label_probability: 0.9,
   score: 0.8,
   scorer: 'finbert',
   weight: 1,
@@ -29,7 +30,7 @@ const sentiment = (overrides: Partial<StockSentiment> = {}): StockSentiment => (
   headlines: [
     headline(),
     headline({ weight: 0.5, label: 'negative', score: -0.4 }),
-    headline({ source: 'brecorder', source_name: 'Business Recorder', weight: null }),
+    headline({ label: null, label_probability: null, score: null, scorer: null, weight: null }),
   ],
   after_close_headlines: [],
   freshness: {
@@ -42,25 +43,10 @@ const sentiment = (overrides: Partial<StockSentiment> = {}): StockSentiment => (
   ...overrides,
 });
 
-test('scores are signed with two decimals', () => {
-  assert.equal(formatScore(0.4), '+0.40');
-  assert.equal(formatScore(-0.456), '−0.46');
-  assert.equal(formatScore(0.001), '0.00');
-});
-
-test('each counted headline shows its share of the score', () => {
+test('each counted headline shows its share of the score; an unscored one has none', () => {
   const s = sentiment();
   assert.equal(weightShare(s.headlines[0], s), 1 / 1.5);
   assert.equal(weightShare(s.headlines[2], s), null);
-});
-
-test('context-only headlines are listed apart from counted ones', () => {
-  const { counted, context } = splitHeadlines(sentiment());
-  assert.equal(counted.length, 2);
-  assert.deepEqual(
-    context.map((h) => h.source),
-    ['brecorder'],
-  );
 });
 
 test('last update is the newest successful scrape', () => {
