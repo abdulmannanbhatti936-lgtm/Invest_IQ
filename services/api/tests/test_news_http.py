@@ -5,6 +5,7 @@ import requests
 
 from integrations.news.http import (
     BACKOFF_SECONDS,
+    MAX_RETRY_AFTER_SECONDS,
     MIN_INTERVAL,
     RETRIES,
     USER_AGENT,
@@ -12,15 +13,19 @@ from integrations.news.http import (
     NewsSourceUnavailable,
     PageNotFound,
     PoliteFetcher,
+    retry_after_seconds,
 )
 
 ROBOTS = "User-agent: *\nDisallow: /search\n"
 
 
 class FakeResponse:
-    def __init__(self, status_code=200, text=""):
+    def __init__(self, status_code=200, text="", headers=None, url=""):
         self.status_code = status_code
         self.text = text
+        self.headers = headers or {}
+        self.url = url
+        self.is_redirect = status_code in (301, 302, 303, 307, 308) and "Location" in self.headers
 
 
 class FakeSession:
@@ -31,7 +36,9 @@ class FakeSession:
         self.headers = {}
         self.calls = []
 
-    def get(self, url, params=None, timeout=None):
+    def get(self, url, params=None, timeout=None, allow_redirects=True):
+        # The fetcher follows redirects itself, one robots-checked hop at a time
+        assert allow_redirects is False
         self.calls.append(url)
         answer = self.script[url].pop(0) if len(self.script[url]) > 1 else self.script[url][0]
         if isinstance(answer, Exception):
@@ -137,3 +144,67 @@ def test_a_missing_page_is_not_a_site_outage():
     with pytest.raises(PageNotFound):
         fetcher.get("https://news.example/gone")
     assert session.calls.count("https://news.example/gone") == 1
+
+
+def test_waits_as_long_as_retry_after_asks():
+    fetcher, _, clock = _fetcher(
+        {
+            "https://news.example/robots.txt": [FakeResponse(text=ROBOTS)],
+            "https://news.example/a": [
+                FakeResponse(429, headers={"Retry-After": "40"}),
+                FakeResponse(text="ok"),
+            ],
+        }
+    )
+    assert fetcher.get("https://news.example/a").text == "ok"
+    assert 40 in clock.sleeps
+
+
+def test_a_retry_after_beyond_the_limit_ends_this_run():
+    wait = str(MAX_RETRY_AFTER_SECONDS + 1)
+    fetcher, session, clock = _fetcher(
+        {
+            "https://news.example/robots.txt": [FakeResponse(text=ROBOTS)],
+            "https://news.example/a": [FakeResponse(503, headers={"Retry-After": wait})],
+        }
+    )
+    with pytest.raises(NewsSourceUnavailable, match="asked to wait"):
+        fetcher.get("https://news.example/a")
+    # Not asked again sooner than the site wanted
+    assert session.calls.count("https://news.example/a") == 1
+
+
+def test_retry_after_as_an_http_date():
+    assert retry_after_seconds("Wed, 21 Oct 2015 07:28:00 GMT") == 0.0
+    assert retry_after_seconds("120") == 120.0
+    assert retry_after_seconds(None) is None
+    assert retry_after_seconds("soon") is None
+
+
+def test_a_redirect_target_is_checked_against_robots_txt():
+    fetcher, session, _ = _fetcher(
+        {
+            "https://news.example/robots.txt": [FakeResponse(text=ROBOTS)],
+            "https://news.example/a": [
+                FakeResponse(301, headers={"Location": "/search?q=a"}, url="https://news.example/a")
+            ],
+        }
+    )
+    with pytest.raises(FetchNotAllowed):
+        fetcher.get("https://news.example/a")
+    assert "https://news.example/search?q=a" not in session.calls
+
+
+def test_an_allowed_redirect_is_followed_to_another_site():
+    fetcher, session, _ = _fetcher(
+        {
+            "https://news.example/robots.txt": [FakeResponse(text=ROBOTS)],
+            "https://news.example/a": [
+                FakeResponse(302, headers={"Location": "https://cdn.example/a"})
+            ],
+            "https://cdn.example/robots.txt": [FakeResponse(404)],
+            "https://cdn.example/a": [FakeResponse(text="moved")],
+        }
+    )
+    assert fetcher.get("https://news.example/a").text == "moved"
+    assert "https://cdn.example/robots.txt" in session.calls
