@@ -68,8 +68,14 @@ PSX_TIMEZONE = "Asia/Karachi"
 # Global and ProPakistani): 2022 at 14:00 Mon-Thu and 13:00 Fri; 2023-2026 at 13:30 and
 # 12:30. Each range runs from the day before the first fast to Eid, a day wider than the
 # month on each side for moon sighting: an early close applied to a normal day only moves
-# news to the next day, never into a day it was not known on. Ramadan 2021 is before the
-# news window; a new year's row is added when PSX publishes its timings (Memory.md §4).
+# news to the next day, never into a day it was not known on. A new year's row is added
+# when PSX publishes its timings (Memory.md §4).
+# First fast and Eid in Pakistan (Central Ruet-e-Hilal Committee, as reported; links in
+# Memory.md §11): 2022-04-03 / 2022-05-03 (Dawn 1683073, Aaj 30285304); 2023-03-23 /
+# 2023-04-22 (Daily Pakistan 22-Mar-2023, Aaj 30318743); 2024-03-12 / 2024-04-10 (Dunya
+# 797274, Dawn 1826713); 2025-03-02 / 2025-03-31 (Business Recorder 40350589, Dawn
+# 1901319); 2026-02-19 / 2026-03-21 (Dawn 1974092, Express Tribune 2598455). Ramadan 2021
+# (2021-04-14 / 2021-05-13, Dawn 1618028, Express Tribune 2299641) is before the news window.
 # Outside Ramadan the close was 15:30 or later throughout (16:00 from 2021-10-25, Friday
 # 16:30 or 17:00), so 15:30 never lets news after the close count for the same day.
 RAMADAN_CLOSES = (
@@ -80,7 +86,7 @@ RAMADAN_CLOSES = (
         datetime.time(13, 0),
     ),
     (
-        datetime.date(2023, 3, 23),
+        datetime.date(2023, 3, 22),
         datetime.date(2023, 4, 22),
         datetime.time(13, 30),
         datetime.time(12, 30),

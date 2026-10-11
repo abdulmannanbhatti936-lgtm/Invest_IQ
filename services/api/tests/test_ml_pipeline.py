@@ -110,6 +110,9 @@ def test_market_close_by_date():
     assert market_close(datetime.date(2022, 4, 14)) == datetime.time(14, 0)  # Thursday, 2022
     assert market_close(datetime.date(2022, 4, 15)) == datetime.time(13, 0)  # Friday, 2022
     assert market_close(datetime.date(2024, 3, 21)) == datetime.time(13, 30)
+    # Ramadan 2023 began on Thursday 23 March in Pakistan; the day before is included
+    assert market_close(datetime.date(2023, 3, 22)) == datetime.time(13, 30)
+    assert market_close(datetime.date(2023, 3, 21)) == datetime.time(15, 30)
     # The day before the first fast is included: an early close there only delays news
     assert market_close(datetime.date(2025, 3, 1)) == datetime.time(13, 30)
     assert market_close(datetime.date(2025, 4, 1)) == datetime.time(15, 30)
