@@ -45,12 +45,12 @@
 
 **Exit criteria:**
 
-- [ ] `docker-compose up` starts Postgres + Redis locally
-- [ ] FastAPI backend runs locally and `/health` returns 200
-- [ ] Web app runs locally and renders a placeholder home page
-- [ ] Mobile app runs on Expo Go / emulator and renders a placeholder screen
-- [ ] CI pipeline passes on an empty/skeleton commit
-- [ ] Both teammates can clone the repo and get everything running from README instructions alone
+- [x] `docker-compose up` starts Postgres + Redis locally — verified 2026-10-11: `docker compose -f infra/docker-compose.yml ps` shows `infra-postgres-1` (postgres:15, port 5435) and `infra-redis-1` (redis:7, port 6379) both `Up (healthy)`
+- [x] FastAPI backend runs locally and `/health` returns 200 — verified 2026-10-11: `curl -i localhost:8000/health` → `HTTP/1.1 200 OK`, `{"status":"ok"}`
+- [x] Web app runs locally and renders a placeholder home page — verified 2026-10-11: `vite` dev server answers 200 on `localhost:5173` and renders the app (now the full web app; screenshots `docs/screenshots/phase5/`); `npm run build` passes
+- [ ] Mobile app runs on Expo Go / emulator and renders a placeholder screen — **pending: a device or emulator run.** Checked 2026-10-11: `npx expo export --platform android` bundles the app (2.3 MB Hermes bundle) and `tsc --noEmit` passes for `apps/mobile`; that it renders on Expo Go has not been seen
+- [x] CI pipeline passes on an empty/skeleton commit — **with deviation (2026-10-11):** the skeleton-era runs failed (first run 2026-08-26, `3e6244e`); the first green run was `8d4779d` on 2026-10-08 (run 37837093050), and every run on `main` since is green (latest `114c12d`, run 38142826215)
+- [ ] Both teammates can clone the repo and get everything running from README instructions alone — pending: second teammate's fresh-clone test
 
 ---
 
@@ -186,10 +186,10 @@
 
 **Exit criteria:**
 
-- [ ] A real user with a real risk profile receives a portfolio built from real prediction + sentiment data
-- [ ] Every holding shows accurate gross→net price after fee/CGT/WHT
-- [ ] Fee/tax calculation has passing unit tests with known input/output pairs
-- [ ] Portfolio Rolling and No Money Hold logic demonstrably work (test cases, not just "looks right")
+- [x] A real user with a real risk profile receives a portfolio built from real prediction + sentiment data — 2026-10-11, dev DB, temporary account with a Moderate profile set through the questionnaire API: 8 holdings from model `lstm-rf-20261009T233529Z` as of the 7 Oct 2026 close, news scores in the tilt (FFC +0.30 pp); `tests/test_portfolio_universe.py`, `test_portfolio_figures_equal_the_cost_engine_fixtures`; screenshots `docs/screenshots/phase5/01-04`
+- [x] Every holding shows accurate gross→net price after fee/CGT/WHT — every charge line equals the hand-calculated fixtures through the endpoint (`test_portfolio_figures_equal_the_cost_engine_fixtures`, `test_ffc_projection_equals_the_hand_calculation`, `test_non_filer_changes_only_dividend_tax`); **deviation:** CGT is shown on the one-day forecast exit and WHT on last year's dividends (estimates, labelled); CDC, NCCPL and non-filer CGT rates are unverified and marked (DetailedReport.md Phase 5)
+- [x] Fee/tax calculation has passing unit tests with known input/output pairs — `tests/test_cost_engine.py` (22: the worked example line by line, CGT, WHT, break-even, minimum commission, rounding, invariants)
+- [x] Portfolio Rolling and No Money Hold logic demonstrably work (test cases, not just "looks right") — `tests/test_rolling.py` (7: too early, not triggered, suggested, costs exceed the gain, CGT counted, no replacement), `test_idle_cash_is_flagged_when_caps_block_it`, `test_low_capital_explains_instead_of_building_an_unbalanced_portfolio`, `test_low_capital_explains_the_minimum`; **deviation:** the rolling benchmark is the forecast stocks' equal-weight average because Yahoo has no KSE-100 series
 
 ---
 

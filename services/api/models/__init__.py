@@ -1,5 +1,6 @@
 from core.database import Base
 
+from .portfolio import Portfolio, PortfolioHolding
 from .prediction import Prediction
 from .refresh_token import RefreshToken
 from .risk_profile import RiskCategory, RiskProfile
@@ -22,4 +23,6 @@ __all__ = [
     "SentimentScore",
     "NewsSourceStatus",
     "Prediction",
+    "Portfolio",
+    "PortfolioHolding",
 ]

@@ -193,3 +193,167 @@ export interface StockSentiment {
 /** `detail` of a 404 from GET /stocks/{ticker}/prediction */
 export type PredictionUnavailableCode =
   'stock_not_found' | 'not_covered' | 'insufficient_data' | 'not_ready';
+
+// ---- Portfolio (Phase 5). Money and percentages are decimal strings from the API; the
+// clients only format them for display and never do arithmetic on them.
+
+export type Money = string;
+export type FilerStatus = 'filer' | 'non_filer';
+
+export interface GeneratePortfolioRequest {
+  capital: string;
+  filer_status: FilerStatus;
+  shariah_only: boolean;
+  excluded_tickers: string[];
+  /** The user's own broker commission in percent; omitted = the PSX minimum */
+  commission_pct?: string;
+}
+
+export interface PortfolioCharges {
+  commission: Money;
+  sales_tax: Money;
+  cdc_fee: Money;
+  psx_trading_fee: Money;
+  psx_regulatory_fee: Money;
+  secp_levy: Money;
+  nccpl_trade_fee: Money;
+  nccpl_secp_fee: Money;
+  total: Money;
+}
+
+export type ChargeKey = Exclude<keyof PortfolioCharges, 'total'>;
+
+export interface ForecastExit {
+  price: Money;
+  gross: Money;
+  charges: PortfolioCharges;
+  proceeds: Money;
+  gain: Money;
+  cgt: Money;
+  net_proceeds: Money;
+  net_return: Money;
+  net_return_pct: string;
+}
+
+export interface PortfolioDividends {
+  per_share: Money;
+  payments: { ex_date: string; amount: Money }[];
+  period_start: string;
+  period_end: string;
+  gross: Money;
+  wht_rate_pct: string;
+  wht: Money;
+  net: Money;
+  source: 'yahoo';
+}
+
+export interface WhyThisStock {
+  rank: number;
+  volatility_pct: string;
+  forecast_price: Money;
+  last_close: Money;
+  expected_change_pct: string;
+  confidence_score: string;
+  low_confidence_reasons: LowConfidenceReason[];
+  low_confidence_threshold: number;
+  signal: Signal;
+  signal_probability: string | null;
+  sentiment_label: SentimentLabel | null;
+  sentiment_score: string | null;
+  counted_headlines: number;
+  /** How far the forecast and news moved this weight, in percentage points */
+  tilt_effect_pp: string;
+}
+
+export interface PortfolioHolding {
+  ticker: string;
+  name: string;
+  sector: string | null;
+  shares: number;
+  price: Money;
+  target_weight_pct: string;
+  allocation_pct: string;
+  gross: Money;
+  charges: PortfolioCharges;
+  total_cost: Money;
+  break_even_price: Money;
+  break_even_change_pct: string;
+  round_trip_pct: string;
+  forecast_exit: ForecastExit;
+  dividends: PortfolioDividends | null;
+  why: WhyThisStock;
+}
+
+export interface PortfolioRates {
+  version: string;
+  checked_on: string;
+  /** Rate keys whose official source could not be read (shown as "rate not confirmed") */
+  unverified: string[];
+  not_modelled: string[];
+  cgt_non_filer_label: string;
+  commission_floor_pct: string;
+  commission_max_pct: string;
+}
+
+export interface Portfolio {
+  id: string;
+  status: 'active' | 'archived';
+  generated_at: string;
+  risk_category: RiskCategory;
+  capital: Money;
+  filer_status: FilerStatus;
+  shariah_only: boolean;
+  shariah_list_version: string | null;
+  excluded_tickers: string[];
+  commission_pct: string;
+  model_version: string;
+  prices_as_of: string;
+  rates: PortfolioRates;
+  totals: { gross: Money; charges: Money; cost: Money; idle_cash: Money };
+  /** FR24: flagged when the cash could buy more shares but a limit stopped it */
+  idle: { amount: Money; flagged: boolean; blocked_by: Record<string, 'stock_cap' | 'sector_cap'> };
+  holdings: PortfolioHolding[];
+}
+
+export type RollStatus =
+  'too_early' | 'not_triggered' | 'no_replacement' | 'costs_exceed_benefit' | 'suggested';
+
+export interface RollHolding {
+  ticker: string;
+  status: RollStatus;
+  trading_days: number;
+  holding_return_pct: string;
+  benchmark_return_pct: string;
+  relative_return_pct: string;
+  threshold_pct: string;
+  weak_forecast: boolean;
+  replacement: { ticker: string; price: Money; expected_change_pct: string } | null;
+  sale: { gross: Money; charges_total: Money; cgt: Money; net_proceeds: Money } | null;
+  purchase: { shares: number; gross: Money; charges_total: Money } | null;
+  switch_cost: Money | null;
+  expected_benefit: Money | null;
+}
+
+export interface RollCheckResult {
+  portfolio_id: string;
+  checked_at: string;
+  required_trading_days: number;
+  benchmark: {
+    kind: 'equal_weight_forecast_stocks';
+    stock_count: number;
+    since: string;
+    return_pct: string | null;
+  };
+  holdings: RollHolding[];
+}
+
+export type PortfolioErrorCode =
+  | 'risk_profile_required'
+  | 'no_active_portfolio'
+  | 'capital_below_minimum'
+  | 'too_few_eligible_stocks'
+  | 'invalid_commission_rate'
+  | 'ticker_not_in_portfolio'
+  | 'portfolio_archived'
+  | 'portfolio_not_found'
+  | 'predictions_unavailable';

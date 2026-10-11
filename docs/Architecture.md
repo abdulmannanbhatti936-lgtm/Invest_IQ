@@ -217,22 +217,33 @@ news_source_status                           -- last attempt / success per sourc
   last_attempt_at TIMESTAMPTZ NULL, last_success_at TIMESTAMPTZ NULL
   last_error TEXT NULL, last_new_headlines INT NULL
 
-portfolios
+portfolios                                   -- Phase 5 (as built 2026-10-11; replaces the draft, see note below)
   id UUID PK
-  user_id UUID FK -> users.id
-  status ENUM('active','archived')
-  generated_at TIMESTAMP
+  user_id UUID FK -> users.id ON DELETE CASCADE
+  status VARCHAR CHECK ('active','archived')   -- partial unique index: one active per user
+  generated_at TIMESTAMPTZ
+  risk_category VARCHAR                        -- the profile used
+  capital NUMERIC(16,2)
+  filer_status VARCHAR CHECK ('filer','non_filer')
+  shariah_only BOOLEAN, shariah_list_version VARCHAR NULL
+  excluded_tickers JSONB
+  commission_rate NUMERIC(6,5)                 -- PSX floor unless the user entered their broker's rate
+  rates_version VARCHAR                        -- integrations/data/psx_costs_*.json
+  model_version VARCHAR, prices_as_of DATE
+  input_snapshot JSONB                         -- per-stock volatility, forecast, signal, news, tilt, rank, reason
+  gross_total, charges_total, cost_total, idle_cash NUMERIC(16,2)
 
 portfolio_holdings
   id UUID PK
-  portfolio_id UUID FK -> portfolios.id
+  portfolio_id UUID FK -> portfolios.id ON DELETE CASCADE
   stock_id UUID FK -> stocks.id
-  allocation_pct NUMERIC
-  gross_price NUMERIC
-  brokerage_fee NUMERIC
-  cgt NUMERIC
-  wht NUMERIC
-  net_price NUMERIC
+  prediction_id UUID FK -> predictions.id NULL -- the forecast the generator used
+  position INT, shares INT
+  reference_price NUMERIC(14,2)
+  target_weight, allocation_pct NUMERIC(7,4)   -- percent
+  gross_value, commission, sales_tax, cdc_fee, psx_trading_fee, psx_regulatory_fee,
+  secp_levy, nccpl_trade_fee, nccpl_secp_fee, buy_charges, total_cost NUMERIC(16,2)
+  projection JSONB                             -- break-even, one-day forecast exit (CGT), dividends (WHT): estimates
 
 backtest_results
   id UUID PK
@@ -267,6 +278,8 @@ admin_action_logs
   created_at TIMESTAMP
 ```
 
+> **Phase 5 schema deviation (2026-10-11):** the draft `portfolio_holdings` had one `brokerage_fee` and `gross_price` / `net_price` columns and `TIMESTAMP`. As built, every charge line on a contract note has its own column (so the API figures can be checked line by line against the cost engine's tests), timestamps are `TIMESTAMPTZ` like every other table, and each portfolio stores its inputs, rates version and per-stock calculation so it can be explained later. CGT and WHT are projections and live in `projection`. All money math is in `services/api/services/cost_engine.py` (Decimal); the portfolio code calls it and never repeats it.
+
 ## 8. API Surface (representative, not exhaustive)
 
 ```
@@ -288,10 +301,11 @@ GET    /stocks/{ticker}/history
 GET    /stocks/{ticker}/prediction
 GET    /stocks/{ticker}/sentiment
 
-POST   /portfolio/generate
-GET    /portfolio/current
-POST   /portfolio/{id}/roll-check
-PATCH  /portfolio/{id}/exclude-stock
+POST   /portfolio/generate              # 201; archives the previous portfolio; 422 capital_below_minimum with minimum_capital
+GET    /portfolio/current               # 404 no_active_portfolio before the first one
+POST   /portfolio/{id}/roll-check       # changes nothing; benchmark = forecast stocks' equal-weight average
+PATCH  /portfolio/{id}/exclude-stock    # returns the regenerated portfolio without that stock
+                                        # every /portfolio endpoint: 409 risk_profile_required without a profile
 
 POST   /backtest/run
 GET    /backtest/{id}

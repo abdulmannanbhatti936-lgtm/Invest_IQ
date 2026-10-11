@@ -13,6 +13,7 @@ import { OnboardingPage } from './features/onboarding/OnboardingPage';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { StocksPage } from './features/stocks/StocksPage';
 import { StockDetailPage } from './features/stocks/StockDetailPage';
+import { PortfolioPage } from './features/portfolio/PortfolioPage';
 import { ComingSoonPage } from './features/common/ComingSoonPage';
 import { AppLayout } from './components/layout/AppLayout';
 
@@ -80,16 +81,16 @@ function App() {
               </AppPage>
             }
           />
-
-          {/* Later phases (Phases.md) */}
           <Route
             path="/portfolio"
             element={
               <AppPage>
-                <ComingSoonPage section="portfolio" phase={5} />
+                <PortfolioPage />
               </AppPage>
             }
           />
+
+          {/* Later phases (Phases.md) */}
           <Route
             path="/backtest"
             element={

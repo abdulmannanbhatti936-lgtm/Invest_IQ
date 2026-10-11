@@ -4,7 +4,9 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.security import ACCESS_TOKEN_TYPE, decode_token
+from crud.risk_profile import get_risk_profile_by_user
 from crud.user import get_user_by_email
+from models.risk_profile import RiskProfile
 from models.user import User, UserRole
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
@@ -31,3 +33,22 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
     if current_user.role != UserRole.admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin only")
     return current_user
+
+
+def require_risk_profile(
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> RiskProfile:
+    """
+    Recommendations depend on the risk profile (PRD.md FR4), so portfolio endpoints refuse
+    a user without one on the server; the web route guard alone is not enough.
+    """
+    profile = get_risk_profile_by_user(db, user_id=current_user.id)
+    if profile is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "risk_profile_required",
+                "message": "Complete the risk questionnaire first.",
+            },
+        )
+    return profile
