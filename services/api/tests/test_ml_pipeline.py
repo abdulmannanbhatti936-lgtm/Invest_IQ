@@ -1,3 +1,4 @@
+import datetime
 import json
 import shutil
 from types import SimpleNamespace
@@ -15,6 +16,7 @@ from ml.features import (
     add_targets,
     build_feature_frame,
     headline_trading_days,
+    market_close,
     training_rows,
 )
 from ml.inference import ModelNotFoundError, load_bundle, models_agree, predict_next_day
@@ -86,6 +88,32 @@ def test_headline_after_the_close_counts_for_the_next_trading_day():
     )["published_at"]
     days = headline_trading_days(published, pd.Series(TRADING_DAYS))
     assert list(days) == list(pd.to_datetime(["2026-01-05", "2026-01-06", "2026-01-12"]))
+
+
+def test_ramadan_early_close_moves_later_news_to_the_next_trading_day():
+    # 2026-03-05 is a Thursday and 2026-03-06 a Friday in Ramadan (close 13:30 / 12:30 PKT);
+    # 08:31 UTC is 13:31 PKT and 07:31 UTC is 12:31 PKT
+    calendar = pd.Series(pd.to_datetime(["2026-03-05", "2026-03-06", "2026-03-09"]))
+    published = _headlines(
+        ("2026-03-05 08:29", 0.0),
+        ("2026-03-05 08:31", 0.0),
+        ("2026-03-06 07:29", 0.0),
+        ("2026-03-06 07:31", 0.0),
+    )["published_at"]
+    days = headline_trading_days(published, calendar)
+    assert list(days) == list(
+        pd.to_datetime(["2026-03-05", "2026-03-06", "2026-03-06", "2026-03-09"])
+    )
+
+
+def test_market_close_by_date():
+    assert market_close(datetime.date(2022, 4, 14)) == datetime.time(14, 0)  # Thursday, 2022
+    assert market_close(datetime.date(2022, 4, 15)) == datetime.time(13, 0)  # Friday, 2022
+    assert market_close(datetime.date(2024, 3, 21)) == datetime.time(13, 30)
+    # The day before the first fast is included: an early close there only delays news
+    assert market_close(datetime.date(2025, 3, 1)) == datetime.time(13, 30)
+    assert market_close(datetime.date(2025, 4, 1)) == datetime.time(15, 30)
+    assert market_close(datetime.date(2026, 10, 9)) == datetime.time(15, 30)
 
 
 def test_news_after_the_last_stored_close_is_not_used():
