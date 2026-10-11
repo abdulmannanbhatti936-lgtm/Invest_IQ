@@ -67,7 +67,14 @@ def _generate(db: Session, user: User, profile: RiskProfile, inputs: PortfolioIn
             needed=exc.needed,
         ) from exc
     except cost_engine.InvalidCommissionRate as exc:
-        raise _error(422, "invalid_commission_rate", str(exc)) from exc
+        rates = portfolio_service.rates_payload(cost_engine.load_rates())
+        raise _error(
+            422,
+            "invalid_commission_rate",
+            str(exc),
+            commission_floor_pct=rates["commission_floor_pct"],
+            commission_max_pct=rates["commission_max_pct"],
+        ) from exc
     except PredictionsUnavailable as exc:
         raise _error(503, "predictions_unavailable", "No current forecasts to use.") from exc
 

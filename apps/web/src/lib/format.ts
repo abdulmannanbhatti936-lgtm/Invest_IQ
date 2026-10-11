@@ -7,6 +7,21 @@ const number = (digits: number) =>
 export const formatPrice = (value: number | null | undefined, currency = 'Rs.'): string =>
   value == null ? '—' : `${currency} ${number(2).format(value)}`;
 
+/** Money from the API arrives as a decimal string; it is only formatted, never recalculated. */
+export const formatMoney = (value: string | null | undefined): string =>
+  value == null ? '—' : formatPrice(Number(value));
+
+/** A decimal string from the API with a + sign in front of a positive value. */
+export const withSign = (value: string): string =>
+  !value.startsWith('-') && Number(value) !== 0 ? `+${value}` : value;
+
+/**
+ * A percentage string from the API, with a + sign on request. Wrapped in a left-to-right
+ * isolate so the % sign stays after the number inside Urdu (right-to-left) sentences.
+ */
+export const formatPctString = (value: string | null | undefined, signed = false): string =>
+  value == null ? '—' : `⁦${signed ? withSign(value) : value}%⁩`;
+
 export const formatSignedPct = (value: number | null | undefined, digits = 2): string => {
   if (value == null) return '—';
   const arrow = value > 0 ? '▲' : value < 0 ? '▼' : '';

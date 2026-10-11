@@ -70,6 +70,7 @@ class Dividends(BaseModel):
     period_start: datetime.date
     period_end: datetime.date
     gross: Money
+    wht_rate_pct: Percent
     wht: Money
     net: Money
     source: Literal["yahoo"]
@@ -83,6 +84,7 @@ class WhyThisStock(BaseModel):
     expected_change_pct: Percent
     confidence_score: str
     low_confidence_reasons: list[str]
+    low_confidence_threshold: float
     signal: str
     signal_probability: str | None
     sentiment_label: str | None

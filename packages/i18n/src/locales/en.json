@@ -156,8 +156,10 @@
     "updated": "Last updated {{date}}",
     "retake": "Retake questionnaire",
     "portfolioEmptyTitle": "No portfolio yet",
-    "portfolioEmptyBody": "Personalised portfolio generation arrives in a later phase. Meanwhile, explore PSX companies and their AI forecasts.",
-    "browseStocks": "Browse stocks"
+    "portfolioEmptyBody": "Tell us how much you want to invest. InvestIQ will suggest a spread across PSX companies, with every charge and tax shown.",
+    "buildPortfolio": "Build a portfolio",
+    "portfolioReadyBody": "{{count}} companies, total cost {{cost}}, built on {{date}}.",
+    "viewPortfolio": "View portfolio"
   },
   "stocks": {
     "title": "PSX companies",
@@ -292,5 +294,142 @@
     "notCoveredTitle": "No news sentiment for this stock",
     "notCovered": "News is collected for the {{stocks}} stocks that have forecasts. {{ticker}} is not one of them yet.",
     "loadError": "We couldn't load the news sentiment."
+  },
+  "portfolio": {
+    "title": "Your portfolio",
+    "subtitle": "A suggested way to spread your money across PSX companies, with every charge and tax shown.",
+    "guidance": "This is guidance, not a trade. InvestIQ places no orders. To act on it, use a licensed PSX broker.",
+    "summary": "Based on your {{category}} risk profile, here is a spread of {{cost}} across {{count}} companies.",
+    "summaryCash": "{{cash}} stays as cash.",
+    "pricesAsOf": "Prices as of the {{date}} close",
+    "ratesAsOf": "Charge and tax rates as of {{date}}",
+    "generatedOn": "Built on {{date}}",
+    "totals": {
+      "gross": "Value of shares",
+      "charges": "Buying charges",
+      "cost": "Total cost",
+      "cash": "Left as cash"
+    },
+    "estimate": "Estimate",
+    "unconfirmed": "Rate not confirmed from an official source",
+    "excluded": "Left out by you: {{tickers}}",
+    "idle": {
+      "flaggedTitle": "{{amount}} is not invested",
+      "stock_cap": "{{ticker}} already holds the most one company may hold in your portfolio.",
+      "sector_cap": "{{ticker}}'s sector already holds the most one sector may hold in your portfolio.",
+      "flaggedSuggestion": "To use it, include a company you left out or turn off the Shariah filter. Otherwise it stays as cash.",
+      "small": "{{amount}} is left over, less than the price of one more share of any company here."
+    },
+    "notModelledTitle": "What these figures leave out",
+    "notModelled": {
+      "super_tax": "Super tax on high incomes (section 4C)",
+      "loss_set_off": "Setting a loss off against other gains, or carrying it forward",
+      "zakat": "Zakat",
+      "nccpl_cgt_charges": "NCCPL's charges for working out capital gains tax",
+      "trading_fee_sales_tax": "Sales tax on the PSX trading fee"
+    },
+    "form": {
+      "title": "Build a portfolio",
+      "rebuildTitle": "Build a new portfolio",
+      "intro": "Enter the amount you want to invest. Your risk profile ({{category}}) decides how widely it is spread.",
+      "capital": "Amount to invest (Rs.)",
+      "capitalRequired": "Enter the amount you want to invest.",
+      "capitalInvalid": "Enter an amount in rupees, for example 100000.",
+      "filerStatus": "Income tax status",
+      "filer": "Filer (on FBR's Active Taxpayer List)",
+      "nonFiler": "Non-filer",
+      "filerHelp": "Non-filers pay twice the tax on dividends.",
+      "shariah": "Shariah-compliant companies only",
+      "shariahHelp": "Shariah-compliant per PSX KMI review, effective 25 May 2026.",
+      "commission": "Your broker's commission (%), optional",
+      "commissionHelp": "Without your own rate we use the lowest commission PSX allows. Your broker may charge more. Enter your own rate.",
+      "commissionInvalid": "Enter a percentage, for example 0.20.",
+      "commissionRange": "PSX allows {{floor}} to {{max}}.",
+      "include": "Include {{ticker}} again",
+      "submit": "Build portfolio",
+      "cancel": "Cancel"
+    },
+    "empty": {
+      "title": "No portfolio yet",
+      "body": "Tell us how much you want to invest. InvestIQ will suggest how to spread it, with every charge and tax shown before you decide."
+    },
+    "holding": {
+      "allocation": "{{pct}} of your money",
+      "breakEven": "Break-even price",
+      "breakEvenHelp": "Selling at this price gives back everything you paid, charges included.",
+      "breakEvenChange": "{{pct}} above today's price of {{price}}",
+      "buyTitle": "Buying",
+      "sharesAt": "{{shares}} shares at {{price}}",
+      "charges": {
+        "commission": "Broker commission",
+        "sales_tax": "Sales tax on commission (Sindh)",
+        "cdc_fee": "CDC fee",
+        "psx_trading_fee": "PSX trading fee",
+        "psx_regulatory_fee": "PSX regulatory fee (ended 29 Aug 2025)",
+        "secp_levy": "SECP levy",
+        "nccpl_trade_fee": "NCCPL trade fee",
+        "nccpl_secp_fee": "NCCPL SECP fee"
+      },
+      "chargesTotal": "Buying charges",
+      "totalCost": "Total cost",
+      "showCharges": "Each charge",
+      "exitTitle": "If sold at the forecast price",
+      "exitNote": "This is a one-day forecast. Buying and selling costs about {{pct}} in total, so very short holds rarely pay.",
+      "exitPrice": "Forecast price, next trading day",
+      "saleValue": "Sale value",
+      "sellCharges": "Selling charges",
+      "cgt": "Capital gains tax",
+      "cgtNone": "No capital gains tax: no gain at this price",
+      "cgtNonFiler": "Non-filer: NCCPL deducts 15%; individuals may owe more at normal income-tax rates.",
+      "netResult": "Result after all costs",
+      "dividendsTitle": "Dividends, if it pays what it paid in the last 12 months",
+      "dividendsBasis": "Rs. {{perShare}} a share, {{start}} to {{end}}",
+      "dividendsGross": "Dividends before tax",
+      "wht": "Withholding tax ({{pct}})",
+      "dividendsNet": "Dividends after tax",
+      "dividendsSource": "Source: Yahoo; amounts not yet checked against PSX announcements.",
+      "dividendsNone": "No dividends recorded in the last 12 months.",
+      "dividendsNote": "Dividends from power producers and from companies that pay no tax can be taxed at other rates.",
+      "whyTitle": "Why this stock",
+      "whyRisk": "Its price moved {{vol}} a day on average over the last year. Steadier prices get a larger share.",
+      "whyForecast": "The AI forecasts {{price}} for the next trading day ({{change}}).",
+      "whyLowConfidence": "Low confidence:",
+      "whySignal": "Buy/sell/hold signal: {{signal}}",
+      "whyNews": "News: {{label}}. Recent headlines counted: {{count}}.",
+      "whyNoNews": "No recent headlines about this company.",
+      "whyTilt": "The forecast and news changed its share by {{pp}} percentage points.",
+      "whyNote": "Shares mostly follow how steady each price has been. Forecasts can only adjust them a little, because no model has yet beaten a simple baseline.",
+      "exclude": "Leave out",
+      "excludeConfirm": "Leave {{ticker}} out and rebuild the portfolio?",
+      "excludeYes": "Leave out and rebuild"
+    },
+    "lowCapital": {
+      "title": "This amount is too small for a {{category}} portfolio",
+      "body": "{{capital}} is not enough for a {{category}} portfolio. To spread it across at least {{count}} companies with no more than {{pct}} in any one, you need about {{minimum}} at prices as of {{date}}. You can enter a larger amount.",
+      "noMinimum": "{{capital}} is not enough for a {{category}} portfolio, and no amount up to Rs. 10,000,000 works with today's prices.",
+      "useMinimum": "Use {{minimum}}"
+    },
+    "roll": {
+      "title": "Should anything be switched?",
+      "intro": "Each holding is compared with the other forecast stocks. A switch is suggested only when a holding has fallen well behind and the expected gain is larger than the cost of switching.",
+      "button": "Check now",
+      "benchmark": "Benchmark: the average of the {{count}} forecast stocks since {{date}}, {{pct}}. The KSE-100 index is not available from our price source.",
+      "checkedAt": "Checked {{date}}",
+      "status": {
+        "too_early": "Too early to judge: {{days}} of {{required}} trading days so far.",
+        "not_triggered": "Keep: {{relative}} against the benchmark, inside the {{threshold}} allowed for this stock.",
+        "no_replacement": "It has fallen behind, but no other stock is forecast to do better.",
+        "costs_exceed_benefit": "Switching to {{to}} would cost {{cost}} and is expected to gain only {{benefit}}. Not worth it.",
+        "suggested": "Consider switching to {{to}}: expected gain {{benefit}}, cost of switching {{cost}}."
+      }
+    },
+    "error": {
+      "tooFewStocks": "Too few companies are left after your choices. Include a company you left out or turn off the Shariah filter.",
+      "commission": "The commission must be within the PSX range.",
+      "predictionsUnavailable": "Today's forecasts are not ready yet, so a portfolio cannot be built. Please try again later.",
+      "archived": "This portfolio has been replaced by a newer one. Reload the page.",
+      "notInPortfolio": "That company is not in this portfolio.",
+      "load": "Your portfolio could not be loaded."
+    }
   }
 }

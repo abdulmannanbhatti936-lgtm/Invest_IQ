@@ -160,7 +160,7 @@ def test_ffc_projection_equals_the_hand_calculation(client, investor, worked_exa
     )
     dividends = ffc["dividends"]
     assert (dividends["per_share"], dividends["gross"], dividends["wht"], dividends["net"]) == (
-        "41.0",
+        "41.00",
         "943.00",
         "141.45",
         "801.55",

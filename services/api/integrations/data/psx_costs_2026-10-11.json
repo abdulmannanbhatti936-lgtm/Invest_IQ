@@ -104,10 +104,13 @@
     "note": "Section 150, general rate (FBR rate card for tax year 2027). Dividends from IPPs (7.5% / 15%) and from companies paying no tax because of exemptions, losses or credits (25% / 50%) are taxed differently; the general rate is applied to every stock."
   },
   "not_modelled": [
-    "Super tax (section 4C) on high incomes",
-    "Setting a capital loss off against other gains, or carrying it forward",
-    "Zakat",
-    "NCCPL's charges for computing capital gains tax",
-    "Sales tax on the PSX trading fee"
+    { "key": "super_tax", "text": "Super tax (section 4C) on high incomes" },
+    {
+      "key": "loss_set_off",
+      "text": "Setting a capital loss off against other gains, or carrying it forward"
+    },
+    { "key": "zakat", "text": "Zakat" },
+    { "key": "nccpl_cgt_charges", "text": "NCCPL's charges for computing capital gains tax" },
+    { "key": "trading_fee_sales_tax", "text": "Sales tax on the PSX trading fee" }
   ]
 }

@@ -85,7 +85,7 @@ def _parse_rates(data: dict) -> Rates:
         cgt_non_filer_label=data["cgt"]["non_filer_label"],
         wht_filer_rate=Decimal(data["dividend_wht"]["filer_rate"]),
         wht_non_filer_rate=Decimal(data["dividend_wht"]["non_filer_rate"]),
-        not_modelled=tuple(data["not_modelled"]),
+        not_modelled=tuple(item["key"] for item in data["not_modelled"]),
     )
 
 

@@ -265,13 +265,14 @@ def _projection(
     if per_share > 0:
         income = cost_engine.dividend_income(shares, per_share, filer_status, rates)
         dividends = {
-            "per_share": _str(per_share),
+            "per_share": _str(to_paisa(per_share)),
             "payments": [
                 {"ex_date": d.ex_date.isoformat(), "amount": str(d.amount)} for d in payments
             ],
             "period_start": (ctx.as_of - DIVIDEND_WINDOW).isoformat(),
             "period_end": ctx.as_of.isoformat(),
             "gross": _str(income.gross),
+            "wht_rate_pct": _str(_pct(rates.wht_rate(filer_status), "1")),
             "wht": _str(income.wht),
             "net": _str(income.net),
             "source": "yahoo",
@@ -631,6 +632,7 @@ def portfolio_payload(portfolio: Portfolio) -> dict:
                     "expected_change_pct": _str(_pct(Decimal(why["expected_return"]), "0.001")),
                     "confidence_score": why["confidence_score"],
                     "low_confidence_reasons": why["low_confidence_reasons"],
+                    "low_confidence_threshold": settings.LOW_CONFIDENCE_THRESHOLD,
                     "signal": why["signal"],
                     "signal_probability": why["signal_probability"],
                     "sentiment_label": why["sentiment_label"],

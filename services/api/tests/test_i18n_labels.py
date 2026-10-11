@@ -11,7 +11,9 @@ from pathlib import Path
 import pytest
 
 from models.risk_profile import RiskCategory
+from services.cost_engine import load_rates
 from services.risk_scoring import SAFETY_CAPS
+from services.rolling import RollStatus
 
 LOCALES_DIR = Path(__file__).resolve().parents[3] / "packages" / "i18n" / "src" / "locales"
 
@@ -41,6 +43,13 @@ def _required_keys(client) -> list[str]:
     keys += [f"onboarding.result.caps.{cap}" for cap in SAFETY_CAPS]
     for category in RiskCategory:
         keys += [f"risk.{category.value}", f"risk.description.{category.value}"]
+    # The portfolio screen labels these ids from the API (Phase 5)
+    rates = load_rates()
+    charges = ["commission", "sales_tax", *(fee.key for fee in rates.fees)]
+    keys += [f"portfolio.holding.charges.{key}" for key in charges]
+    keys += [f"portfolio.notModelled.{key}" for key in rates.not_modelled]
+    keys += [f"portfolio.roll.status.{status.value}" for status in RollStatus]
+    keys += [f"portfolio.idle.{reason}" for reason in ("stock_cap", "sector_cap")]
     return keys
 
 
