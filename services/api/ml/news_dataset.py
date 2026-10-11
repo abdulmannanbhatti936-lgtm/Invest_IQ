@@ -30,7 +30,22 @@ class NewsDatasetError(ValueError):
     pass
 
 
-def build_news_dataset(db: Session, tickers: list[str], dataset_dir: str | Path) -> Path:
+def _free_version(base: str, taken: set[str]) -> str:
+    """`base`, or `base-r2`, `base-r3`, ... when a dataset of that name already exists."""
+    version, n = base, 1
+    while version in taken:
+        n += 1
+        version = f"{base}-r{n}"
+    return version
+
+
+def build_news_dataset(
+    db: Session, tickers: list[str], dataset_dir: str | Path, taken: set[str] = frozenset()
+) -> Path:
+    """
+    Write the dataset to `dataset_dir`. A version name in `taken` (already committed) is
+    never reused: a rebuild with the same newest headline after a matching fix is `-r2`.
+    """
     rows = (
         db.query(SentimentScore, Stock.ticker)
         .join(Stock, Stock.id == SentimentScore.stock_id)
@@ -59,7 +74,7 @@ def build_news_dataset(db: Session, tickers: list[str], dataset_dir: str | Path)
         columns=COLUMNS,
     )
     last_day = frame["published_at"].max()[:10] if len(frame) else "empty"
-    version = f"news{len(tickers)}-{last_day}"
+    version = _free_version(f"news{len(tickers)}-{last_day}", set(taken))
     out = Path(dataset_dir) / version
     out.mkdir(parents=True, exist_ok=True)
     frame.to_csv(out / FILE, index=False, float_format="%.4f", lineterminator="\n")
@@ -119,7 +134,10 @@ def main() -> None:
 
     db = SessionLocal()
     try:
-        path = build_news_dataset(db, settings.tracked_tickers, settings.candidate_dataset_dir)
+        committed = {p.name for p in Path(settings.DATASET_DIR).iterdir() if p.is_dir()}
+        path = build_news_dataset(
+            db, settings.tracked_tickers, settings.candidate_dataset_dir, committed
+        )
     finally:
         db.close()
     print(f"News dataset written to {path}")

@@ -76,10 +76,10 @@ class Collector:
     def store(self, article: Article) -> int:
         """Insert one row per matched stock; returns how many were new."""
         self.known_urls(article.source).add(article.url)
-        if not self.matcher.title_matches_slug(article.headline, article.url):
+        tickers = self.matcher.match_article(article.url, article.headline)
+        if tickers and not self.matcher.title_matches_slug(article.headline, article.url):
             logger.warning(f"Not stored, title does not match its URL: {article.url}")
             return 0
-        tickers = self.matcher.match_article(article.url, article.headline)
         rows = [
             {
                 "stock_id": self.stock_ids[t],

@@ -166,3 +166,9 @@ def test_rematch_removes_rows_whose_headline_does_not_match_the_url(db):
     assert news_ingestion.rematch(db) == [
         ("OGDC", "https://example.com/MOCK/2026/10/08/ogdc-output-rises-at-rajian")
     ]
+
+
+def test_the_title_check_is_only_for_articles_about_tracked_stocks(db, caplog):
+    article = _article(METTIS, "first-capital-in-talks", "MOCK_ Brokerage results")
+    assert Collector(db).store(article) == 0
+    assert "does not match" not in caplog.text
