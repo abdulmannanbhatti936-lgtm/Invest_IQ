@@ -159,10 +159,10 @@
 
 **Exit criteria:**
 
-- [ ] Real news scraped and scored for at least a meaningful set of PSX-listed companies
-- [ ] Sentiment score visibly influences prediction output (documented, testable)
-- [ ] FinBERT accuracy evaluated against target (>85%) and documented
-- [ ] Graceful fallback verified when a news source is deliberately blocked/unavailable in testing
+- [x] Real news scraped and scored for at least a meaningful set of PSX-listed companies — 2,143 Profit and Mettis Global headlines (2021-09 to 2026-10) for all 18 forecast stocks, every one scored (dataset `news18-2026-10-09-r2`, after the 2026-10-11 audit removed 21 wrongly matched rows). Business Recorder is collected but yields no headline about these stocks, so it is hidden.
+- [x] Sentiment score visibly influences prediction output (documented, testable) — **met in Workflow.md's wording, "sentiment measurably changes at least one test prediction" (deviation, Memory.md §3, 2026-10-11):** switching the news inputs off changes the candidate news model's test predictions (34 buy/sell/hold signals and 215 price directions on 1,708 test days with news; `ml/reports/sentiment_experiment_2026-10-11.md`). The live model has no news inputs, because the pre-declared promotion rule was not met (run twice, same rule).
+- [x] FinBERT accuracy evaluated against target (>85%) and documented — 97.2% on Financial PhraseBank (all annotators agree) and 89.0% (50% agree), **an upper bound**, since FinBERT was fine-tuned on that data (`ml/reports/finbert_evaluation.md`). The PSX headline check (162 headlines, team labels) is required before the evaluation (Memory.md §4).
+- [x] Graceful fallback verified when a news source is deliberately blocked/unavailable in testing — `tests/test_sentiment_fallback.py`: every source forced to fail gives a price-only forecast flagged "sentiment unavailable" through to the API; a missing fallback model stops the run with a clear status instead of crashing. Dormant in production while the live model reads no news.
 
 ---
 
