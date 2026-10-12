@@ -1,0 +1,18 @@
+{
+  "version": "sbp-mtb-3m-2026-09-30",
+  "file": "sbp_mtb_3m_2026-09-30.csv",
+  "sha256": "366dcf70c6261857e247631d72a53deaa50990a0b19265ab58f45380f408c306",
+  "source_url": "https://www.sbp.org.pk/assets/document/tb.xlsx",
+  "source_sheet": "New Detailed Format",
+  "source_sha256": "4b5d16c26a68b805c9b88eaa4064ef1086b769f90af997306e9c818190b242bf",
+  "tenor": "3-Month",
+  "column": "Cut-off Yield (fraction per annum; 'BR' = all bids rejected, 'NBR' = no bids)",
+  "auctions": 321,
+  "first_auction": "2014-07-09",
+  "last_auction": "2026-09-30",
+  "basis_check": {
+    "auctions": 881,
+    "match_365": 878,
+    "match_360": 0
+  }
+}
