@@ -1,7 +1,7 @@
 // Run with: npm test (Node's built-in test runner)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { formatDate, formatMoney, formatPctString, withSign } from './format.ts';
+import { formatDate, formatMoney, formatPctString, formatPp, withSign } from './format.ts';
 
 test('API timestamps (UTC, "Z") are shown as the Pakistan date', () => {
   // 21:18 UTC on 8 Oct is 02:18 on 9 Oct in Karachi — the day the user actually saw
@@ -39,4 +39,9 @@ test('positive figures get a plus sign, zero and negative ones keep theirs', () 
   assert.equal(withSign('0.30'), '+0.30');
   assert.equal(withSign('-0.07'), '-0.07');
   assert.equal(withSign('0.00'), '0.00');
+});
+
+test('percentage points carry a sign and stay left-to-right', () => {
+  assert.equal(formatPp('5.00'), '⁦+5.00⁩');
+  assert.equal(formatPp('-0.24'), '⁦-0.24⁩');
 });
