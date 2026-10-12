@@ -51,6 +51,8 @@ class History:
 
 
 class InsufficientHistory(Exception):
+    """A stock has no close at or shortly before the start date."""
+
     def __init__(self, required_start: datetime.date, first_dates: dict[str, datetime.date | None]):
         super().__init__(f"No close near {required_start} for {sorted(first_dates)}")
         self.required_start = required_start
@@ -78,6 +80,9 @@ class Period:
     start: datetime.date
     end: datetime.date
     calendar: list[datetime.date]  # trading days from start to end, both included
+    # The date `years` before the end; a stock whose history begins after it is too short,
+    # so a period is never shortened to fit the data
+    requested_start: datetime.date | None = None
 
 
 def period_for(years: int, end: datetime.date, trading_days: list[datetime.date]) -> Period:
@@ -87,7 +92,7 @@ def period_for(years: int, end: datetime.date, trading_days: list[datetime.date]
     except ValueError:
         target = end.replace(year=end.year - years, day=28)
     calendar = [d for d in trading_days if target <= d <= end]
-    return Period(calendar[0], end, calendar)
+    return Period(calendar[0], end, calendar, target)
 
 
 def start_bars(
@@ -96,15 +101,16 @@ def start_bars(
     """Each stock's close on the start date, or the last one within the allowed gap before it."""
     position = bisect.bisect_left(all_days, period.start)
     earliest = all_days[max(0, position - MAX_START_GAP_TRADING_DAYS)]
+    requested = period.requested_start or period.start
     bars, missing = {}, {}
     for history in histories:
         bar = history.bar_on_or_before(period.start)
-        if bar is None or bar.day < earliest:
+        if bar is None or bar.day < earliest or history.bars[0].day > requested:
             missing[history.ticker] = history.bars[0].day if history.bars else None
         else:
             bars[history.ticker] = bar
     if missing:
-        raise InsufficientHistory(period.start, missing)
+        raise InsufficientHistory(requested, missing)
     return bars
 
 

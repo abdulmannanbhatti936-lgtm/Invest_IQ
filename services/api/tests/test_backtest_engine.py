@@ -307,3 +307,14 @@ def test_start_date_rules_use_only_closes_up_to_the_start_and_no_tilt():
     shares = {t: p.shares for t, p in plan(calm).items()}
     # Conservative weights by 1/sigma^2: the calmest stock gets the most
     assert shares["MOCK_0"] > shares["MOCK_6"]
+
+
+def test_a_period_is_never_shortened_to_fit_the_data():
+    # Data from 1 Jan 2025 only; three years back from 1 Jan 2026 is 1 Jan 2023
+    histories = list(_histories().values())
+    period = backtest.period_for(3, DATES[-1], DATES)
+    assert period.start == DATES[0] and period.requested_start == datetime.date(2023, 1, 1)
+    with pytest.raises(InsufficientHistory) as exc:
+        backtest.start_bars(histories, period, DATES)
+    assert exc.value.required_start == datetime.date(2023, 1, 1)
+    assert set(exc.value.first_dates) == {"MOCK_A", "MOCK_B"}
