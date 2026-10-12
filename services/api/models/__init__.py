@@ -1,5 +1,6 @@
 from core.database import Base
 
+from .backtest import BacktestResult, IndexPoint
 from .portfolio import Portfolio, PortfolioHolding
 from .prediction import Prediction
 from .refresh_token import RefreshToken
@@ -25,4 +26,6 @@ __all__ = [
     "Prediction",
     "Portfolio",
     "PortfolioHolding",
+    "BacktestResult",
+    "IndexPoint",
 ]
