@@ -194,8 +194,8 @@ class LeftOutStock(BaseModel):
 
 
 class UniverseResponse(BaseModel):
-    latest_date: datetime.date
+    latest_date: datetime.date | None  # None until prices have been loaded
     min_years: int
-    max_years: int
+    max_years: int | None
     stocks: list[UniverseStock]
     left_out: list[LeftOutStock]

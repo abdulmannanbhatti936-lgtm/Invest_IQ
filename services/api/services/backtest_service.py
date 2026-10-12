@@ -84,6 +84,9 @@ def stock_ranges(db: Session, tickers: list[str] | None = None) -> dict[str, Sto
 def universe(db: Session) -> dict:
     """Stocks a custom mix may use: at least three years of served history, whole splits."""
     ranges = stock_ranges(db)
+    if not ranges:
+        return {"latest_date": None, "min_years": MIN_YEARS, "max_years": None, "stocks": [],
+                "left_out": []}  # fmt: skip
     latest = max(r.last_date for r in ranges.values())
     stocks, left_out = [], []
     for r in sorted(ranges.values(), key=lambda r: r.ticker):
@@ -102,7 +105,7 @@ def universe(db: Session) -> dict:
     return {
         "latest_date": latest,
         "min_years": MIN_YEARS,
-        "max_years": max(s["max_years"] for s in stocks),
+        "max_years": max((s["max_years"] for s in stocks), default=None),
         "stocks": stocks,
         "left_out": left_out,
     }

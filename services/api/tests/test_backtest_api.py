@@ -297,3 +297,16 @@ def test_another_users_portfolio_and_result_are_not_found(client, db, market):
     response = client.get(f"/backtest/{result['id']}", headers=other_headers)
     assert response.status_code == 404
     assert response.json()["detail"]["code"] == "backtest_not_found"
+
+
+def test_universe_without_any_prices_is_empty_not_an_error(client, db):
+    headers, _ = _investor(client, db)
+    response = client.get("/backtest/universe", headers=headers)
+    assert response.status_code == 200
+    assert response.json() == {
+        "latest_date": None,
+        "min_years": 3,
+        "max_years": None,
+        "stocks": [],
+        "left_out": [],
+    }
