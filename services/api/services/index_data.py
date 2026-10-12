@@ -304,7 +304,7 @@ def load(
         index, expected_trading_days(db), spot_checks, sorted(other[1].items()) if other else None
     )
     path.with_name(path.stem + ".validation.json").write_text(
-        json.dumps(asdict(report), indent=2) + "\n", encoding="utf-8"
+        json.dumps(asdict(report), indent=2) + "\n", encoding="utf-8", newline="\n"
     )
     if report.errors:
         raise IndexFileError("; ".join(report.errors))

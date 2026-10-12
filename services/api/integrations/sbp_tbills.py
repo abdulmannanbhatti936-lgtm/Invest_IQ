@@ -180,7 +180,7 @@ def write_dataset(xlsx: Path, out_dir: Path = DATA_DIR) -> Path:
         "basis_check": basis_check(auctions),
     }
     manifest_path = csv_path.with_suffix(".json")
-    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n")
     return csv_path
 
 
