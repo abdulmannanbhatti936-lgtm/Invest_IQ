@@ -378,6 +378,7 @@ _(Repeat this same discipline — DB models → backend logic → tests → fron
 
 **Do:** Acquire KSE-100 historical index data covering the same date range as backtest inputs (FR32).
 **Checkpoint ✅:** Data documented in Memory.md §15.
+**As built (2026-10-12):** not acquired. No source may be used without PSX's written permission (Memory.md §4); the request is drafted in `docs/psx-data-permission-request.md`. The loader and its validation are built (`python -m services.index_data load`), the report uses a labelled stand-in benchmark until then, and the risk-free rate (SBP 3-month T-bills) is documented in Memory.md §15.
 
 ### Step 6.3 — Backtrader/QuantStats Integration
 
