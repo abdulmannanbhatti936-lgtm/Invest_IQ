@@ -82,3 +82,25 @@ def test_the_follow_up_must_name_the_next_confidence_group_with_ties_allowed():
     assert "[['FFC', 'MARI'], ['OGDC'], ['HBL']]" in notes
     wrong = run("g", "MARI is lowest.", "HBL comes next.")
     assert judge("g", wrong, CONTEXT)[0] == "fail"
+
+
+def test_a_provider_that_cannot_answer_is_recorded_as_a_failed_case(monkeypatch):
+    from integrations.llm import LLMRateLimited
+    from services import chat_context, chat_eval
+
+    class Busy:
+        name, model = "groq", "groq-test"
+
+        def complete(self, *args, **kwargs):
+            raise LLMRateLimited(30.0)
+
+    context = SimpleNamespace(json="{}", figures=[], dates=set(), sources={}, data=CONTEXT.data)
+    monkeypatch.setattr(chat_context, "build_context", lambda *a, **k: context)
+
+    run_, _ = chat_eval._ask(None, None, chat_eval.CASES["g"], Busy(), 1, pause=0)
+
+    assert run_.model == "groq:groq-test"
+    assert len(run_.turns) == 1  # the follow-up is not sent after a failure
+    assert run_.turns[0].figure_check == "unavailable"
+    assert run_.turns[0].reply.startswith("[no reply: provider_busy")
+    assert run_.auto_verdict == "fail"

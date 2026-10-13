@@ -7,9 +7,12 @@ a 3-year backtest of it. Each case is sent through the same context builder, pro
 check as the app, then the account is deleted. Transcripts and verdicts are written to
 docs/chat-eval/ as Markdown and JSON Lines.
 
-    python -m services.chat_eval models
-    python -m services.chat_eval bakeoff --models mistral-large-2512,mistral-medium-2508,...
-    python -m services.chat_eval adversarial --model <id> --runs 3
+    python -m services.chat_eval models --provider gemini
+    python -m services.chat_eval bakeoff --models gemini:<flash id>,gemini:<pro id>,groq:<id>
+    python -m services.chat_eval adversarial --model gemini:<id> --runs 3
+
+`--pause` waits that many seconds before each provider call (Groq's free tier allows about one
+of these prompts a minute).
 
 The automatic verdicts check what can be checked mechanically (figure check, scope and
 guarantee wording, reply script, follow-up referent); every transcript is also read by a
@@ -30,8 +33,7 @@ import httpx
 
 from core.config import API_ROOT, settings
 from core.database import SessionLocal
-from integrations.llm import Turn
-from integrations.llm.mistral import MistralProvider
+from integrations.llm import LLMUnavailable, Turn, provider_for
 from models.risk_profile import RiskProfile
 from models.user import User
 from services import backtest_service, chat_context, chat_prompt, chat_service, portfolio_service
@@ -178,7 +180,9 @@ def judge(case: str, run: Run, context) -> tuple[str, str]:
         _urdu, latin = _script_share(reply)
         if latin < 0.9 or not is_roman_urdu(reply):
             problems.append("reply is not Roman Urdu")
-    if case == "g":
+    if case == "g" and len(replies) < 2:
+        problems.append("the follow-up was not answered")
+    elif case == "g":
         order = _confidence_order(context)
         if len(order) >= 2:
             if not any(t in replies[0] for t in order[0]):
@@ -219,18 +223,28 @@ def _make_account(db) -> User:
     return user
 
 
-def _ask(db, user, case: Case, provider, run_no: int) -> tuple[Run, object]:
-    run = Run(case=case.id, model=provider.model, run=run_no)
+def _ask(db, user, case: Case, provider, run_no: int, pause: float) -> tuple[Run, object]:
+    run = Run(case=case.id, model=f"{provider.name}:{provider.model}", run=run_no)
     turns: list[Turn] = []
     context = None
     recent: list[str] = []
     for text, toggle in case.messages:
         language = reply_language(text, toggle)
         context = chat_context.build_context(db, user, text, recent, language)
+        time.sleep(pause)
         started = time.monotonic()
-        reply = chat_service.generate_reply(
-            context, [*turns, Turn("user", text)], language, text, provider=provider
-        )
+        try:
+            reply = chat_service.generate_reply(
+                context, [*turns, Turn("user", text)], language, text, provider=provider
+            )
+        except LLMUnavailable as e:
+            # Recorded, not hidden: a provider that cannot answer fails the case
+            failed = f"[no reply: {e.reason}: {e}]"
+            elapsed = int((time.monotonic() - started) * 1000)
+            run.turns.append(
+                Turnout(text, language, failed, "unavailable", [], [], elapsed, None, None)
+            )
+            break
         run.turns.append(
             Turnout(
                 question=text,
@@ -250,7 +264,19 @@ def _ask(db, user, case: Case, provider, run_no: int) -> tuple[Run, object]:
     return run, context
 
 
-def evaluate(models: list[str], case_ids: tuple[str, ...], runs: int) -> tuple[list[Run], dict]:
+def _provider(spec: str):
+    """A "gemini:<model id>" spec as that provider's adapter, with its key from .env."""
+    name, _, model = spec.partition(":")
+    key = settings.api_key_for(name)
+    if not model or not key:
+        raise SystemExit(f"{spec!r}: use provider:model, with {name.upper()}_API_KEY in .env")
+    return provider_for(name, model, key)
+
+
+def evaluate(
+    specs: list[str], case_ids: tuple[str, ...], runs: int, pause: float
+) -> tuple[list[Run], dict]:
+    providers = [_provider(spec) for spec in specs]
     db = SessionLocal()
     user = _make_account(db)
     try:
@@ -262,16 +288,14 @@ def evaluate(models: list[str], case_ids: tuple[str, ...], runs: int) -> tuple[l
             "context_version": chat_context.CONTEXT_VERSION,
         }
         results = []
-        for model in models:
-            provider = MistralProvider(settings.MISTRAL_API_KEY, model)
+        for provider in providers:
             for case_id in case_ids:
                 for run_no in range(1, runs + 1):
-                    run, context = _ask(db, user, CASES[case_id], provider, run_no)
-                    facts.setdefault("context_hash", {})[
-                        f"{model}/{case_id}/{run_no}"
-                    ] = context.hash
+                    run, context = _ask(db, user, CASES[case_id], provider, run_no, pause)
+                    key = f"{run.model}/{case_id}/{run_no}"
+                    facts.setdefault("context_hash", {})[key] = context.hash
                     results.append(run)
-                    print(f"{model} {case_id} run {run_no}: {run.auto_verdict} {run.auto_notes}")
+                    print(f"{key}: {run.auto_verdict} {run.auto_notes}")
         return results, facts
     finally:
         db.delete(db.get(User, user.id))
@@ -329,48 +353,56 @@ def write(results: list[Run], facts: dict, name: str, title: str) -> Path:
     return md
 
 
-def list_models() -> None:
-    response = httpx.get(
-        "https://api.mistral.ai/v1/models",
-        headers={"Authorization": f"Bearer {settings.MISTRAL_API_KEY}"},
-        timeout=20,
-    )
+MODEL_LISTS = {
+    "gemini": ("https://generativelanguage.googleapis.com/v1beta/models", "x-goog-api-key", ""),
+    "groq": ("https://api.groq.com/openai/v1/models", "Authorization", "Bearer "),
+    "mistral": ("https://api.mistral.ai/v1/models", "Authorization", "Bearer "),
+}
+
+
+def list_models(provider: str) -> None:
+    """The provider's current chat model ids, so the bake-off pins exact ids."""
+    url, header, prefix = MODEL_LISTS[provider]
+    headers = {header: prefix + settings.api_key_for(provider)}
+    response = httpx.get(url, headers=headers, params={"pageSize": 1000}, timeout=20)
     response.raise_for_status()
-    for model in sorted(response.json()["data"], key=lambda m: m["id"]):
-        caps = model.get("capabilities") or {}
-        if caps.get("completion_chat"):
-            print(
-                model["id"],
-                "| aliases:",
-                ",".join(model.get("aliases") or []),
-                "|",
-                model.get("deprecation") or "",
-            )
+    data = response.json()
+    if provider == "gemini":
+        for model in data.get("models", []):
+            if "generateContent" in model.get("supportedGenerationMethods", []):
+                print(model["name"].removeprefix("models/"), "|", model.get("displayName", ""))
+        return
+    for model in sorted(data["data"], key=lambda m: m["id"]):
+        if model.get("active", True) is not False:
+            print(model["id"], "|", model.get("owned_by", ""), "|", model.get("context_window", ""))
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("models")
+    models = sub.add_parser("models")
+    models.add_argument("--provider", choices=sorted(MODEL_LISTS), required=True)
     bake = sub.add_parser("bakeoff")
     bake.add_argument("--models", required=True)
+    bake.add_argument("--pause", type=float, default=0.0)
     adv = sub.add_parser("adversarial")
     adv.add_argument("--model", required=True)
     adv.add_argument("--runs", type=int, default=3)
+    adv.add_argument("--pause", type=float, default=0.0)
     args = parser.parse_args()
-    if not settings.MISTRAL_API_KEY:
-        raise SystemExit("MISTRAL_API_KEY is not set in .env")
     if args.command == "models":
-        list_models()
+        if not settings.api_key_for(args.provider):
+            raise SystemExit(f"{args.provider.upper()}_API_KEY is not set in .env")
+        list_models(args.provider)
         return
     today = datetime.date.today().isoformat()
     if args.command == "bakeoff":
-        results, facts = evaluate(args.models.split(","), BAKEOFF_CASES, 1)
+        results, facts = evaluate(args.models.split(","), BAKEOFF_CASES, 1, args.pause)
         path = write(
             results, facts, f"phase8-bakeoff-{today}", "Phase 8 model bake-off: (d), (f), (g)"
         )
     else:
-        results, facts = evaluate([args.model], ADVERSARIAL_CASES, args.runs)
+        results, facts = evaluate([args.model], ADVERSARIAL_CASES, args.runs, args.pause)
         path = write(
             results, facts, f"phase8-adversarial-{today}", "Phase 8 adversarial tests (a)-(g)"
         )
