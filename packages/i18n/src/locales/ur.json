@@ -604,5 +604,23 @@
       "risk_profile": "آپ کے رسک پروفائل سے"
     },
     "disclaimerRomanUrdu": "Sirf mashwara. Licensed financial advisor nahi. Forecasts sirf imkanaat hain. Trade sirf licensed PSX broker ke zariye karein."
+  },
+  "terms": {
+    "forecast": "پیش گوئی",
+    "confidence": "اعتماد",
+    "lowConfidence": "کم اعتماد",
+    "baselineNotBeaten": "اس سادہ اندازے سے بہتر نہیں کہ کل کی بند قیمت آج جتنی ہوگی",
+    "sector": {
+      "automobileAssembler": "آٹوموبائل اسمبلر",
+      "cableElectricalGoods": "کیبل اور برقی سامان",
+      "cement": "سیمنٹ",
+      "commercialBanks": "کمرشل بینک",
+      "fertilizer": "کھاد",
+      "oilGasExploration": "تیل و گیس کی تلاش کرنے والی کمپنیاں",
+      "oilGasMarketing": "تیل و گیس کی مارکیٹنگ کمپنیاں",
+      "powerGeneration": "بجلی کی پیداوار اور تقسیم",
+      "refinery": "ریفائنری",
+      "technologyCommunication": "ٹیکنالوجی اور مواصلات"
+    }
   }
 }

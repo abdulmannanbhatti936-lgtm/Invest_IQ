@@ -604,5 +604,23 @@
       "risk_profile": "From your risk profile"
     },
     "disclaimerRomanUrdu": "Sirf mashwara. Licensed financial advisor nahi. Forecasts sirf imkanaat hain. Trade sirf licensed PSX broker ke zariye karein."
+  },
+  "terms": {
+    "forecast": "Forecast",
+    "confidence": "Confidence",
+    "lowConfidence": "Low confidence",
+    "baselineNotBeaten": "Not better than assuming tomorrow's close equals today's",
+    "sector": {
+      "automobileAssembler": "Automobile Assembler",
+      "cableElectricalGoods": "Cable & Electrical Goods",
+      "cement": "Cement",
+      "commercialBanks": "Commercial Banks",
+      "fertilizer": "Fertilizer",
+      "oilGasExploration": "Oil & Gas Exploration Companies",
+      "oilGasMarketing": "Oil & Gas Marketing Companies",
+      "powerGeneration": "Power Generation & Distribution",
+      "refinery": "Refinery",
+      "technologyCommunication": "Technology & Communication"
+    }
   }
 }
