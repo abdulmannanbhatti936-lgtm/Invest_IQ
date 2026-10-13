@@ -254,6 +254,8 @@ class Paced:
                 wait = _seconds(seen.get("x-ratelimit-reset-tokens", "")) + 1
                 self.waited += wait
                 time.sleep(wait)
+                # The wait is the free tier's, not the app's: it does not use up the deadline
+                kwargs["deadline"] += wait
         return self.inner.complete(system, turns, max_tokens=max_tokens, **kwargs)
 
 

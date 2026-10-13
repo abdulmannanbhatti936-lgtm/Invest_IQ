@@ -125,11 +125,11 @@ def test_the_evaluation_waits_for_groqs_token_window_before_every_call(monkeypat
         "groq",
         {"x-ratelimit-remaining-tokens": "900", "x-ratelimit-reset-tokens": "1m2.5s"},
     )
-    assert paced.complete("x" * 3000, [], max_tokens=1200) == "ok"
+    assert paced.complete("x" * 3000, [], max_tokens=1200, deadline=100.0) == "ok"
     assert slept == [63.5] and paced.waited == 63.5
 
     monkeypatch.setitem(base.RATE_LIMIT_HEADERS, "groq", {"x-ratelimit-remaining-tokens": "8000"})
-    paced.complete("x" * 3000, [], max_tokens=1200)
+    paced.complete("x" * 3000, [], max_tokens=1200, deadline=100.0)
     assert slept == [63.5]  # enough tokens left: no wait
 
 
@@ -166,3 +166,26 @@ def test_a_second_draft_that_errors_is_recorded_without_crashing(monkeypatch):
 
     assert run_.turns[0].figure_check == "fallback"
     assert run_.turns[0].unmatched == [["7"], []]
+
+
+def test_the_pacing_wait_does_not_use_up_the_apps_deadline(monkeypatch):
+    from integrations.llm import base
+    from services import chat_eval
+
+    monkeypatch.setattr(chat_eval.time, "sleep", lambda s: None)
+    seen = {}
+
+    class Inner:
+        name, model = "groq", "groq-test"
+
+        def complete(self, system, turns, *, max_tokens, deadline, **kwargs):
+            seen["deadline"] = deadline
+            return "ok"
+
+    monkeypatch.setitem(
+        base.RATE_LIMIT_HEADERS,
+        "groq",
+        {"x-ratelimit-remaining-tokens": "0", "x-ratelimit-reset-tokens": "40s"},
+    )
+    chat_eval.Paced(Inner()).complete("x", [], max_tokens=700, deadline=100.0)
+    assert seen["deadline"] == 141.0
