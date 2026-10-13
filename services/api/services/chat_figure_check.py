@@ -272,13 +272,21 @@ def check_reply(reply: str, context, user_message: str) -> CheckResult:
     return result
 
 
+# When one figure is in several of the user's own sources (the Rs. 100,000 capital is in the
+# portfolio and in its backtest), it is credited to the most direct one only
+GENERAL_SOURCE_ORDER = ("portfolio", "backtest", "risk_profile", "context")
+
+
 def _attributed(sources: list[str], named: set[str]) -> list[str]:
     """
     The sources a matched figure is credited to. Several stocks can share a figure (every
     forecast at 49% confidence), so a stock's source counts only if the reply names that stock,
     or if it is the only stock the figure could have come from.
     """
-    general = [s for s in sources if ":" not in s]
+    general = sorted(
+        {s for s in sources if ":" not in s},
+        key=lambda s: GENERAL_SOURCE_ORDER.index(s) if s in GENERAL_SOURCE_ORDER else 99,
+    )[:1]
     per_stock = [s for s in sources if ":" in s]
     mentioned = [s for s in per_stock if s.split(":", 1)[1] in named]
     return general + (mentioned or (per_stock if len(per_stock) == 1 else []))

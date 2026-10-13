@@ -182,3 +182,18 @@ def test_dates_and_words_written_with_unicode_hyphens_are_read_as_plain_hyphens(
     nb = chr(0x2011)  # non-breaking hyphen, as some models write ISO dates
     assert check(f"HBL closed at Rs. 302.02 on 2026{nb}10{nb}07.").passed
     assert normalize(f"2026{chr(0x2010)}10{chr(0x2012)}07") == "2026-10-07"
+
+
+def test_a_figure_in_both_the_portfolio_and_its_backtest_credits_the_portfolio_only():
+    ctx = Context(
+        [
+            Figure(D("100000.00"), "money", "Rs. 100,000.00", "backtest"),
+            Figure(D("100000.00"), "money", "Rs. 100,000.00", "portfolio"),
+            Figure(D("1.47"), "number", "1.47", "backtest"),
+        ]
+    )
+    assert check_reply("You put in Rs. 100,000.00.", ctx, "").matched_sources == ["portfolio"]
+    assert check_reply("Rs. 100,000.00 and a Sharpe ratio of 1.47.", ctx, "").matched_sources == [
+        "portfolio",
+        "backtest",
+    ]
