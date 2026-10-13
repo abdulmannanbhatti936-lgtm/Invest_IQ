@@ -20,10 +20,15 @@ from models.user import User
 from services import chat_context
 from services.chat_context import build_context, fit_to_budget, mentioned_tickers
 from services.chat_figure_check import check_reply
+from tests import test_portfolio_api
 from tests.synthetic import make_ohlcv
 from tests.test_cost_engine import WORKED_EXAMPLE
-from tests.test_portfolio_api import _generate, investor, worked_example  # noqa: F401
+from tests.test_portfolio_api import _generate
 from worker.tasks import upsert_price_points
+
+# The Phase 5 fixtures (Rs 100,000 Moderate worked example), shared with pytest here
+investor = test_portfolio_api.investor
+worked_example = test_portfolio_api.worked_example
 
 WORKED_TICKERS = list(WORKED_EXAMPLE)
 
@@ -58,7 +63,7 @@ def _texts(ctx, source=None) -> set[str]:
 
 
 @pytest.fixture
-def portfolio_user(client, db, investor, worked_example):  # noqa: F811
+def portfolio_user(client, db, investor, worked_example):
     response = _generate(client, investor)
     assert response.status_code == 201, response.text
     return _user(db, client, investor)
@@ -150,7 +155,7 @@ def _backtest(db, user, portfolio_id) -> BacktestResult:
     return result
 
 
-def test_no_active_portfolio_says_so_and_points_to_the_screen(client, db, investor):  # noqa: F811
+def test_no_active_portfolio_says_so_and_points_to_the_screen(client, db, investor):
     ctx = _context(db, _user(db, client, investor))
 
     assert ctx.data["portfolio"] is None
@@ -387,9 +392,7 @@ def test_context_never_contains_identity_or_answers(client, db, portfolio_user):
     assert "answers" not in json.loads(text)["risk_profile"]
 
 
-def test_hash_changes_when_the_portfolio_is_regenerated(
-    client, db, investor, portfolio_user  # noqa: F811
-):
+def test_hash_changes_when_the_portfolio_is_regenerated(client, db, investor, portfolio_user):
     before = _context(db, portfolio_user).hash
     assert _generate(client, investor, capital="150000").status_code == 201
 
