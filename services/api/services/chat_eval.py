@@ -33,7 +33,7 @@ import httpx
 
 from core.config import API_ROOT, settings
 from core.database import SessionLocal
-from integrations.llm import LLMUnavailable, Turn, provider_for
+from integrations.llm import LLMUnavailable, Turn, base, provider_for
 from models.risk_profile import RiskProfile
 from models.user import User
 from services import backtest_service, chat_context, chat_prompt, chat_service, portfolio_service
@@ -117,6 +117,10 @@ class Turnout:
     latency_ms: int
     input_tokens: int | None
     output_tokens: int | None
+    # Every draft: provider, rejected figures, numbers in words, cut off at the token limit
+    attempts: list[dict] = field(default_factory=list)
+    failover: dict | None = None
+    paced_s: float = 0.0
 
 
 @dataclass
@@ -223,6 +227,36 @@ def _make_account(db) -> User:
     return user
 
 
+def _seconds(value: str) -> float:
+    """Groq's reset durations: "14.212s", "1m2.5s", "350ms"."""
+    total = 0.0
+    for amount, unit in re.findall(r"([\d.]+)(ms|h|m|s)", value or ""):
+        total += float(amount) * {"ms": 0.001, "s": 1, "m": 60, "h": 3600}[unit]
+    return total
+
+
+class Paced:
+    """
+    Wraps a provider for the evaluation only: before every call (first drafts, regenerations and
+    follow-ups) it waits for Groq's token window to reset when the last response said too few
+    tokens were left, so the comparison measures replies, not the free tier's per-minute limit.
+    """
+
+    def __init__(self, inner):
+        self.inner, self.name, self.model = inner, inner.name, inner.model
+        self.waited = 0.0
+
+    def complete(self, system, turns, *, max_tokens, **kwargs):
+        seen = base.RATE_LIMIT_HEADERS.get(self.name, {})
+        if "x-ratelimit-remaining-tokens" in seen:
+            need = chat_context.estimate_tokens(system + "".join(t.content for t in turns))
+            if int(seen["x-ratelimit-remaining-tokens"]) < need + max_tokens:
+                wait = _seconds(seen.get("x-ratelimit-reset-tokens", "")) + 1
+                self.waited += wait
+                time.sleep(wait)
+        return self.inner.complete(system, turns, max_tokens=max_tokens, **kwargs)
+
+
 def _ask(db, user, case: Case, provider, run_no: int, pause: float) -> tuple[Run, object]:
     run = Run(case=case.id, model=f"{provider.name}:{provider.model}", run=run_no)
     turns: list[Turn] = []
@@ -233,10 +267,9 @@ def _ask(db, user, case: Case, provider, run_no: int, pause: float) -> tuple[Run
         context = chat_context.build_context(db, user, text, recent, language)
         time.sleep(pause)
         started = time.monotonic()
+        paced = Paced(provider)
         try:
-            reply = chat_service.generate_reply(
-                context, [*turns, Turn("user", text)], language, text, provider=provider
-            )
+            reply = chat_service.generate_reply(context, turns, text, language, providers=[paced])
         except LLMUnavailable as e:
             # Recorded, not hidden: a provider that cannot answer fails the case
             failed = f"[no reply: {e.reason}: {e}]"
@@ -256,6 +289,9 @@ def _ask(db, user, case: Case, provider, run_no: int, pause: float) -> tuple[Run
                 latency_ms=int((time.monotonic() - started) * 1000),
                 input_tokens=reply.input_tokens,
                 output_tokens=reply.output_tokens,
+                attempts=reply.detail["attempts"],
+                failover=reply.detail.get("failover"),
+                paced_s=round(paced.waited, 1),
             )
         )
         turns += [Turn("user", text), Turn("assistant", reply.text)]
@@ -328,10 +364,18 @@ def _markdown(results: list[Run], facts: dict, title: str) -> str:
                 "",
                 *[f"> {line}" if line else ">" for line in turn.reply.splitlines()],
                 "",
-                f"Figure check: {turn.figure_check}"
-                + (f" (rejected drafts: {turn.unmatched[:-1]})" if len(turn.unmatched) > 1 else "")
-                + f" · sources: {_tags(turn.sources)}"
-                + f" · {turn.latency_ms} ms · tokens {turn.input_tokens}/{turn.output_tokens}",
+                f"Figure check: **{turn.figure_check}** · sources: {_tags(turn.sources)}"
+                + f" · {turn.latency_ms} ms (after {turn.paced_s} s waiting for Groq's token"
+                " window)" + f" · tokens {turn.input_tokens}/{turn.output_tokens}",
+                "",
+                *[
+                    f"- Draft {i}: `{a.get('provider')}` · cut off at the token limit: "
+                    f"{a.get('truncated', '-')} · figures not in the context: "
+                    f"{a.get('unmatched', [])} · numbers in words: {a.get('number_words', [])}"
+                    + (" · no reply (provider error)" if a.get("error") else "")
+                    for i, a in enumerate(turn.attempts, 1)
+                ],
+                *([f"- Failover: {turn.failover}"] if turn.failover else []),
                 "",
             ]
         lines += [

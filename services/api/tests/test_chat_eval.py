@@ -104,3 +104,39 @@ def test_a_provider_that_cannot_answer_is_recorded_as_a_failed_case(monkeypatch)
     assert run_.turns[0].figure_check == "unavailable"
     assert run_.turns[0].reply.startswith("[no reply: provider_busy")
     assert run_.auto_verdict == "fail"
+
+
+def test_the_evaluation_waits_for_groqs_token_window_before_every_call(monkeypatch):
+    from integrations.llm import base
+    from services import chat_eval
+
+    slept = []
+    monkeypatch.setattr(chat_eval.time, "sleep", lambda s: slept.append(s))
+
+    class Inner:
+        name, model = "groq", "groq-test"
+
+        def complete(self, system, turns, *, max_tokens, **kwargs):
+            return "ok"
+
+    paced = chat_eval.Paced(Inner())
+    monkeypatch.setitem(
+        base.RATE_LIMIT_HEADERS,
+        "groq",
+        {"x-ratelimit-remaining-tokens": "900", "x-ratelimit-reset-tokens": "1m2.5s"},
+    )
+    assert paced.complete("x" * 3000, [], max_tokens=1200) == "ok"
+    assert slept == [63.5] and paced.waited == 63.5
+
+    monkeypatch.setitem(base.RATE_LIMIT_HEADERS, "groq", {"x-ratelimit-remaining-tokens": "8000"})
+    paced.complete("x" * 3000, [], max_tokens=1200)
+    assert slept == [63.5]  # enough tokens left: no wait
+
+
+@pytest.mark.parametrize(
+    "value, seconds", [("14.212s", 14.212), ("1m2.5s", 62.5), ("350ms", 0.35), ("", 0)]
+)
+def test_groq_reset_durations(value, seconds):
+    from services.chat_eval import _seconds
+
+    assert _seconds(value) == pytest.approx(seconds)
