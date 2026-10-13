@@ -16,6 +16,7 @@ What every LLM provider adapter shares: the call shape, the errors, and the HTTP
 
 import datetime
 import logging
+import re
 import time
 from dataclasses import dataclass
 
@@ -81,6 +82,24 @@ def _retry_after(response: httpx.Response) -> float | None:
         return None
 
 
+_LIMIT_KINDS = re.compile(
+    r"(tokens|requests) per (minute|day)|\((TPM|TPD|RPM|RPD)\)|quota|free_tier\w*", re.IGNORECASE
+)
+
+
+def _limit(response: httpx.Response) -> str:
+    """
+    Which limit a 429 names ("tokens per day", "TPM", "quota"), read from the error message.
+    Only these words are logged, never the message, which can carry account ids.
+    """
+    try:
+        message = str((response.json().get("error") or {}).get("message", ""))
+    except ValueError:
+        return "unknown"
+    kinds = sorted({m.group(0).lower() for m in _LIMIT_KINDS.finditer(message)})
+    return ", ".join(kinds) or "unknown"
+
+
 def _count_429() -> None:
     day = datetime.date.today().isoformat()
     try:
@@ -134,7 +153,9 @@ def post_json(
             if response.status_code == 429:
                 _count_429()
                 retry_after = _retry_after(response)
-                logger.warning("%s answered 429 (attempt %d)", provider, attempt)
+                logger.warning(
+                    "%s answered 429 (attempt %d, limit: %s)", provider, attempt, _limit(response)
+                )
                 last = LLMRateLimited(retry_after)
                 wait = min(retry_after, MAX_RETRY_AFTER_S) if retry_after else wait
             elif response.status_code == 413:

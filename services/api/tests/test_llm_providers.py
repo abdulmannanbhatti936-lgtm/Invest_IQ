@@ -549,3 +549,30 @@ def test_a_413_fails_over_at_once(http):
         _groq_call()
     assert caught.value.failover is True
     assert len(script.calls) == 1
+
+
+@pytest.mark.parametrize(
+    "message, kind",
+    [
+        (
+            "Rate limit reached for model `x` in organization `org_1` on tokens per day (TPD)",
+            "(tpd), tokens per day",
+        ),
+        (
+            "Rate limit reached ... on tokens per minute (TPM): Limit 8000",
+            "(tpm), tokens per minute",
+        ),
+        (
+            "Quota exceeded for metric: generate_content_free_tier_requests",
+            "free_tier_requests, quota",
+        ),
+        ("Something else", "unknown"),
+    ],
+)
+def test_a_429_logs_which_limit_it_hit_but_not_the_message(http, caplog, message, kind):
+    http((429, {"error": {"message": message}}, None), (429, {"error": {"message": message}}, None))
+    with caplog.at_level("WARNING"), pytest.raises(LLMRateLimited):
+        _groq_call()
+    logged = " ".join(r.getMessage() for r in caplog.records)
+    assert f"limit: {kind}" in logged
+    assert "org_1" not in logged
