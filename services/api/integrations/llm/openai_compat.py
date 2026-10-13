@@ -13,7 +13,9 @@ class ChatCompletionsProvider(Provider):
         self._key = api_key
         self.model = model
 
-    def complete(self, system, turns, *, max_tokens, temperature, deadline) -> LLMResult:
+    def complete(
+        self, system, turns, *, max_tokens, temperature, deadline, retry=True
+    ) -> LLMResult:
         body = {
             "model": self.model,
             "messages": [
@@ -24,9 +26,10 @@ class ChatCompletionsProvider(Provider):
             "temperature": temperature,
         }
         headers = {"Authorization": f"Bearer {self._key}", "Accept": "application/json"}
-        data = post_json(self.url, headers, body, deadline, self.name)
+        data = post_json(self.url, headers, body, deadline, self.name, retry)
         try:
-            text = data["choices"][0]["message"]["content"]
+            choice = data["choices"][0]
+            text = choice["message"]["content"]
         except (KeyError, IndexError, TypeError) as e:
             raise LLMUnavailable("unexpected response shape") from e
         if not isinstance(text, str) or not text.strip():
@@ -37,4 +40,5 @@ class ChatCompletionsProvider(Provider):
             model=data.get("model") or self.model,
             input_tokens=usage.get("prompt_tokens"),
             output_tokens=usage.get("completion_tokens"),
+            truncated=choice.get("finish_reason") == "length",
         )

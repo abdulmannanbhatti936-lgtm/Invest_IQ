@@ -21,7 +21,9 @@ class GeminiProvider(Provider):
         self._key = api_key
         self.model = model
 
-    def complete(self, system, turns, *, max_tokens, temperature, deadline) -> LLMResult:
+    def complete(
+        self, system, turns, *, max_tokens, temperature, deadline, retry=True
+    ) -> LLMResult:
         body = {
             "systemInstruction": {"parts": [{"text": system}]},
             "contents": [
@@ -40,7 +42,7 @@ class GeminiProvider(Provider):
         }
         headers = {"x-goog-api-key": self._key, "Accept": "application/json"}
         url = f"{BASE_URL}/{self.model}:generateContent"
-        data = post_json(url, headers, body, deadline, self.name)
+        data = post_json(url, headers, body, deadline, self.name, retry)
 
         blocked = (data.get("promptFeedback") or {}).get("blockReason")
         if blocked:
@@ -65,4 +67,5 @@ class GeminiProvider(Provider):
             output_tokens=(
                 None if output is None and thoughts is None else (output or 0) + (thoughts or 0)
             ),
+            truncated=candidate.get("finishReason") == "MAX_TOKENS",
         )

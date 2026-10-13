@@ -435,3 +435,77 @@ def test_groq_malformed_or_empty_replies_are_unavailable(http, body):
     http((200, body, None))
     with pytest.raises(LLMUnavailable):
         _groq_call()
+
+
+# Finish reasons, the retry switch and failover flags (decided 2026-10-13)
+
+
+def test_a_reply_cut_off_at_the_token_limit_is_flagged(http):
+    cut = {
+        "candidates": [
+            {"content": {"parts": [{"text": "Your portfolio"}]}, "finishReason": "MAX_TOKENS"}
+        ],
+        "usageMetadata": {"promptTokenCount": 10, "candidatesTokenCount": 700},
+    }
+    http((200, cut, None))
+    assert _gemini_call().truncated is True
+    http((200, GEMINI_OK, None))
+    assert _gemini_call().truncated is False
+
+    long_groq = {
+        **GROQ_OK,
+        "choices": [{"message": {"content": "Rs. 1"}, "finish_reason": "length"}],
+    }
+    http((200, long_groq, None))
+    assert _groq_call().truncated is True
+    http(
+        (
+            200,
+            {**GROQ_OK, "choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}]},
+            None,
+        )
+    )
+    assert _groq_call().truncated is False
+
+    http((200, {**CLAUDE_OK, "stop_reason": "max_tokens"}, None))
+    result = ClaudeProvider("ck", "claude-test").complete(
+        "S", [Turn("user", "hi")], max_tokens=700, temperature=0.2, deadline=time.monotonic() + 45
+    )
+    assert result.truncated is True
+
+
+def test_retry_false_makes_one_attempt_for_the_backup_to_take_over(http):
+    script = http((503, {}, None), (200, GEMINI_OK, None))
+    with pytest.raises(LLMUnavailable) as caught:
+        GeminiProvider("gk", "gemini-test-flash").complete(
+            "S", [Turn("user", "hi")], max_tokens=700, temperature=0.2,
+            deadline=time.monotonic() + 45, retry=False,
+        )  # fmt: skip
+    assert len(script.calls) == 1 and script.sleeps == []
+    assert caught.value.failover is True
+
+
+@pytest.mark.parametrize(
+    "responses, failover",
+    [
+        (((429, {}, None), (429, {}, None)), True),
+        (((502, {}, None), (503, {}, None)), True),
+        ((httpx.ReadTimeout("slow"), httpx.ConnectTimeout("down")), True),
+        (((400, {}, None),), False),
+        (((401, {}, None),), False),
+        (((200, {"unexpected": True}, None),), False),
+    ],
+)
+def test_only_429_5xx_and_timeouts_may_fail_over(http, responses, failover):
+    http(*responses)
+    with pytest.raises(LLMUnavailable) as caught:
+        _groq_call()
+    assert caught.value.failover is failover
+
+
+def test_the_last_rate_limit_headers_are_kept_per_provider(http):
+    headers = {"x-ratelimit-remaining-tokens": "1200", "x-ratelimit-reset-tokens": "40.5s"}
+    http((200, GROQ_OK, headers))
+    _groq_call()
+    assert base.RATE_LIMIT_HEADERS["groq"]["x-ratelimit-remaining-tokens"] == "1200"
+    assert base.RATE_LIMIT_HEADERS["groq"]["x-ratelimit-reset-tokens"] == "40.5s"

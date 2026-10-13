@@ -8,7 +8,9 @@ The PRD §8.5 disclaimer is not left to the model: the web app shows it under ev
 the reply's language, so it is always there and always worded the same.
 """
 
-PROMPT_VERSION = "prompt-v1"
+import re
+
+PROMPT_VERSION = "prompt-v2"
 
 LANGUAGE_NAMES = {
     "en": "English",
@@ -58,6 +60,12 @@ HOW TO WRITE
 - Reply in {language}. Sound natural and friendly, like a knowledgeable friend, not a formal \
 translation. Keep ticker symbols and figures exactly as in CONTEXT. The user may write in \
 English, Urdu or Roman Urdu; understand all three.
+- In Urdu, use the words in CONTEXT's "urdu_glossary" for those terms (risk categories, \
+break-even price, Sharpe ratio and so on), exactly as written there. Do not translate other \
+terms yourself: keep sector names and any term not in the glossary as CONTEXT writes them.
+- In Roman Urdu, write the Urdu in Latin letters and keep finance terms in English as \
+InvestIQ shows them (portfolio, break-even price, dividend, forecast); do not invent Roman Urdu \
+spellings for them.
 - The reader is a beginner. Use short sentences. Explain any finance term you use in one \
 simple sentence (for example, "break-even price: the price at which selling would cover what \
 you paid, including charges").
@@ -72,6 +80,11 @@ answer only the part you can answer within them.
 
 CONTEXT
 <context>{context}</context>"""
+
+TOO_LONG = (
+    "\n\nCORRECTION: your previous draft was cut off because it was too long. Write a shorter "
+    "reply, about 120 words: the main point and at most three figures."
+)
 
 CORRECTION = (
     "\n\nCORRECTION: your previous draft contained figures that are not in CONTEXT: {figures}. "
@@ -96,8 +109,34 @@ FALLBACK = {
 }
 
 
-def system_prompt(context_json: str, language: str, failed_figures: list[str] | None = None) -> str:
+def system_prompt(
+    context_json: str,
+    language: str,
+    failed_figures: list[str] | None = None,
+    too_long: bool = False,
+) -> str:
     prompt = _PROMPT.format(language=LANGUAGE_NAMES[language], context=context_json)
     if failed_figures:
         prompt += CORRECTION.format(figures=", ".join(failed_figures))
+    if too_long:
+        prompt += TOO_LONG
     return prompt
+
+
+_FENCE = re.compile(r"^\s*```[^\n]*$", re.MULTILINE)
+_HEADING = re.compile(r"^[ \t]*#{1,6}[ \t]+", re.MULTILINE)
+_STAR_BULLET = re.compile(r"^([ \t]*)[*+][ \t]+", re.MULTILINE)
+_EMPHASIS = re.compile(r"\*\*|__|`")
+
+
+def plain_text(reply: str) -> str:
+    """
+    The web app shows replies as plain text, so markdown markers a model adds anyway (bold,
+    headings, code ticks, fences) are removed; "* " and "+ " bullets become "- " bullets.
+    Single underscores and asterisks inside words are left alone.
+    """
+    text = _FENCE.sub("", reply)
+    text = _HEADING.sub("", text)
+    text = _STAR_BULLET.sub(r"\1- ", text)
+    text = _EMPHASIS.sub("", text)
+    return re.sub(r"\n{3,}", "\n\n", text).strip()

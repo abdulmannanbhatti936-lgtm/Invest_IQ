@@ -17,7 +17,9 @@ class ClaudeProvider(Provider):
         self._key = api_key
         self.model = model
 
-    def complete(self, system, turns, *, max_tokens, temperature, deadline) -> LLMResult:
+    def complete(
+        self, system, turns, *, max_tokens, temperature, deadline, retry=True
+    ) -> LLMResult:
         body = {
             "model": self.model,
             "system": system,
@@ -26,7 +28,7 @@ class ClaudeProvider(Provider):
             "temperature": temperature,
         }
         headers = {"x-api-key": self._key, "anthropic-version": API_VERSION}
-        data = post_json(URL, headers, body, deadline, self.name)
+        data = post_json(URL, headers, body, deadline, self.name, retry)
         try:
             text = "".join(block["text"] for block in data["content"] if block["type"] == "text")
         except (KeyError, TypeError) as e:
@@ -39,4 +41,5 @@ class ClaudeProvider(Provider):
             model=data.get("model") or self.model,
             input_tokens=usage.get("input_tokens"),
             output_tokens=usage.get("output_tokens"),
+            truncated=data.get("stop_reason") == "max_tokens",
         )

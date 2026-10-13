@@ -9,6 +9,9 @@ What every LLM provider adapter shares: the call shape, the errors, and the HTTP
   Redis slot; if Redis is down the slot is skipped with a warning, like the auth limiter.
 - Every 429 is logged and counted per day in Redis (`chat:provider_429:<date>`), because the
   free tier's exact limits are not published (Memory.md §4).
+- A 429, a 5xx or a timeout may fail over to the backup provider (`LLMUnavailable.failover`);
+  a refused request (bad key, bad request) or an unusable reply may not. When a backup exists
+  the primary is not retried, so the backup still has time inside the deadline.
 """
 
 import datetime
@@ -42,12 +45,18 @@ class LLMResult:
     model: str
     input_tokens: int | None
     output_tokens: int | None
+    # The reply stopped because it reached the token limit, so it may be cut off mid-sentence
+    truncated: bool = False
 
 
 class LLMUnavailable(Exception):
     """The provider gave no usable reply."""
 
     reason = "provider_error"
+
+    def __init__(self, message: str, failover: bool = False):
+        super().__init__(message)
+        self.failover = failover
 
 
 class LLMRateLimited(LLMUnavailable):
@@ -56,8 +65,13 @@ class LLMRateLimited(LLMUnavailable):
     reason = "provider_busy"
 
     def __init__(self, retry_after: float | None):
-        super().__init__("provider rate limit")
+        super().__init__("provider rate limit", failover=True)
         self.retry_after = retry_after
+
+
+# The last rate-limit headers each provider sent (Groq's x-ratelimit-*), read by the evaluation
+# to wait for a token reset instead of hitting 429
+RATE_LIMIT_HEADERS: dict[str, dict[str, str]] = {}
 
 
 def _retry_after(response: httpx.Response) -> float | None:
@@ -90,10 +104,12 @@ def _wait_for_slot(deadline: float) -> None:
         logger.warning("Provider call slot SKIPPED (Redis unavailable: %s)", type(e).__name__)
 
 
-def post_json(url: str, headers: dict, body: dict, deadline: float, provider: str) -> dict:
+def post_json(
+    url: str, headers: dict, body: dict, deadline: float, provider: str, retry: bool = True
+) -> dict:
     """POST with the shared timeouts, retry, call slot and 429 accounting; returns the JSON."""
-    last: LLMUnavailable = LLMUnavailable("no attempt made")
-    for attempt in (1, 2):
+    last: LLMUnavailable = LLMUnavailable("no attempt made", failover=True)
+    for attempt in (1, 2) if retry else (1,):
         remaining = deadline - time.monotonic()
         if remaining <= 1:
             break
@@ -106,8 +122,13 @@ def post_json(url: str, headers: dict, body: dict, deadline: float, provider: st
             response = httpx.post(url, headers=headers, json=body, timeout=timeout)
         except httpx.HTTPError as e:
             logger.warning("%s call failed (attempt %d): %s", provider, attempt, type(e).__name__)
-            last = LLMUnavailable(type(e).__name__)
+            last = LLMUnavailable(type(e).__name__, failover=True)
         else:
+            RATE_LIMIT_HEADERS[provider] = {
+                k: v
+                for k, v in response.headers.items()
+                if k.startswith("x-ratelimit-") or k == "retry-after"
+            }
             if response.status_code == 200:
                 return response.json()
             if response.status_code == 429:
@@ -120,12 +141,12 @@ def post_json(url: str, headers: dict, body: dict, deadline: float, provider: st
                 logger.warning(
                     "%s answered %d (attempt %d)", provider, response.status_code, attempt
                 )
-                last = LLMUnavailable(f"HTTP {response.status_code}")
+                last = LLMUnavailable(f"HTTP {response.status_code}", failover=True)
             else:
                 # 4xx other than 429: a bad key or request; retrying cannot help
                 logger.error("%s refused the request: HTTP %d", provider, response.status_code)
                 raise LLMUnavailable(f"HTTP {response.status_code}")
-        if attempt == 1 and time.monotonic() + wait + 1 < deadline:
+        if retry and attempt == 1 and time.monotonic() + wait + 1 < deadline:
             time.sleep(wait)
         else:
             break
@@ -143,5 +164,6 @@ class Provider:
         max_tokens: int,
         temperature: float,
         deadline: float,
+        retry: bool = True,
     ) -> LLMResult:
         raise NotImplementedError

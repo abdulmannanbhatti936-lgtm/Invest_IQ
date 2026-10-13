@@ -18,7 +18,9 @@ class MockProvider(Provider):
     name = "mock"
     model = MOCK_MODEL
 
-    def complete(self, system, turns, *, max_tokens, temperature, deadline) -> LLMResult:
+    def complete(
+        self, system, turns, *, max_tokens, temperature, deadline, retry=True
+    ) -> LLMResult:
         context = json.loads(_CONTEXT.search(system).group(1))
         portfolio = context["portfolio"]
         if portfolio is None:

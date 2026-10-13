@@ -37,6 +37,15 @@ def get_provider() -> Provider:
     return provider_for(settings.LLM_PROVIDER, settings.LLM_MODEL, settings.llm_api_key)
 
 
+def get_providers() -> list[Provider]:
+    """The primary, then the backup when one is configured and usable (Architecture.md §12)."""
+    providers = [get_provider()]
+    if settings.LLM_BACKUP_PROVIDER and not settings.backup_unavailable_reason():
+        name = settings.LLM_BACKUP_PROVIDER
+        providers.append(provider_for(name, settings.LLM_BACKUP_MODEL, settings.api_key_for(name)))
+    return providers
+
+
 __all__ = [
     "ADAPTERS",
     "LLMNotConfigured",
@@ -46,5 +55,6 @@ __all__ = [
     "Provider",
     "Turn",
     "get_provider",
+    "get_providers",
     "provider_for",
 ]

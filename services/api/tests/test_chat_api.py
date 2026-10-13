@@ -30,8 +30,10 @@ class ScriptedProvider:
         self.replies = list(replies)
         self.calls = []
 
-    def complete(self, system, turns, *, max_tokens, temperature, deadline):
-        self.calls.append({"system": system, "turns": turns})
+    def complete(self, system, turns, *, max_tokens, temperature, deadline, retry=True):
+        self.calls.append(
+            {"system": system, "turns": turns, "max_tokens": max_tokens, "retry": retry}
+        )
         reply = self.replies.pop(0)
         if isinstance(reply, Exception):
             raise reply
@@ -48,7 +50,7 @@ def chat(monkeypatch, fake_redis):
 
     def install(*replies):
         provider = ScriptedProvider(*replies)
-        monkeypatch.setattr(chat_service, "get_provider", lambda: provider)
+        monkeypatch.setattr(chat_service, "get_providers", lambda: [provider])
         return provider
 
     return install
@@ -84,12 +86,22 @@ def test_a_grounded_reply_is_stored_with_its_context_and_sources(client, db, own
     system = provider.calls[0]["system"]
     assert "Rs. 99,887.21" in system and "Reply in English" in system
     row = db.query(ChatMessage).filter(ChatMessage.id == reply["id"]).one()
-    assert row.context_version == "ctx-v1" and len(row.context_hash) == 64
+    assert row.context_version == "ctx-v2" and len(row.context_hash) == 64
     assert row.context_refs["portfolio_id"]
-    assert (row.provider, row.model, row.prompt_version) == ("mistral", "scripted-1", "prompt-v1")
+    assert (row.provider, row.model, row.prompt_version) == ("scripted", "scripted-1", "prompt-v2")
     assert (row.input_tokens, row.output_tokens) == (1000, 50)
     assert row.latency_ms is not None
-    assert row.figure_check_detail == {"attempts": [{"unmatched": [], "number_words": []}]}
+    assert row.figure_check_detail == {
+        "attempts": [
+            {
+                "provider": "scripted:scripted-1",
+                "unmatched": [],
+                "number_words": [],
+                "truncated": False,
+            }
+        ],
+        "failover": None,
+    }
 
 
 def test_the_system_prompt_never_carries_identity(client, db, owner, chat):
