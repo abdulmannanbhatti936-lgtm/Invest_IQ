@@ -35,6 +35,10 @@ _DIGITS = str.maketrans(
         chr(0x066B): ".",
         chr(0x066C): ",",
         chr(0x2212): "-",
+        # Hyphen, non-breaking hyphen, figure dash: some models write ISO dates with them
+        chr(0x2010): "-",
+        chr(0x2011): "-",
+        chr(0x2012): "-",
     }
 )
 # Zero-width characters, bidi marks, embeddings and isolates

@@ -176,3 +176,9 @@ def test_a_source_is_listed_once_even_when_several_of_its_figures_match_one_numb
         ]
     )
     assert check_reply("Round-trip charges are 0.36%.", ctx, "").matched_sources == ["portfolio"]
+
+
+def test_dates_and_words_written_with_unicode_hyphens_are_read_as_plain_hyphens():
+    nb = chr(0x2011)  # non-breaking hyphen, as some models write ISO dates
+    assert check(f"HBL closed at Rs. 302.02 on 2026{nb}10{nb}07.").passed
+    assert normalize(f"2026{chr(0x2010)}10{chr(0x2012)}07") == "2026-10-07"
