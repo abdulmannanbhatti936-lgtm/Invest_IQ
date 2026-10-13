@@ -11,9 +11,9 @@ network service:
 - `services/api/services/chat_language.py` — Roman Urdu detection
 - `services/api/services/chat_prompt.py` — the system prompt and fallback replies
 - `services/api/services/chat_service.py` — one chat turn, limits and storage
-- `services/api/integrations/llm/` — provider adapters (Mistral, Claude, MOCK for tests)
+- `services/api/integrations/llm/` — provider adapters (Gemini, Groq, Mistral, Claude, MOCK for tests)
 - `services/api/routers/chat.py` — `POST /chat/message`, `GET` and `DELETE /chat/history`
 
 Run the tests with `python -m pytest tests/test_chat_*.py tests/test_llm_providers.py` from
 `services/api` (no model is called). The evaluation against a real model is
-`python -m services.chat_eval` (needs `MISTRAL_API_KEY`; results in `docs/chat-eval/`).
+`python -m services.chat_eval` (needs `GEMINI_API_KEY` or `GROQ_API_KEY`; results in `docs/chat-eval/`).

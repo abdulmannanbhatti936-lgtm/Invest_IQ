@@ -463,7 +463,7 @@ _(Repeat this same discipline — DB models → backend logic → tests → fron
 
 **Do:** Write the system prompt enforcing: PSX-only scope, jargon-free explanation, bilingual (EN/UR) response capability, mandatory uncertainty disclosure on any prediction discussion, and an explicit instruction to only state figures present in the injected context (never compute or invent new ones). Build `/chat/message`, `/chat/history` endpoints.
 **Checkpoint ✅:** A basic real conversation ("what's my portfolio look like?") returns a response that correctly reflects the fixture/real data from Step 8.2.
-**Deviation (2026-10-13):** the model is Mistral's free tier behind a provider adapter (`LLM_PROVIDER`, `LLM_MODEL`); the Claude adapter is built for later and switching is a `.env` change (Architecture.md §6.4). Every reply also passes the figure check (Architecture.md §12). `DELETE /chat/history` added.
+**Deviation (2026-10-13):** the model is Google Gemini's free tier (primary) or Groq's (backup), whichever wins the bake-off, behind a provider adapter (`LLM_PROVIDER`, `LLM_MODEL`), instead of the Claude API; Claude (and Mistral) remain config switches, so changing provider is a `.env` change (Architecture.md §6.4). Every reply also passes the figure check (Architecture.md §12). `DELETE /chat/history` added.
 
 ### Step 8.4 — Adversarial Testing (mandatory, don't skip)
 
