@@ -2,6 +2,10 @@ import type { ChatHistory, ChatLanguage, ChatMessage, ChatSourceTag } from '@inv
 
 export const MAX_MESSAGE_CHARS = 1000;
 
+/** The HTML lang of a message: Roman Urdu is Urdu in Latin script (BCP 47 "ur-Latn"). */
+export const messageLang = (language: ChatLanguage): 'en' | 'ur' | 'ur-Latn' =>
+  language === 'ur-latn' ? 'ur-Latn' : language;
+
 /** Urdu replies read right to left; English and Roman Urdu left to right (Design.md §23). */
 export const messageDir = (language: ChatLanguage): 'rtl' | 'ltr' =>
   language === 'ur' ? 'rtl' : 'ltr';

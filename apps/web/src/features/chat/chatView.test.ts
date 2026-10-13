@@ -7,6 +7,7 @@ import {
   conversation,
   figureSegments,
   messageDir,
+  messageLang,
   replyDisclaimerKey,
   secondsLeft,
   sendProblem,
@@ -43,6 +44,12 @@ test('figures with their units are isolated from the text around them', () => {
     { text: 'No figures here.', figure: false },
   ]);
   assert.deepEqual(figureSegments('PKR 1,00,000'), [{ text: 'PKR 1,00,000', figure: true }]);
+});
+
+test('Roman Urdu is marked as Urdu in Latin script', () => {
+  assert.equal(messageLang('ur-latn'), 'ur-Latn');
+  assert.equal(messageLang('ur'), 'ur');
+  assert.equal(messageLang('en'), 'en');
 });
 
 test('only Urdu script replies are right to left', () => {

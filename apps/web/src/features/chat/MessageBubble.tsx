@@ -6,6 +6,7 @@ import { formatDate } from '../../lib/format';
 import {
   figureSegments,
   messageDir,
+  messageLang,
   replyDisclaimerKey,
   sourceTag,
   uniqueSources,
@@ -72,7 +73,7 @@ export const MessageBubble = ({ message }: { message: ChatMessage }) => {
         <span className="sr-only">{mine ? t('chat.you') : t('chat.assistant')}</span>
         <div
           dir={messageDir(message.language)}
-          lang={message.language === 'ur' ? 'ur' : message.language === 'en' ? 'en' : 'ur-Latn'}
+          lang={messageLang(message.language)}
           className={`whitespace-pre-line rounded-2xl px-4 py-3 text-sm leading-relaxed ${
             mine
               ? 'rounded-ee-sm bg-blue-600 text-white'
@@ -83,7 +84,11 @@ export const MessageBubble = ({ message }: { message: ChatMessage }) => {
         </div>
         {!mine && <SourceTags sources={message.sources} />}
         {disclaimer && (
-          <p dir={messageDir(message.language)} className="mt-2 text-sm text-gray-500">
+          <p
+            dir={messageDir(message.language)}
+            lang={messageLang(message.language)}
+            className="mt-2 text-sm text-gray-500"
+          >
             {t(disclaimer.key, disclaimer.lng ? { lng: disclaimer.lng } : undefined)}
           </p>
         )}
