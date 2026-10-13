@@ -75,27 +75,43 @@ export const replyDisclaimerKey = (
   return replyLanguage === appLanguage ? null : { key: 'disclaimer', lng: replyLanguage };
 };
 
+/** `seconds`: how long to wait (the API's Retry-After), or null when it gave none. */
 export type SendProblem =
-  | { kind: 'rateLimited'; minutes: number }
+  | { kind: 'rateLimited'; seconds: number | null }
   | { kind: 'unavailable' }
-  | { kind: 'busy' }
+  | { kind: 'busy'; seconds: number | null }
   | { kind: 'failed' };
 
-/** What went wrong with a send, from the API's status, code and Retry-After seconds. */
+const waitSeconds = (detail: Record<string, unknown> | null): number | null => {
+  const seconds = Math.ceil(Number(detail?.retry_after));
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+};
+
+/**
+ * What went wrong with a send. 429 is the user's own message limit; 503 `provider_busy` is the
+ * AI provider's limit after any failover. Both carry the wait in the body (`retry_after`),
+ * because browsers hide the Retry-After header from cross-origin pages.
+ */
 export const sendProblem = (
   status: number | null,
   detail: Record<string, unknown> | null,
 ): SendProblem => {
-  if (status === 429) {
-    const seconds = Number(detail?.retry_after) || 60;
-    return { kind: 'rateLimited', minutes: Math.max(1, Math.ceil(seconds / 60)) };
-  }
+  if (status === 429) return { kind: 'rateLimited', seconds: waitSeconds(detail) };
   if (status === 503) {
     if (detail?.reason === 'not_configured') return { kind: 'unavailable' };
-    if (detail?.reason === 'provider_busy') return { kind: 'busy' };
+    if (detail?.reason === 'provider_busy') return { kind: 'busy', seconds: waitSeconds(detail) };
   }
   return { kind: 'failed' };
 };
 
-export const canSend = (text: string, sending: boolean, available: boolean): boolean =>
-  available && !sending && text.trim().length > 0 && text.length <= MAX_MESSAGE_CHARS;
+/** Whole seconds left until `until` (epoch ms), never below zero. */
+export const secondsLeft = (until: number, now: number): number =>
+  Math.max(0, Math.ceil((until - now) / 1000));
+
+export const canSend = (
+  text: string,
+  sending: boolean,
+  available: boolean,
+  waiting = false,
+): boolean =>
+  available && !sending && !waiting && text.trim().length > 0 && text.length <= MAX_MESSAGE_CHARS;

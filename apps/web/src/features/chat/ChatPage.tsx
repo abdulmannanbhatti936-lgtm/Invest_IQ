@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   useInfiniteQuery,
   useMutation,
@@ -15,7 +15,7 @@ import { Card } from '../../components/ui/Card';
 import { DisclaimerBanner, ErrorState, Notice, Skeleton } from '../../components/ui/Feedback';
 import { ChatComposer } from './ChatComposer';
 import { MessageBubble, MessageText } from './MessageBubble';
-import { conversation, sendProblem, type SendProblem } from './chatView';
+import { conversation, secondsLeft, sendProblem, type SendProblem } from './chatView';
 
 const HISTORY_KEY = ['chat', 'history'] as const;
 const STARTERS = ['portfolio', 'lowConfidence', 'sentiment', 'backtest'] as const;
@@ -43,12 +43,72 @@ const TypingIndicator = () => {
   );
 };
 
-const SendError = ({ problem, onRetry }: { problem: SendProblem; onRetry: () => void }) => {
+/**
+ * A live countdown from the API's wait (Retry-After). The number changes every second but only
+ * the start and the "you can send now" line are announced, so screen readers are not flooded.
+ */
+const Countdown = ({
+  until,
+  messageKey,
+  onDone,
+}: {
+  until: number;
+  messageKey: string;
+  onDone: () => void;
+}) => {
   const { t } = useTranslation();
-  if (problem.kind === 'rateLimited')
+  const [now, setNow] = useState(() => Date.now());
+  const [announced] = useState(() => secondsLeft(until, Date.now()));
+  const left = secondsLeft(until, now);
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(id);
+  }, []);
+  useEffect(() => {
+    if (left === 0) onDone();
+  }, [left, onDone]);
+  return (
+    <Notice tone="warning">
+      <span role="status" className="sr-only">
+        {t(messageKey, { seconds: announced })}
+      </span>
+      <span aria-hidden="true" className="tabular-nums">
+        {t(messageKey, { seconds: left })}
+      </span>
+    </Notice>
+  );
+};
+
+const SendError = ({
+  problem,
+  waitUntil,
+  onWaitOver,
+  onRetry,
+}: {
+  problem: SendProblem;
+  waitUntil: number | null;
+  onWaitOver: () => void;
+  onRetry: () => void;
+}) => {
+  const { t } = useTranslation();
+  const waits = problem.kind === 'rateLimited' || problem.kind === 'busy';
+  if (waits && problem.seconds != null) {
+    if (waitUntil == null)
+      return (
+        <p role="status" className="text-sm text-gray-600">
+          {t('chat.error.ready')}
+        </p>
+      );
     return (
-      <Notice tone="warning">{t('chat.error.rateLimited', { minutes: problem.minutes })}</Notice>
+      <Countdown
+        until={waitUntil}
+        messageKey={problem.kind === 'busy' ? 'chat.error.busyCountdown' : 'chat.error.rateLimited'}
+        onDone={onWaitOver}
+      />
     );
+  }
+  if (problem.kind === 'rateLimited')
+    return <Notice tone="warning">{t('chat.error.rateLimitedLater')}</Notice>;
   return (
     <ErrorState
       message={problem.kind === 'busy' ? t('chat.error.busy') : t('chat.error.failed')}
@@ -87,7 +147,9 @@ export const ChatPage = () => {
   const endRef = useRef<HTMLLIElement>(null);
   const [draft, setDraft] = useState('');
   const [failed, setFailed] = useState<{ content: string; problem: SendProblem } | null>(null);
+  const [waitUntil, setWaitUntil] = useState<number | null>(null);
   const [unconfigured, setUnconfigured] = useState(false);
+  const endWait = useCallback(() => setWaitUntil(null), []);
 
   const history = useInfiniteQuery({
     queryKey: HISTORY_KEY,
@@ -99,7 +161,10 @@ export const ChatPage = () => {
   const send = useMutation({
     mutationFn: (content: string) =>
       chatApi.send({ content, language: i18n.language === 'ur' ? 'ur' : 'en' }),
-    onMutate: () => setFailed(null),
+    onMutate: () => {
+      setFailed(null);
+      setWaitUntil(null);
+    },
     onSuccess: (result: SendChatMessageResponse) => {
       queryClient.setQueryData<History>(HISTORY_KEY, (data) =>
         data
@@ -118,7 +183,10 @@ export const ChatPage = () => {
     onError: (error, content) => {
       const problem = sendProblem(getErrorStatus(error), getErrorDetail(error));
       if (problem.kind === 'unavailable') setUnconfigured(true);
+      if ((problem.kind === 'busy' || problem.kind === 'rateLimited') && problem.seconds != null)
+        setWaitUntil(Date.now() + problem.seconds * 1000);
       setFailed({ content, problem });
+      // The message stays in the box, ready to send again
       setDraft((current) => current || content);
     },
   });
@@ -244,7 +312,14 @@ export const ChatPage = () => {
           </ol>
         )}
 
-        {failed && <SendError problem={failed.problem} onRetry={() => submit(failed.content)} />}
+        {failed && (
+          <SendError
+            problem={failed.problem}
+            waitUntil={waitUntil}
+            onWaitOver={endWait}
+            onRetry={() => submit(failed.content)}
+          />
+        )}
 
         <p className="text-xs text-gray-500">{t('chat.privacy')}</p>
         <ChatComposer
@@ -253,6 +328,7 @@ export const ChatPage = () => {
           onSend={() => submit(draft)}
           sending={send.isPending}
           available={available}
+          waiting={waitUntil != null}
           inputRef={inputRef}
         />
       </Card>

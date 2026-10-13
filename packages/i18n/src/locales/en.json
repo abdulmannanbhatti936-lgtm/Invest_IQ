@@ -583,7 +583,10 @@
     "error": {
       "failed": "The message could not be sent.",
       "busy": "The assistant is busy right now. Try again in a minute.",
-      "rateLimited": "You have sent a lot of messages. You can send more in about {{minutes}} min."
+      "rateLimited": "You have sent a lot of messages. You can send more in {{seconds}} seconds.",
+      "busyCountdown": "The assistant is busy; try again in {{seconds}} seconds.",
+      "rateLimitedLater": "You have sent a lot of messages. Try again a little later.",
+      "ready": "You can send your message now."
     },
     "unavailable": {
       "title": "Chat is unavailable right now",

@@ -10,6 +10,7 @@ export const ChatComposer = ({
   onSend,
   sending,
   available,
+  waiting,
   inputRef,
 }: {
   value: string;
@@ -17,13 +18,15 @@ export const ChatComposer = ({
   onSend: () => void;
   sending: boolean;
   available: boolean;
+  /** Waiting out a provider or message limit: the text stays, sending waits */
+  waiting: boolean;
   inputRef: React.RefObject<HTMLTextAreaElement | null>;
 }) => {
   const { t } = useTranslation();
   const id = useId();
   const hintId = `${id}-hint`;
   const over = value.length > MAX_MESSAGE_CHARS;
-  const ready = canSend(value, sending, available);
+  const ready = canSend(value, sending, available, waiting);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();

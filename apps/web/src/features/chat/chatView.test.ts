@@ -8,6 +8,7 @@ import {
   figureSegments,
   messageDir,
   replyDisclaimerKey,
+  secondsLeft,
   sendProblem,
   sourceTag,
   uniqueSources,
@@ -84,13 +85,36 @@ test('a reply repeats the disclaimer only in a language the page banner does not
 });
 
 test('send failures map to what the screen should say', () => {
-  assert.deepEqual(sendProblem(429, { retry_after: 300 }), { kind: 'rateLimited', minutes: 5 });
-  assert.deepEqual(sendProblem(429, { retry_after: 20 }), { kind: 'rateLimited', minutes: 1 });
-  assert.deepEqual(sendProblem(429, null), { kind: 'rateLimited', minutes: 1 });
+  assert.deepEqual(sendProblem(429, { retry_after: 300 }), { kind: 'rateLimited', seconds: 300 });
+  assert.deepEqual(sendProblem(429, null), { kind: 'rateLimited', seconds: null });
   assert.deepEqual(sendProblem(503, { reason: 'not_configured' }), { kind: 'unavailable' });
-  assert.deepEqual(sendProblem(503, { reason: 'provider_busy' }), { kind: 'busy' });
+  assert.deepEqual(sendProblem(503, { reason: 'provider_busy', retry_after: 7 }), {
+    kind: 'busy',
+    seconds: 7,
+  });
+  assert.deepEqual(sendProblem(503, { reason: 'provider_busy', retry_after: 2.3 }), {
+    kind: 'busy',
+    seconds: 3,
+  });
+  assert.deepEqual(sendProblem(503, { reason: 'provider_busy' }), { kind: 'busy', seconds: null });
+  assert.deepEqual(sendProblem(503, { reason: 'provider_busy', retry_after: 'soon' }), {
+    kind: 'busy',
+    seconds: null,
+  });
   assert.deepEqual(sendProblem(503, { reason: 'provider_error' }), { kind: 'failed' });
   assert.deepEqual(sendProblem(null, null), { kind: 'failed' });
+});
+
+test('the countdown counts whole seconds down to zero', () => {
+  assert.equal(secondsLeft(10_000, 0), 10);
+  assert.equal(secondsLeft(10_000, 9_001), 1);
+  assert.equal(secondsLeft(10_000, 10_000), 0);
+  assert.equal(secondsLeft(10_000, 12_000), 0);
+});
+
+test('nothing can be sent while waiting out a limit', () => {
+  assert.equal(canSend('hi', false, true, true), false);
+  assert.equal(canSend('hi', false, true, false), true);
 });
 
 test('a message can be sent only when it has text within the limit', () => {

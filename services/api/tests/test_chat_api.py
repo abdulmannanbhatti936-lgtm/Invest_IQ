@@ -219,7 +219,11 @@ def test_the_rate_limit_fails_open_when_redis_is_down(client, owner, chat, monke
 
 @pytest.mark.parametrize(
     "error, reason, retry_after",
-    [(LLMUnavailable("boom"), "provider_error", None), (LLMRateLimited(4.0), "provider_busy", "4")],
+    [
+        (LLMUnavailable("boom"), "provider_error", None),
+        (LLMRateLimited(4.0), "provider_busy", 4),
+        (LLMRateLimited(3.2), "provider_busy", 4),  # rounded up: never retry too early
+    ],
 )
 def test_provider_failure_is_503_and_stores_nothing(
     client, db, owner, chat, error, reason, retry_after
@@ -229,12 +233,16 @@ def test_provider_failure_is_503_and_stores_nothing(
     response = send(client, owner)
 
     assert response.status_code == 503
-    assert response.json()["detail"] == {
+    expected = {
         "code": "chat_unavailable",
         "reason": reason,
         "message": "The assistant is not available right now.",
     }
-    assert response.headers.get("Retry-After") == retry_after
+    # The wait is in the body too: browsers hide Retry-After from cross-origin pages
+    assert response.json()["detail"] == (
+        {**expected, "retry_after": retry_after} if retry_after else expected
+    )
+    assert response.headers.get("Retry-After") == (str(retry_after) if retry_after else None)
     assert db.query(ChatMessage).count() == 0
 
 
@@ -359,3 +367,18 @@ def test_message_text_is_never_logged(client, owner, chat, caplog):
     logged = " ".join(r.getMessage() for r in caplog.records)
     assert "my secret question" not in logged
     assert "99,900" not in logged and "99,887.21" not in logged
+
+
+def test_the_mock_provider_can_be_made_busy_for_the_countdown_test(
+    client, owner, monkeypatch, fake_redis
+):
+    from integrations.llm.mock import MOCK_BUSY
+
+    monkeypatch.setattr(settings, "LLM_PROVIDER", "mock")
+    monkeypatch.setattr(chat_context, "_load_bundle", lambda: fake_bundle())
+
+    response = send(client, owner, MOCK_BUSY)
+
+    assert response.status_code == 503
+    assert response.json()["detail"]["reason"] == "provider_busy"
+    assert response.json()["detail"]["retry_after"] == 3

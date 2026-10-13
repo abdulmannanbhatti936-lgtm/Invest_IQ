@@ -65,8 +65,9 @@ def send_message(
             headers={"Retry-After": str(exc.retry_after)},
         ) from exc
     except LLMUnavailable as exc:
-        headers = (
-            {"Retry-After": str(int(exc.retry_after))}
+        # In the body as well as the header: browsers hide Retry-After from cross-origin pages
+        retry_after = (
+            int(-(-exc.retry_after // 1))
             if isinstance(exc, LLMRateLimited) and exc.retry_after
             else None
         )
@@ -76,8 +77,9 @@ def send_message(
                 "code": "chat_unavailable",
                 "reason": exc.reason,
                 "message": "The assistant is not available right now.",
+                **({"retry_after": retry_after} if retry_after else {}),
             },
-            headers=headers,
+            headers={"Retry-After": str(retry_after)} if retry_after else None,
         ) from exc
     return {"user_message": _message(user_row), "reply": _message(reply_row)}
 
