@@ -19,6 +19,7 @@ from models.stock import Stock
 from models.user import User
 from services import chat_context
 from services.chat_context import build_context, fit_to_budget, mentioned_tickers
+from services.chat_figure_check import check_reply
 from tests.synthetic import make_ohlcv
 from tests.test_cost_engine import WORKED_EXAMPLE
 from tests.test_portfolio_api import _generate, investor, worked_example  # noqa: F401
@@ -429,3 +430,21 @@ def test_figures_are_formatted_like_the_web_and_dated_in_pakistan_time():
     assert rec.date(utc) == "2026-10-07"
     assert rec.dates == {datetime.date(2026, 10, 7)}
     assert [f.kind for f in rec.figures] == ["money", "money", "pct", "pct", "pct", "pct", "number"]
+
+
+def test_the_figure_check_accepts_the_built_context_and_rejects_a_rounding(
+    client, db, portfolio_user
+):
+    ctx = _context(db, portfolio_user)
+    count = ctx.data["portfolio"]["number_of_stocks"]
+    good = (
+        f"Your portfolio of {count} stocks cost Rs. 99,887.21 and Rs. 112.79 was left as cash. "
+        "HBL's forecast for the next trading day after 7 October 2026 is Rs. 302.17, "
+        "with 49% confidence, below the 60% the app asks for."
+    )
+    result = check_reply(good, ctx, "How is my portfolio?")
+
+    assert result.passed, (result.unmatched, result.number_words)
+    # Every forecast here is at 49% confidence; only HBL is named, so only HBL is credited
+    assert result.matched_sources == ["portfolio", "prediction:HBL"]
+    assert check_reply("It cost about Rs. 99,900.", ctx, "").unmatched == ["99,900"]

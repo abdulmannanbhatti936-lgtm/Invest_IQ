@@ -31,6 +31,7 @@ from models.backtest import BacktestResult
 from models.stock import Stock
 from models.user import User
 from services import backtest_service, portfolio_service, risk_scoring
+from services.chat_figure_check import extract_numbers
 from services.prediction_service import latest_prediction, low_confidence_reasons
 from services.sentiment_service import stock_sentiment
 from services.stock_service import PriceDataUnavailable, StockService
@@ -62,6 +63,9 @@ CAP_TEXT = {
         "Has less than 3 months of emergency savings, so the profile is at most Moderate."
     ),
 }
+
+BENCHMARK_LABEL = "The 18 forecast stocks, equal weight, bought and held (not the KSE-100)"
+KSE100_NOTE = "Not shown: waiting for PSX permission to use KSE-100 data."
 
 # "PSX" is both a listed company and the exchange everyone names; only the exchange is meant
 _NOT_A_MENTION = {"PSX"}
@@ -137,6 +141,14 @@ class _Recorder:
         number = _quantize(Decimal(str(value)), places)
         return self._keep(number, "number", f"{number:,.{places}f}", source)
 
+    def text(self, value: str | None, source: str) -> str | None:
+        """A sentence the app wrote, or a headline title: the numbers in it may be repeated."""
+        if value is None:
+            return None
+        for number in extract_numbers(value):
+            self.figures.append(Figure(number.value, number.kind, number.text, source))
+        return value
+
     def date(self, value) -> str | None:
         if value is None:
             return None
@@ -150,7 +162,7 @@ class _Recorder:
         return day.isoformat()
 
 
-def _risk_profile(user: User) -> dict:
+def _risk_profile(rec: _Recorder, user: User) -> dict:
     profile = user.risk_profile
     try:
         caps = risk_scoring.assess_risk(profile.answers).caps_applied
@@ -159,7 +171,7 @@ def _risk_profile(user: User) -> dict:
     return {
         "source": "risk_profile",
         "category": profile.category.value,
-        "caps_applied": [CAP_TEXT[c] for c in caps if c in CAP_TEXT],
+        "caps_applied": [rec.text(CAP_TEXT[c], "risk_profile") for c in caps if c in CAP_TEXT],
     }
 
 
@@ -206,7 +218,9 @@ def _holding(rec: _Recorder, h: dict) -> dict:
             "expected_change_pct": rec.pct(why["expected_change_pct"], src, signed=True),
             "confidence_pct": rec.ratio_pct(why["confidence_score"], src, places=0),
             "signal": why["signal"],
-            "low_confidence_reasons": [REASON_TEXT[r] for r in why["low_confidence_reasons"]],
+            "low_confidence_reasons": [
+                rec.text(REASON_TEXT[r], src) for r in why["low_confidence_reasons"]
+            ],
         },
     }
 
@@ -258,7 +272,7 @@ def _forecast(rec: _Recorder, db: Session, stock: Stock, bundle) -> tuple[dict, 
         "expected_change_pct": rec.pct(change, src, signed=True),
         "confidence_pct": rec.ratio_pct(prediction.confidence_score, src, places=0),
         "low_confidence": bool(reasons),
-        "low_confidence_reasons": [REASON_TEXT[r] for r in reasons],
+        "low_confidence_reasons": [rec.text(REASON_TEXT[r], src) for r in reasons],
         "signal": prediction.signal,
         "signal_probability_pct": rec.ratio_pct(prediction.signal_probability, src, places=0),
         "beats_naive_baseline": bool(evaluation.get("beats_naive")),
@@ -282,7 +296,7 @@ def _sentiment(rec: _Recorder, db: Session, stock: Stock) -> dict:
         # Third-party titles: quoted data, never instructions (system prompt)
         "top_headlines_untrusted": [
             {
-                "title": h["headline"],
+                "title": rec.text(h["headline"], src),
                 "source": h["source_name"],
                 "published": rec.date(h["published_at"]),
                 "label": h["label"],
@@ -340,10 +354,10 @@ def _backtest(rec: _Recorder, result: BacktestResult) -> dict:
             _metrics(rec, rules["metrics"], src) if rules.get("status") == "available" else None
         ),
         "benchmark": {
-            "label": "The 18 forecast stocks, equal weight, bought and held (not the KSE-100)",
+            "label": rec.text(BENCHMARK_LABEL, src),
             **_metrics(rec, payload["benchmark"]["metrics"], src),
         },
-        "kse100": "Not shown: waiting for PSX permission to use KSE-100 data.",
+        "kse100": rec.text(KSE100_NOTE, src),
     }
 
 
@@ -483,14 +497,14 @@ def build_context(
         "context_version": CONTEXT_VERSION,
         "today": rec.date(datetime.datetime.now(datetime.timezone.utc)),
         "reply_language": reply_language,
-        "risk_profile": _risk_profile(user),
+        "risk_profile": _risk_profile(rec, user),
         "portfolio": portfolio_data,
         "forecasts": forecasts,
         "sentiment": sentiments,
         "backtest": backtest_data,
         "other_stocks": others,
         "forecast_stocks": sorted(covered),
-        "missing": missing,
+        "missing": [rec.text(m, "context") for m in missing],
     }
     return ChatContext(
         data=data,
