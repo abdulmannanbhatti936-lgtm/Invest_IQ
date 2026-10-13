@@ -119,6 +119,7 @@ Every price/return/fee figure follows this pattern:
 - Assistant messages: left-aligned, `--color-surface` background, `--color-text-primary` text
 - Assistant messages referencing real data (predictions, portfolio figures) visually cite the source inline (e.g., a small "from your current portfolio" tag) — reinforces the grounding principle from Architecture.md Section 12 and builds user trust that the bot isn't making things up
 - Language toggle visible within the chat interface at all times, not buried in settings
+- **As built (Phase 8, 2026-10-13, deviation):** bubbles use logical sides: the user's on the _end_ side and the assistant's on the _start_ side, so in Urdu (right to left) the user's bubbles sit on the left, as in Urdu chat apps, instead of always "right". Each bubble takes its direction from its own message (Urdu script right to left; English and Roman Urdu left to right) and keeps every figure left to right. Source tags are built by the server from the figures the reply actually used. The disclaimer banner sits under the chat; a reply in a language the banner is not in (Roman Urdu) repeats the disclaimer in its own language under the bubble.
 
 ### 6.6 Disclaimer Banner
 

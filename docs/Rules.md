@@ -66,6 +66,7 @@ docs(architecture): update DB schema for sentiment_scores
 - One router per resource (`routers/auth.py`, `routers/portfolio.py`, `routers/stocks.py`, etc.)
 - Business logic lives in `services/`, not inline in route handlers — route handlers should be thin: validate input → call service → return response
 - Database access via a repository/CRUD layer (`crud/`), not raw queries scattered through route handlers
+  - **As built (decided 2026-10-13):** only the Phase 1 auth and risk-profile code uses `crud/`. From Phase 2 on, queries live in the feature's `services/` module (e.g. `services/portfolio_service.py`, `services/chat_service.py`), still never in route handlers. New code follows the `services/` pattern; `crud/` is not extended.
 
 ### 3.3 Error Handling
 
