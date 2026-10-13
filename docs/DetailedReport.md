@@ -695,7 +695,7 @@ Architecture §3, §7 and §8, Memory §2/§3/§4/§9/§10/§15, Phases.md Phase
 - Today's rates for every past date; past charges and CGT rules were different (labelled).
 - For start dates before three splits Yahoo had already applied (SAZEW Oct 2021, SYS Mar 2022, MEBL Aug 2022), the stored "raw" close is already split-adjusted, so the purchase uses the adjusted price, not the PSX quote of the day.
 - Dividends are Yahoo amounts (not checked against PSX), including the 73 that the dividend price-adjustment rule held back.
-- No Playwright E2E for the backtest: the E2E database has no prices; the flow was driven end to end against the dev servers for the screenshots instead.
+- The Playwright backtest test runs on a MOCK market (`tests/e2e_market.py`: six invented stocks, synthetic prices, dividends and forecasts, and a MOCK model in `tests/fixtures/model_e2e`) seeded into the test database by the E2E API (`tests.testdb serve --mock-market`) and removed afterwards; the risk-free rate is the committed SBP file (public SBP figures, not stock data).
 
 ---
 
@@ -838,7 +838,7 @@ index_points       -- licensed daily index closes (KSE-100 once PSX grants permi
 | API client             | `packages/api-client/src/*.test.ts`  | 6 (token refresh coordination)                                                             |
 | i18n                   | `packages/i18n/scripts/*.test.mjs`   | 3 (parity checker)                                                                         |
 
-Backend total: **389** (2026-10-13, Phase 6). All run in CI on every push; Playwright E2E runs locally.
+Backend total: **389** (2026-10-13, Phase 6). All run in CI on every push; Playwright E2E (3 tests: Phase 1 flow, Urdu RTL, Phase 6 backtest flow) runs locally.
 
 ```bash
 cd services/api && python -m pytest          # backend
