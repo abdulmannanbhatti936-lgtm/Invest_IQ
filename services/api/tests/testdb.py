@@ -97,6 +97,8 @@ def serve(
         if not settings.is_development:
             raise SystemExit("--mock-llm needs ENVIRONMENT=development")
         settings.LLM_PROVIDER = "mock"
+        # No real backup either: a MOCK "busy" must never fail over to a real provider
+        settings.LLM_BACKUP_PROVIDER = ""
     if mock_market:
         # The backtest E2E test needs prices, forecasts and a model: the MOCK market and the
         # MOCK model built for it, never the real ones

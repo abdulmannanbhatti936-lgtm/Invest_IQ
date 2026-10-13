@@ -8,9 +8,12 @@ end-to-end test exercises the real endpoint, figure check and source tags.
 import json
 import re
 
-from integrations.llm.base import LLMResult, Provider
+from integrations.llm.base import LLMRateLimited, LLMResult, Provider
 
 MOCK_MODEL = "MOCK-chat-v1"
+# The Playwright test sends this to see the "busy" countdown; the MOCK provider then answers 429
+MOCK_BUSY = "MOCK_BUSY"
+MOCK_BUSY_SECONDS = 3.0
 _CONTEXT = re.compile(r"<context>(.*)</context>", re.DOTALL)
 
 
@@ -21,6 +24,8 @@ class MockProvider(Provider):
     def complete(
         self, system, turns, *, max_tokens, temperature, deadline, retry=True
     ) -> LLMResult:
+        if turns and turns[-1].content == MOCK_BUSY:
+            raise LLMRateLimited(MOCK_BUSY_SECONDS)
         context = json.loads(_CONTEXT.search(system).group(1))
         portfolio = context["portfolio"]
         if portfolio is None:

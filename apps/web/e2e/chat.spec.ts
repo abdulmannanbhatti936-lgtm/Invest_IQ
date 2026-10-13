@@ -55,6 +55,19 @@ test('empty chat → starter question → grounded reply with its source → Rom
     timeout: 30_000,
   });
 
+  // A busy provider (MOCK 429, 3 s): a live countdown, the message kept in the box, then send again
+  await input.fill('MOCK_BUSY');
+  await input.press('Enter');
+  const busy = new RegExp(
+    t('en', 'chat.error.busyCountdown').replace('{{seconds}}', '\\d+').replace(/[.;]/g, '\\$&'),
+  );
+  await expect(page.getByText(busy).last()).toBeVisible({ timeout: 30_000 });
+  await expect(input).toHaveValue('MOCK_BUSY');
+  await expect(page.getByRole('button', { name: t('en', 'chat.send') })).toBeDisabled();
+  await expect(page.getByText(t('en', 'chat.error.ready'))).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('button', { name: t('en', 'chat.send') })).toBeEnabled();
+  await input.fill('');
+
   // The history survives a reload; clearing it needs a confirmation
   await page.reload();
   await expect(log.getByText('mera portfolio kaisa hai?')).toBeVisible();

@@ -11,6 +11,10 @@ os.environ.setdefault("JWT_REFRESH_SECRET", "test-refresh-secret")
 # Tests are a development context (weak test secrets, /docs on); .env or CI usually set it too
 os.environ.setdefault("ENVIRONMENT", "development")
 os.environ["AUTH_RATE_LIMIT"] = "10000"
+# No LLM keys or backup from a developer's .env: local runs see what CI sees (no provider at all)
+for _name in ("GEMINI_API_KEY", "GROQ_API_KEY", "MISTRAL_API_KEY", "CLAUDE_API_KEY"):
+    os.environ[_name] = ""
+os.environ["LLM_BACKUP_PROVIDER"] = ""
 
 # Tests never touch the dev/demo database: importing testdb switches settings to the separate
 # "<db>_test" database (or TEST_DATABASE_URL) before core.database creates its engine.
