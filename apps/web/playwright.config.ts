@@ -48,7 +48,8 @@ export default defineConfig({
     {
       // API on the test database (`tests.testdb serve` refuses anything not named *_test)
       // `--mock-market`: MOCK stocks, prices and model for the backtest test (tests/e2e_market.py)
-      command: `"${API_PYTHON}" -m tests.testdb serve --port ${API_PORT} --mock-market --cors-origin ${WEB_URL} --cors-origin http://127.0.0.1:${WEB_PORT}`,
+      // `--mock-llm`: the chat test's MOCK provider; no real model is ever called
+      command: `"${API_PYTHON}" -m tests.testdb serve --port ${API_PORT} --mock-market --mock-llm --cors-origin ${WEB_URL} --cors-origin http://127.0.0.1:${WEB_PORT}`,
       cwd: API_DIR,
       url: `http://127.0.0.1:${API_PORT}/health`,
       reuseExistingServer: false,

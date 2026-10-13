@@ -86,10 +86,17 @@ def clear_e2e_market() -> int:
         db.close()
 
 
-def serve(port: int, cors_origins: list[str], mock_market: bool = False) -> None:
+def serve(
+    port: int, cors_origins: list[str], mock_market: bool = False, mock_llm: bool = False
+) -> None:
     import uvicorn
 
     settings.CORS_ORIGINS = ",".join(cors_origins)
+    if mock_llm:
+        # The chat E2E test never calls a real model: the MOCK provider answers from the context
+        if not settings.is_development:
+            raise SystemExit("--mock-llm needs ENVIRONMENT=development")
+        settings.LLM_PROVIDER = "mock"
     if mock_market:
         # The backtest E2E test needs prices, forecasts and a model: the MOCK market and the
         # MOCK model built for it, never the real ones
@@ -118,6 +125,7 @@ if __name__ == "__main__":
     serve_parser.add_argument("--port", type=int, required=True)
     serve_parser.add_argument("--cors-origin", action="append", required=True)
     serve_parser.add_argument("--mock-market", action="store_true")
+    serve_parser.add_argument("--mock-llm", action="store_true")
     sub.add_parser("cleanup-e2e")
     sub.add_parser("clear-e2e-market")
     args = parser.parse_args()
@@ -127,7 +135,7 @@ if __name__ == "__main__":
         create_and_migrate()
     elif args.command == "serve":
         create_and_migrate()
-        serve(args.port, args.cors_origin, args.mock_market)
+        serve(args.port, args.cors_origin, args.mock_market, args.mock_llm)
     elif args.command == "clear-e2e-market":
         print(f"E2E market cleared: {clear_e2e_market()} MOCK stock(s) removed")
     else:
