@@ -16,6 +16,7 @@ tags under a reply are built from.
 import datetime
 import hashlib
 import json
+import logging
 import re
 from dataclasses import dataclass, field
 from decimal import ROUND_HALF_UP, Decimal
@@ -24,7 +25,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
-from core.config import settings
+from core.config import API_ROOT, settings
 from integrations.news.matching import DATA_DIR, normalize
 from ml.inference import ModelNotFoundError, load_bundle
 from models.backtest import BacktestResult
@@ -36,8 +37,47 @@ from services.prediction_service import latest_prediction, low_confidence_reason
 from services.sentiment_service import stock_sentiment
 from services.stock_service import PriceDataUnavailable, StockService
 
-CONTEXT_VERSION = "ctx-v1"
+logger = logging.getLogger(__name__)
+
+CONTEXT_VERSION = "ctx-v2"
 PKT = ZoneInfo("Asia/Karachi")
+
+# Urdu replies use the app's own Urdu words for these terms (packages/i18n), so the chat and the
+# screens say the same thing and the model invents no translations (decided 2026-10-13)
+I18N_DIR = API_ROOT.parent.parent / "packages" / "i18n" / "src" / "locales"
+GLOSSARY_KEYS = (
+    "risk.conservative",
+    "risk.moderate",
+    "risk.aggressive",
+    "prediction.signal.BUY",
+    "prediction.signal.SELL",
+    "prediction.signal.HOLD",
+    "prediction.confidence",
+    "prediction.lowConfidenceTitle",
+    "sentiment.title",
+    "sentiment.label.positive",
+    "sentiment.label.negative",
+    "sentiment.label.neutral",
+    "nav.portfolio",
+    "nav.stocks",
+    "nav.backtest",
+    "portfolio.totals.gross",
+    "portfolio.totals.charges",
+    "portfolio.totals.cost",
+    "portfolio.totals.cash",
+    "portfolio.holding.charges.commission",
+    "portfolio.holding.breakEven",
+    "portfolio.holding.cgt",
+    "portfolio.holding.dividendsNet",
+    "portfolio.form.nonFiler",
+    "backtest.costs.wht",
+    "backtest.columns.benchmark",
+    "backtest.metrics.totalReturn",
+    "backtest.metrics.annualised",
+    "backtest.metrics.sharpe",
+    "backtest.metrics.drawdown",
+    "backtest.metrics.winRate",
+)
 
 # Architecture.md §12 grounding budget (decided 2026-10-13): context plus history together
 MAX_INPUT_TOKENS = 12_000
@@ -504,6 +544,7 @@ def build_context(
         "backtest": backtest_data,
         "other_stocks": others,
         "forecast_stocks": sorted(covered),
+        "urdu_glossary": urdu_glossary() if reply_language == "ur" else {},
         "missing": [rec.text(m, "context") for m in missing],
     }
     return ChatContext(
@@ -515,21 +556,44 @@ def build_context(
     )
 
 
+def _locale(language: str) -> dict:
+    return json.loads((I18N_DIR / f"{language}.json").read_text(encoding="utf-8"))
+
+
+def _lookup(messages: dict, key: str) -> str:
+    for part in key.split("."):
+        messages = messages[part]
+    return messages
+
+
+@lru_cache(maxsize=1)
+def urdu_glossary() -> dict[str, str]:
+    """English term -> the app's Urdu word, from the locale files the web app uses."""
+    try:
+        en, ur = _locale("en"), _locale("ur")
+    except FileNotFoundError:
+        logger.warning("Urdu glossary unavailable: no locale files in %s", I18N_DIR)
+        return {}
+    return {_lookup(en, key): _lookup(ur, key) for key in GLOSSARY_KEYS}
+
+
 def estimate_tokens(text: str) -> int:
     return -(-len(text) // CHARS_PER_TOKEN)
 
 
-def fit_to_budget(context: ChatContext, history_chars: int) -> ChatContext:
+def fit_to_budget(
+    context: ChatContext, history_chars: int, budget_tokens: int = MAX_INPUT_TOKENS
+) -> ChatContext:
     """
-    Trims the context until it and the history fit MAX_INPUT_TOKENS: headline titles go first
-    (their counts stay), then the per-holding charge lines (each holding's total stays).
+    Trims the context until it and the history fit the provider's budget: headline titles go
+    first (their counts stay), then the per-holding charge lines (each holding's total stays).
     Portfolio totals and forecasts are never dropped; the caller drops old history turns.
     Figures that leave the context also leave the figure check's list.
     """
 
     def over() -> bool:
         return estimate_tokens(context.json) + -(-history_chars // CHARS_PER_TOKEN) > (
-            MAX_INPUT_TOKENS
+            budget_tokens
         )
 
     def keep_figures_in(data_text: str) -> None:
