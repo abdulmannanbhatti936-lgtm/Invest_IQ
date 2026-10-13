@@ -166,3 +166,13 @@ def test_normalize_maps_urdu_and_arabic_indic_digits():
     assert normalize("۱۲۳٫۴٥") == "123.45"
     assert normalize("−20.25") == "-20.25"
     assert normalize("⁦12%⁩") == "12%"
+
+
+def test_a_source_is_listed_once_even_when_several_of_its_figures_match_one_number():
+    ctx = Context(
+        [
+            Figure(D("0.36"), "pct", "0.36%", "portfolio"),
+            Figure(D("0.36"), "pct", "0.36%", "portfolio"),
+        ]
+    )
+    assert check_reply("Round-trip charges are 0.36%.", ctx, "").matched_sources == ["portfolio"]

@@ -262,7 +262,9 @@ def check_reply(reply: str, context, user_message: str) -> CheckResult:
             continue
         if _tags_a_source(number):
             chosen = _attributed(sources, named)
-            result.matched_sources += [s for s in chosen if s not in result.matched_sources]
+            for source in chosen:
+                if source not in result.matched_sources:
+                    result.matched_sources.append(source)
     return result
 
 
