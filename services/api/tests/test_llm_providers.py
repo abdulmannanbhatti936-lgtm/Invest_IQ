@@ -12,10 +12,13 @@ from pydantic import ValidationError
 
 from core.config import Settings, settings
 from integrations import llm
-from integrations.llm import base
-from integrations.llm.base import LLMBusy, LLMError, Turn
+from integrations.llm import base, claude, gemini
+from integrations.llm.base import LLMRateLimited, LLMUnavailable, Turn
 from integrations.llm.claude import ClaudeProvider
+from integrations.llm.gemini import THINKING_ALLOWANCE_TOKENS, GeminiProvider
+from integrations.llm.groq import GroqProvider
 from integrations.llm.mistral import MistralProvider
+from tests.conftest import LLM_HOSTS
 
 MISTRAL_OK = {
     "model": "mistral-test-2601",
@@ -129,7 +132,7 @@ def test_retry_after_is_capped_at_5_seconds(http):
 
 def test_two_429s_mean_busy_with_the_providers_wait(http):
     http((429, {}, {"Retry-After": "4"}), (429, {}, {"Retry-After": "4"}))
-    with pytest.raises(LLMBusy) as caught:
+    with pytest.raises(LLMRateLimited) as caught:
         _mistral_call()
     assert caught.value.reason == "provider_busy"
     assert caught.value.retry_after == 4.0
@@ -137,7 +140,7 @@ def test_two_429s_mean_busy_with_the_providers_wait(http):
 
 def test_a_timeout_or_5xx_is_retried_once_then_fails(http):
     script = http(httpx.ReadTimeout("slow"), (502, {}, None))
-    with pytest.raises(LLMError) as caught:
+    with pytest.raises(LLMUnavailable) as caught:
         _mistral_call()
     assert caught.value.reason == "provider_error"
     assert len(script.calls) == 2
@@ -151,24 +154,24 @@ def test_a_5xx_then_success_returns_the_reply(http):
 
 def test_a_bad_key_is_not_retried(http):
     script = http((401, {"message": "Unauthorized"}, None))
-    with pytest.raises(LLMError):
+    with pytest.raises(LLMUnavailable):
         _mistral_call()
     assert len(script.calls) == 1
 
 
 def test_no_retry_when_the_deadline_leaves_no_room(http):
     script = http((503, {}, None), (200, MISTRAL_OK, None))
-    with pytest.raises(LLMError):
+    with pytest.raises(LLMUnavailable):
         _mistral_call(deadline_s=2.5)
     assert len(script.calls) == 1
 
 
 def test_an_empty_or_malformed_reply_is_an_error(http):
     http((200, {"choices": [{"message": {"content": "   "}}]}, None))
-    with pytest.raises(LLMError):
+    with pytest.raises(LLMUnavailable):
         _mistral_call()
     http((200, {"unexpected": True}, None))
-    with pytest.raises(LLMError):
+    with pytest.raises(LLMUnavailable):
         _mistral_call()
 
 
@@ -192,6 +195,7 @@ def test_calls_wait_for_the_one_per_second_slot(http, fake_redis, monkeypatch):
 
 
 def test_get_provider_follows_configuration(monkeypatch):
+    monkeypatch.setattr(settings, "LLM_PROVIDER", "mistral")
     monkeypatch.setattr(settings, "LLM_MODEL", "mistral-test-2601")
     monkeypatch.setattr(settings, "MISTRAL_API_KEY", "real-key")
     assert isinstance(llm.get_provider(), MistralProvider)
@@ -225,6 +229,209 @@ def test_the_mock_provider_is_refused_outside_development():
     )
 
 
-def test_tests_can_never_reach_a_provider():
+@pytest.mark.parametrize("host", LLM_HOSTS)
+def test_tests_can_never_reach_a_provider(host):
     with pytest.raises(RuntimeError, match="LLM network calls are disabled"):
-        base.httpx.post("https://api.mistral.ai/v1/chat/completions")
+        base.httpx.post(f"https://{host}/v1/anything")
+
+
+def test_every_adapter_calls_one_of_the_blocked_hosts():
+    for url in (gemini.BASE_URL, GroqProvider.url, MistralProvider.url, claude.URL):
+        assert any(url.startswith(f"https://{host}/") for host in LLM_HOSTS), url
+
+
+def test_the_default_provider_is_gemini_and_each_provider_needs_its_key(monkeypatch):
+    assert type(settings).model_fields["LLM_PROVIDER"].default == "gemini"
+    monkeypatch.setattr(settings, "LLM_MODEL", "some-model")
+    for provider, key_name, adapter in [
+        ("gemini", "GEMINI_API_KEY", GeminiProvider),
+        ("groq", "GROQ_API_KEY", GroqProvider),
+    ]:
+        monkeypatch.setattr(settings, "LLM_PROVIDER", provider)
+        monkeypatch.setattr(settings, key_name, "")
+        assert settings.chat_unavailable_reason() == f"{key_name} is not set"
+        monkeypatch.setattr(settings, key_name, "real-key")
+        assert isinstance(llm.get_provider(), adapter)
+    monkeypatch.setattr(settings, "LLM_PROVIDER", "openai")
+    assert "not a supported provider" in settings.chat_unavailable_reason()
+
+
+# Gemini (models.generateContent)
+
+GEMINI_OK = {
+    "candidates": [
+        {
+            "content": {
+                "role": "model",
+                "parts": [
+                    {"text": "planning the answer", "thought": True},
+                    {"text": " Your portfolio cost Rs. 1.00. "},
+                ],
+            },
+            "finishReason": "STOP",
+        }
+    ],
+    "usageMetadata": {
+        "promptTokenCount": 6100,
+        "candidatesTokenCount": 90,
+        "thoughtsTokenCount": 410,
+        "totalTokenCount": 6600,
+    },
+    "modelVersion": "gemini-test-flash",
+}
+
+
+def _gemini_call():
+    return GeminiProvider("gk-1", "gemini-test-flash").complete(
+        "SYSTEM",
+        [Turn("user", "hi"), Turn("assistant", "hello"), Turn("user", "and now?")],
+        max_tokens=700,
+        temperature=0.2,
+        deadline=time.monotonic() + 45,
+    )
+
+
+def test_gemini_request_and_reply(http):
+    script = http((200, GEMINI_OK, None))
+
+    result = _gemini_call()
+
+    call = script.calls[0]
+    assert call["url"] == (
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-test-flash:generateContent"
+    )
+    # The key travels in a header, never in the URL (where it could reach logs)
+    assert call["headers"]["x-goog-api-key"] == "gk-1"
+    assert "key=" not in call["url"]
+    body = call["json"]
+    assert body["systemInstruction"] == {"parts": [{"text": "SYSTEM"}]}
+    assert [c["role"] for c in body["contents"]] == ["user", "model", "user"]
+    assert body["contents"][1]["parts"] == [{"text": "hello"}]
+    assert body["generationConfig"] == {
+        "temperature": 0.2,
+        "maxOutputTokens": 700 + THINKING_ALLOWANCE_TOKENS,
+        "candidateCount": 1,
+    }
+    assert call["timeout"].connect == 5.0 and call["timeout"].read == 25.0
+    # Thought parts are not the reply; thinking tokens count as output tokens
+    assert result.text == "Your portfolio cost Rs. 1.00."
+    assert (result.model, result.input_tokens, result.output_tokens) == (
+        "gemini-test-flash",
+        6100,
+        500,
+    )
+
+
+def test_gemini_429_is_counted_and_retried_then_rate_limited(http, fake_redis):
+    script = http((429, {"error": {"code": 429}}, {"Retry-After": "2"}), (200, GEMINI_OK, None))
+    assert _gemini_call().text.startswith("Your portfolio")
+    assert len(script.calls) == 2 and 2.0 in script.sleeps
+    assert [v for k, v in fake_redis.store.items() if k.startswith("chat:provider_429:")] == ["1"]
+
+    http((429, {}, {"Retry-After": "3"}), (429, {}, {"Retry-After": "3"}))
+    with pytest.raises(LLMRateLimited) as caught:
+        _gemini_call()
+    assert caught.value.retry_after == 3.0 and caught.value.reason == "provider_busy"
+
+
+def test_gemini_5xx_or_timeout_is_retried_once(http):
+    http((503, {}, None), (200, GEMINI_OK, None))
+    assert _gemini_call().output_tokens == 500
+    script = http(httpx.ConnectTimeout("down"), (500, {}, None))
+    with pytest.raises(LLMUnavailable) as caught:
+        _gemini_call()
+    assert caught.value.reason == "provider_error" and len(script.calls) == 2
+
+
+THOUGHT_ONLY = {
+    "content": {"parts": [{"text": "...", "thought": True}]},
+    "finishReason": "MAX_TOKENS",
+}
+
+
+@pytest.mark.parametrize(
+    "body, message",
+    [
+        ({"unexpected": True}, "unexpected response shape"),
+        ({"candidates": []}, "unexpected response shape"),
+        ({"promptFeedback": {"blockReason": "SAFETY"}}, "prompt blocked: SAFETY"),
+        ({"candidates": [THOUGHT_ONLY]}, "finishReason MAX_TOKENS"),
+        ({"candidates": [{"finishReason": "SAFETY"}]}, "finishReason SAFETY"),
+    ],
+)
+def test_gemini_malformed_blocked_or_empty_replies_are_unavailable(http, body, message):
+    http((200, body, None))
+    with pytest.raises(LLMUnavailable, match=message):
+        _gemini_call()
+
+
+def test_gemini_bad_key_is_not_retried(http):
+    script = http((400, {"error": {"status": "INVALID_ARGUMENT"}}, None))
+    with pytest.raises(LLMUnavailable):
+        _gemini_call()
+    assert len(script.calls) == 1
+
+
+# Groq (OpenAI-compatible chat completions)
+
+GROQ_OK = {
+    "model": "groq-test-120b",
+    "choices": [{"message": {"role": "assistant", "content": "Rs. 1.00 in total."}}],
+    "usage": {"prompt_tokens": 6000, "completion_tokens": 70},
+}
+
+
+def _groq_call():
+    return GroqProvider("gq-1", "groq-test-120b").complete(
+        "SYSTEM",
+        [Turn("user", "hi")],
+        max_tokens=700,
+        temperature=0.2,
+        deadline=time.monotonic() + 45,
+    )
+
+
+def test_groq_request_and_reply(http):
+    script = http((200, GROQ_OK, None))
+
+    result = _groq_call()
+
+    call = script.calls[0]
+    assert call["url"] == "https://api.groq.com/openai/v1/chat/completions"
+    assert call["headers"]["Authorization"] == "Bearer gq-1"
+    assert call["json"]["messages"] == [
+        {"role": "system", "content": "SYSTEM"},
+        {"role": "user", "content": "hi"},
+    ]
+    assert (call["json"]["max_tokens"], call["json"]["temperature"]) == (700, 0.2)
+    assert (result.text, result.model, result.input_tokens, result.output_tokens) == (
+        "Rs. 1.00 in total.",
+        "groq-test-120b",
+        6000,
+        70,
+    )
+
+
+def test_groq_429_is_retried_after_retry_after_then_rate_limited(http):
+    script = http((429, {}, {"Retry-After": "1"}), (200, GROQ_OK, None))
+    assert _groq_call().output_tokens == 70 and 1.0 in script.sleeps
+    http((429, {}, None), (429, {}, None))
+    with pytest.raises(LLMRateLimited):
+        _groq_call()
+
+
+def test_groq_5xx_then_timeout_is_unavailable(http):
+    script = http((502, {}, None), httpx.ReadTimeout("slow"))
+    with pytest.raises(LLMUnavailable) as caught:
+        _groq_call()
+    assert caught.value.reason == "provider_error" and len(script.calls) == 2
+
+
+@pytest.mark.parametrize(
+    "body",
+    [{"choices": [{"message": {}}]}, {"choices": []}, {"choices": [{"message": {"content": " "}}]}],
+)
+def test_groq_malformed_or_empty_replies_are_unavailable(http, body):
+    http((200, body, None))
+    with pytest.raises(LLMUnavailable):
+        _groq_call()

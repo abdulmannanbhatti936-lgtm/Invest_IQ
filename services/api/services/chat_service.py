@@ -165,7 +165,7 @@ def generate_reply(
 def send_message(
     db: Session, user: User, content: str, toggle: str
 ) -> tuple[ChatMessage, ChatMessage]:
-    """Raises RateLimited, or LLMError (and its subclasses) when no reply could be made."""
+    """Raises RateLimited, or LLMUnavailable (and its subclasses) when no reply could be made."""
     check_rate_limit(user)
     started = time.monotonic()
     language = reply_language(content, toggle)

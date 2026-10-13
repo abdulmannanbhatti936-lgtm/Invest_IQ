@@ -44,13 +44,13 @@ class LLMResult:
     output_tokens: int | None
 
 
-class LLMError(Exception):
+class LLMUnavailable(Exception):
     """The provider gave no usable reply."""
 
     reason = "provider_error"
 
 
-class LLMBusy(LLMError):
+class LLMRateLimited(LLMUnavailable):
     """The provider kept answering 429 (rate limited)."""
 
     reason = "provider_busy"
@@ -92,7 +92,7 @@ def _wait_for_slot(deadline: float) -> None:
 
 def post_json(url: str, headers: dict, body: dict, deadline: float, provider: str) -> dict:
     """POST with the shared timeouts, retry, call slot and 429 accounting; returns the JSON."""
-    last: LLMError = LLMError("no attempt made")
+    last: LLMUnavailable = LLMUnavailable("no attempt made")
     for attempt in (1, 2):
         remaining = deadline - time.monotonic()
         if remaining <= 1:
@@ -106,7 +106,7 @@ def post_json(url: str, headers: dict, body: dict, deadline: float, provider: st
             response = httpx.post(url, headers=headers, json=body, timeout=timeout)
         except httpx.HTTPError as e:
             logger.warning("%s call failed (attempt %d): %s", provider, attempt, type(e).__name__)
-            last = LLMError(type(e).__name__)
+            last = LLMUnavailable(type(e).__name__)
         else:
             if response.status_code == 200:
                 return response.json()
@@ -114,17 +114,17 @@ def post_json(url: str, headers: dict, body: dict, deadline: float, provider: st
                 _count_429()
                 retry_after = _retry_after(response)
                 logger.warning("%s answered 429 (attempt %d)", provider, attempt)
-                last = LLMBusy(retry_after)
+                last = LLMRateLimited(retry_after)
                 wait = min(retry_after, MAX_RETRY_AFTER_S) if retry_after else wait
             elif response.status_code >= 500:
                 logger.warning(
                     "%s answered %d (attempt %d)", provider, response.status_code, attempt
                 )
-                last = LLMError(f"HTTP {response.status_code}")
+                last = LLMUnavailable(f"HTTP {response.status_code}")
             else:
                 # 4xx other than 429: a bad key or request; retrying cannot help
                 logger.error("%s refused the request: HTTP %d", provider, response.status_code)
-                raise LLMError(f"HTTP {response.status_code}")
+                raise LLMUnavailable(f"HTTP {response.status_code}")
         if attempt == 1 and time.monotonic() + wait + 1 < deadline:
             time.sleep(wait)
         else:

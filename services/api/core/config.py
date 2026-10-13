@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 API_ROOT = Path(__file__).resolve().parent.parent
 
 MIN_JWT_SECRET_LENGTH = 32
+LLM_PROVIDERS = ("gemini", "groq", "mistral", "claude")
 # Markers of the placeholder values in .env.example and of other obviously unset secrets
 _PLACEHOLDER_MARKERS = ("placeholder", "changeme", "change-me", "change_me", "your_", "your-")
 
@@ -50,11 +51,13 @@ class Settings(BaseSettings):
     LOW_CONFIDENCE_THRESHOLD: float = 0.6  # PRD.md FR16
     MIN_HISTORY_DAYS: int = 120  # below this we refuse to predict (PRD.md FR10)
 
-    # Chatbot (Phase 8). The provider and model are configuration only: switching between
-    # Mistral and Claude needs no code change (Architecture.md §6.4 deviation, 2026-10-13).
+    # Chatbot (Phase 8). The provider and model are configuration only (Architecture.md §6.4
+    # deviation, 2026-10-13): gemini (default), groq (backup), mistral or claude.
     # "mock" is a fixed test provider for the Playwright run, refused outside development.
-    LLM_PROVIDER: str = "mistral"
+    LLM_PROVIDER: str = "gemini"
     LLM_MODEL: str = ""
+    GEMINI_API_KEY: str = ""
+    GROQ_API_KEY: str = ""
     MISTRAL_API_KEY: str = ""
     CLAUDE_API_KEY: str = ""
     CHAT_LIMIT_PER_WINDOW: int = 10  # messages per user per CHAT_LIMIT_WINDOW_SECONDS
@@ -110,19 +113,25 @@ class Settings(BaseSettings):
             )
         return self
 
+    def api_key_for(self, provider: str) -> str:
+        return {
+            "gemini": self.GEMINI_API_KEY,
+            "groq": self.GROQ_API_KEY,
+            "mistral": self.MISTRAL_API_KEY,
+            "claude": self.CLAUDE_API_KEY,
+        }.get(provider, "")
+
     @property
     def llm_api_key(self) -> str:
         """The key of the configured provider; a placeholder counts as no key."""
-        key = {"mistral": self.MISTRAL_API_KEY, "claude": self.CLAUDE_API_KEY}.get(
-            self.LLM_PROVIDER, ""
-        )
+        key = self.api_key_for(self.LLM_PROVIDER)
         return "" if any(marker in key.lower() for marker in _PLACEHOLDER_MARKERS) else key
 
     def chat_unavailable_reason(self) -> str | None:
         """Why the chat cannot run with this configuration, or None if it can."""
         if self.LLM_PROVIDER == "mock":
             return None
-        if self.LLM_PROVIDER not in ("mistral", "claude"):
+        if self.LLM_PROVIDER not in LLM_PROVIDERS:
             return f"LLM_PROVIDER={self.LLM_PROVIDER!r} is not a supported provider"
         if not self.LLM_MODEL:
             return "LLM_MODEL is not set"

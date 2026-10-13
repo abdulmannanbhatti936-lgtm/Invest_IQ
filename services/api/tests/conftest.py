@@ -75,12 +75,27 @@ def _no_news_or_finbert_network(monkeypatch):
     monkeypatch.setattr("ml.sentiment.build_pipeline", blocked)
 
 
+LLM_HOSTS = (
+    "generativelanguage.googleapis.com",
+    "api.groq.com",
+    "api.mistral.ai",
+    "api.anthropic.com",
+)
+
+
 @pytest.fixture(autouse=True)
 def _no_llm_network(monkeypatch):
-    """CI never calls a real LLM: any provider HTTP call fails loudly; tests use fakes."""
+    """
+    CI never calls a real LLM. Every adapter sends through integrations.llm.base, so every
+    provider call fails loudly there, whatever the host (Gemini, Groq, Mistral and Claude are
+    named in the message so a failure is easy to read); tests script the responses instead.
+    """
 
-    def blocked(*args, **kwargs):
-        raise RuntimeError("LLM network calls are disabled in tests; fake the provider")
+    def blocked(url, *args, **kwargs):
+        raise RuntimeError(
+            f"LLM network calls are disabled in tests ({', '.join(LLM_HOSTS)}); fake the "
+            f"provider instead of calling {url}"
+        )
 
     monkeypatch.setattr("integrations.llm.base.httpx.post", blocked)
 

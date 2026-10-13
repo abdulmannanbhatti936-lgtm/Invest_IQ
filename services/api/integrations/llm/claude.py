@@ -1,10 +1,10 @@
 """
 Claude Messages API, called over plain HTTPS with httpx. Ready for when the project moves from
-Mistral's free tier to the Claude API named in Architecture.md §6.4: set LLM_PROVIDER=claude,
+the free tiers to the Claude API named in Architecture.md §6.4: set LLM_PROVIDER=claude,
 LLM_MODEL and CLAUDE_API_KEY.
 """
 
-from integrations.llm.base import LLMError, LLMResult, Provider, post_json
+from integrations.llm.base import LLMResult, LLMUnavailable, Provider, post_json
 
 URL = "https://api.anthropic.com/v1/messages"
 API_VERSION = "2023-06-01"
@@ -30,9 +30,9 @@ class ClaudeProvider(Provider):
         try:
             text = "".join(block["text"] for block in data["content"] if block["type"] == "text")
         except (KeyError, TypeError) as e:
-            raise LLMError("unexpected response shape") from e
+            raise LLMUnavailable("unexpected response shape") from e
         if not text.strip():
-            raise LLMError("empty reply")
+            raise LLMUnavailable("empty reply")
         usage = data.get("usage") or {}
         return LLMResult(
             text=text.strip(),

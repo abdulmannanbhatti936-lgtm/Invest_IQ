@@ -6,7 +6,7 @@ The active-portfolio cases use the Phase 5 worked example (Rs 100,000 Moderate).
 import pytest
 
 from core.config import settings
-from integrations.llm import LLMBusy, LLMError, LLMResult
+from integrations.llm import LLMRateLimited, LLMResult, LLMUnavailable
 from models.chat import ChatMessage
 from services import chat_context, chat_prompt, chat_service
 from tests import test_portfolio_api
@@ -207,7 +207,7 @@ def test_the_rate_limit_fails_open_when_redis_is_down(client, owner, chat, monke
 
 @pytest.mark.parametrize(
     "error, reason, retry_after",
-    [(LLMError("boom"), "provider_error", None), (LLMBusy(4.0), "provider_busy", "4")],
+    [(LLMUnavailable("boom"), "provider_error", None), (LLMRateLimited(4.0), "provider_busy", "4")],
 )
 def test_provider_failure_is_503_and_stores_nothing(
     client, db, owner, chat, error, reason, retry_after

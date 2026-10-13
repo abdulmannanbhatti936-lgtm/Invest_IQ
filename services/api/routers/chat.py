@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from core.config import settings
 from core.database import get_db
 from core.deps import get_current_user, require_risk_profile
-from integrations.llm import LLMBusy, LLMError
+from integrations.llm import LLMRateLimited, LLMUnavailable
 from models.chat import ChatMessage
 from models.risk_profile import RiskProfile
 from models.user import User
@@ -64,10 +64,10 @@ def send_message(
             },
             headers={"Retry-After": str(exc.retry_after)},
         ) from exc
-    except LLMError as exc:
+    except LLMUnavailable as exc:
         headers = (
             {"Retry-After": str(int(exc.retry_after))}
-            if isinstance(exc, LLMBusy) and exc.retry_after
+            if isinstance(exc, LLMRateLimited) and exc.retry_after
             else None
         )
         raise HTTPException(
