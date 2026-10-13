@@ -77,6 +77,26 @@ GLOSSARY_KEYS = (
     "backtest.metrics.sharpe",
     "backtest.metrics.drawdown",
     "backtest.metrics.winRate",
+    # Added for the chat in Phase 8 (Urdu wording for team review, Memory.md §4)
+    "terms.forecast",
+    "terms.confidence",
+    "terms.lowConfidence",
+    "terms.baselineNotBeaten",
+    *(
+        f"terms.sector.{key}"
+        for key in (
+            "automobileAssembler",
+            "cableElectricalGoods",
+            "cement",
+            "commercialBanks",
+            "fertilizer",
+            "oilGasExploration",
+            "oilGasMarketing",
+            "powerGeneration",
+            "refinery",
+            "technologyCommunication",
+        )
+    ),
 )
 
 # Architecture.md §12 grounding budget (decided 2026-10-13): context plus history together

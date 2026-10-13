@@ -240,8 +240,8 @@ def test_every_adapter_calls_one_of_the_blocked_hosts():
         assert any(url.startswith(f"https://{host}/") for host in LLM_HOSTS), url
 
 
-def test_the_default_provider_is_gemini_and_each_provider_needs_its_key(monkeypatch):
-    assert type(settings).model_fields["LLM_PROVIDER"].default == "gemini"
+def test_the_default_provider_is_groq_and_each_provider_needs_its_key(monkeypatch):
+    assert type(settings).model_fields["LLM_PROVIDER"].default == "groq"
     monkeypatch.setattr(settings, "LLM_MODEL", "some-model")
     for provider, key_name, adapter in [
         ("gemini", "GEMINI_API_KEY", GeminiProvider),

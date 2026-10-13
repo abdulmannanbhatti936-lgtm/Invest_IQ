@@ -52,9 +52,10 @@ class Settings(BaseSettings):
     MIN_HISTORY_DAYS: int = 120  # below this we refuse to predict (PRD.md FR10)
 
     # Chatbot (Phase 8). The provider and model are configuration only (Architecture.md §6.4
-    # deviation, 2026-10-13): gemini (default), groq (backup), mistral or claude.
+    # deviation, 2026-10-13): groq (default, chosen by the bake-off), gemini (backup), mistral or
+    # claude.
     # "mock" is a fixed test provider for the Playwright run, refused outside development.
-    LLM_PROVIDER: str = "gemini"
+    LLM_PROVIDER: str = "groq"
     LLM_MODEL: str = ""
     GEMINI_API_KEY: str = ""
     GROQ_API_KEY: str = ""

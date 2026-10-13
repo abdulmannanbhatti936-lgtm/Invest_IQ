@@ -278,5 +278,42 @@ def test_only_urdu_replies_get_the_glossary(client, db, portfolio_user, language
 
 def test_the_prompt_tells_the_model_to_use_the_glossary_and_keep_roman_urdu_terms():
     prompt = chat_prompt.system_prompt("{}", "ur")
-    assert "urdu_glossary" in prompt and "Do not translate other terms yourself" in prompt
+    assert "urdu_glossary" in prompt and "never translate one yourself" in prompt
     assert "do not invent Roman Urdu spellings" in prompt
+
+
+def test_the_glossary_covers_the_new_terms_and_every_forecast_stocks_sector(db):
+    from models.stock import Stock
+
+    glossary = chat_context.urdu_glossary()
+    assert glossary["Forecast"] == "پیش گوئی"
+    assert glossary["Low confidence"] == "کم اعتماد"
+    assert glossary["Confidence"] == "اعتماد"
+    assert "Not better than assuming tomorrow's close equals today's" in glossary
+    sectors = {
+        s for (s,) in db.query(Stock.sector).filter(Stock.ticker.in_(settings.tracked_tickers))
+    }
+    assert sectors and sectors <= set(glossary), sectors - set(glossary)
+
+
+@pytest.mark.parametrize(
+    "rule",
+    [
+        "Never put a figure in quotation marks.",
+        "it comes from a past test that uses information from after its start date",
+        "Never call a backtest figure the portfolio's annual return, return or profit.",
+        "(OGDC, never a transliteration)",
+        "Do not add English words in brackets after Urdu words.",
+        "mention at most 3 holdings unless the user asks for all of them",
+        "refers to the same measure as your previous answer",
+        "a tie counts as one place, so the second lowest is the next different value",
+    ],
+)
+def test_prompt_v3_carries_every_rule(rule):
+    assert chat_prompt.PROMPT_VERSION == "prompt-v3"
+    assert rule in chat_prompt.system_prompt("{}", "en")
+
+
+@pytest.mark.parametrize("language, words", [("en", 120), ("ur", 150), ("ur-latn", 150)])
+def test_reply_length_guidance_depends_on_the_language(language, words):
+    assert f"in about {words} words" in chat_prompt.system_prompt("{}", language)

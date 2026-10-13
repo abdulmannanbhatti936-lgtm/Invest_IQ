@@ -88,7 +88,7 @@ def test_a_grounded_reply_is_stored_with_its_context_and_sources(client, db, own
     row = db.query(ChatMessage).filter(ChatMessage.id == reply["id"]).one()
     assert row.context_version == "ctx-v2" and len(row.context_hash) == 64
     assert row.context_refs["portfolio_id"]
-    assert (row.provider, row.model, row.prompt_version) == ("scripted", "scripted-1", "prompt-v2")
+    assert (row.provider, row.model, row.prompt_version) == ("scripted", "scripted-1", "prompt-v3")
     assert (row.input_tokens, row.output_tokens) == (1000, 50)
     assert row.latency_ms is not None
     assert row.figure_check_detail == {
