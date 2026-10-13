@@ -284,7 +284,10 @@ def _ask(db, user, case: Case, provider, run_no: int, pause: float) -> tuple[Run
                 language=language,
                 reply=reply.text,
                 figure_check=reply.figure_check,
-                unmatched=[a["unmatched"] + a["number_words"] for a in reply.detail["attempts"]],
+                unmatched=[
+                    a.get("unmatched", []) + a.get("number_words", [])
+                    for a in reply.detail["attempts"]
+                ],
                 sources=reply.sources,
                 latency_ms=int((time.monotonic() - started) * 1000),
                 input_tokens=reply.input_tokens,

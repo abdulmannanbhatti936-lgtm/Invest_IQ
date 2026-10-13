@@ -140,3 +140,29 @@ def test_groq_reset_durations(value, seconds):
     from services.chat_eval import _seconds
 
     assert _seconds(value) == pytest.approx(seconds)
+
+
+def test_a_second_draft_that_errors_is_recorded_without_crashing(monkeypatch):
+    from integrations.llm import LLMResult, LLMUnavailable
+    from services import chat_context, chat_eval
+
+    class FailsSecond:
+        name, model = "gemini", "gemini-test"
+        calls = 0
+
+        def complete(self, *args, **kwargs):
+            FailsSecond.calls += 1
+            if FailsSecond.calls == 1:
+                return LLMResult("It may cost Rs. 7.", "gemini-test", 1, 1)
+            raise LLMUnavailable("HTTP 400")
+
+    context = SimpleNamespace(
+        json="{}", figures=[], dates=set(), sources={}, data=CONTEXT.data, trimmed=[], refs={}
+    )
+    monkeypatch.setattr(chat_context, "build_context", lambda *a, **k: context)
+    monkeypatch.setattr(chat_context, "fit_to_budget", lambda ctx, *a, **k: ctx)
+
+    run_, _ = chat_eval._ask(None, None, chat_eval.CASES["a"], FailsSecond(), 1, pause=0)
+
+    assert run_.turns[0].figure_check == "fallback"
+    assert run_.turns[0].unmatched == [["7"], []]
