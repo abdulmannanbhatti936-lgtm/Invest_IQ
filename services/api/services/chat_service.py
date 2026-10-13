@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 
 from core.config import settings
 from core.redis import get_redis_client
-from integrations.llm import Turn, get_provider
+from integrations.llm import Provider, Turn, get_provider
 from models.chat import ChatMessage
 from models.user import User
 from services import chat_context, chat_figure_check, chat_prompt
@@ -109,9 +109,14 @@ def _add(a: int | None, b: int | None) -> int | None:
 
 
 def generate_reply(
-    context: chat_context.ChatContext, turns: list[Turn], language: str, user_message: str
+    context: chat_context.ChatContext,
+    turns: list[Turn],
+    language: str,
+    user_message: str,
+    provider: Provider | None = None,
 ) -> Reply:
-    provider = get_provider()
+    """`provider` defaults to the configured one; the evaluation passes each model it compares."""
+    provider = provider or get_provider()
     deadline = time.monotonic() + DEADLINE_S
     failed: list[str] | None = None
     attempts, tokens_in, tokens_out = [], None, None
