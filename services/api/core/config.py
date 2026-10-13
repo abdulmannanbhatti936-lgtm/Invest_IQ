@@ -50,6 +50,17 @@ class Settings(BaseSettings):
     LOW_CONFIDENCE_THRESHOLD: float = 0.6  # PRD.md FR16
     MIN_HISTORY_DAYS: int = 120  # below this we refuse to predict (PRD.md FR10)
 
+    # Chatbot (Phase 8). The provider and model are configuration only: switching between
+    # Mistral and Claude needs no code change (Architecture.md §6.4 deviation, 2026-10-13).
+    # "mock" is a fixed test provider for the Playwright run, refused outside development.
+    LLM_PROVIDER: str = "mistral"
+    LLM_MODEL: str = ""
+    MISTRAL_API_KEY: str = ""
+    CLAUDE_API_KEY: str = ""
+    CHAT_LIMIT_PER_WINDOW: int = 10  # messages per user per CHAT_LIMIT_WINDOW_SECONDS
+    CHAT_LIMIT_WINDOW_SECONDS: int = 300
+    CHAT_LIMIT_PER_DAY: int = 100
+
     # Fail-safe: unset means production (strict secret checks, no public /docs). Local .env
     # and CI set ENVIRONMENT=development explicitly.
     ENVIRONMENT: str = "production"
@@ -90,6 +101,35 @@ class Settings(BaseSettings):
             )
         return self
 
+    @model_validator(mode="after")
+    def mock_llm_only_in_development(self) -> "Settings":
+        if self.LLM_PROVIDER == "mock" and not self.is_development:
+            raise ValueError(
+                f"Refusing to start with ENVIRONMENT={self.ENVIRONMENT}: LLM_PROVIDER=mock is a "
+                "test provider and only allowed in development."
+            )
+        return self
+
+    @property
+    def llm_api_key(self) -> str:
+        """The key of the configured provider; a placeholder counts as no key."""
+        key = {"mistral": self.MISTRAL_API_KEY, "claude": self.CLAUDE_API_KEY}.get(
+            self.LLM_PROVIDER, ""
+        )
+        return "" if any(marker in key.lower() for marker in _PLACEHOLDER_MARKERS) else key
+
+    def chat_unavailable_reason(self) -> str | None:
+        """Why the chat cannot run with this configuration, or None if it can."""
+        if self.LLM_PROVIDER == "mock":
+            return None
+        if self.LLM_PROVIDER not in ("mistral", "claude"):
+            return f"LLM_PROVIDER={self.LLM_PROVIDER!r} is not a supported provider"
+        if not self.LLM_MODEL:
+            return "LLM_MODEL is not set"
+        if not self.llm_api_key:
+            return f"{self.LLM_PROVIDER.upper()}_API_KEY is not set"
+        return None
+
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
@@ -118,3 +158,10 @@ def warn_if_weak_jwt_secrets(config: Settings = settings) -> None:
             "Allowed only because ENVIRONMENT=development.",
             problem,
         )
+
+
+def warn_if_chat_unavailable(config: Settings = settings) -> None:
+    """The API starts without an LLM key; the chat then shows its 'unavailable' state."""
+    reason = config.chat_unavailable_reason()
+    if reason:
+        logging.getLogger("core.config").warning("Chat disabled: %s.", reason)
