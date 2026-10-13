@@ -7,3 +7,10 @@ export const cleanupE2eUsers = (): string =>
     cwd: API_DIR,
     encoding: 'utf-8',
   }).trim();
+
+/** Removes the MOCK market the API seeded for the backtest test (tests/e2e_market.py). */
+export const clearE2eMarket = (): string =>
+  execFileSync(API_PYTHON, ['-m', 'tests.testdb', 'clear-e2e-market'], {
+    cwd: API_DIR,
+    encoding: 'utf-8',
+  }).trim();

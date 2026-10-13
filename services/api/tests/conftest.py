@@ -14,7 +14,7 @@ os.environ["AUTH_RATE_LIMIT"] = "10000"
 # Tests never touch the dev/demo database: importing testdb switches settings to the separate
 # "<db>_test" database (or TEST_DATABASE_URL) before core.database creates its engine.
 # The split marker stops the import sorter from moving it below core.database.
-from tests.testdb import create_and_migrate  # noqa: E402
+from tests.testdb import clear_e2e_market, create_and_migrate  # noqa: E402
 
 # isort: split
 from fastapi.testclient import TestClient  # noqa: E402
@@ -31,6 +31,8 @@ if not engine.url.database.endswith("_test"):
 @pytest.fixture(scope="session", autouse=True)
 def _test_database():
     create_and_migrate()
+    # A Playwright run that crashed before its teardown would leave its MOCK market behind
+    clear_e2e_market()
 
 
 @pytest.fixture(autouse=True)

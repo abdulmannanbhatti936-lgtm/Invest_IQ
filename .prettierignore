@@ -10,4 +10,5 @@ apps/web/e2e-results/
 services/api/ml/data/
 services/api/ml/reports/
 services/api/tests/fixtures/model/
+services/api/tests/fixtures/model_e2e/
 docs/data-quality/

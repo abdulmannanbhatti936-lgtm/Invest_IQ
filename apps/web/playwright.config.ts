@@ -47,7 +47,8 @@ export default defineConfig({
   webServer: [
     {
       // API on the test database (`tests.testdb serve` refuses anything not named *_test)
-      command: `"${API_PYTHON}" -m tests.testdb serve --port ${API_PORT} --cors-origin ${WEB_URL} --cors-origin http://127.0.0.1:${WEB_PORT}`,
+      // `--mock-market`: MOCK stocks, prices and model for the backtest test (tests/e2e_market.py)
+      command: `"${API_PYTHON}" -m tests.testdb serve --port ${API_PORT} --mock-market --cors-origin ${WEB_URL} --cors-origin http://127.0.0.1:${WEB_PORT}`,
       cwd: API_DIR,
       url: `http://127.0.0.1:${API_PORT}/health`,
       reuseExistingServer: false,
