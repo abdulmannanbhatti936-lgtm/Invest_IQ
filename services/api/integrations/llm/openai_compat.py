@@ -8,6 +8,11 @@ from integrations.llm.base import LLMResult, LLMUnavailable, Provider, post_json
 
 class ChatCompletionsProvider(Provider):
     url: str
+    # Tokens a reasoning model may spend thinking, on top of the visible reply's budget
+    reasoning_allowance = 0
+
+    def extra_body(self) -> dict:
+        return {}
 
     def __init__(self, api_key: str, model: str):
         self._key = api_key
@@ -22,8 +27,9 @@ class ChatCompletionsProvider(Provider):
                 {"role": "system", "content": system},
                 *({"role": t.role, "content": t.content} for t in turns),
             ],
-            "max_tokens": max_tokens,
+            "max_tokens": max_tokens + self.reasoning_allowance,
             "temperature": temperature,
+            **self.extra_body(),
         }
         headers = {"Authorization": f"Bearer {self._key}", "Accept": "application/json"}
         data = post_json(self.url, headers, body, deadline, self.name, retry)

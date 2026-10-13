@@ -382,7 +382,7 @@ GROQ_OK = {
 
 
 def _groq_call():
-    return GroqProvider("gq-1", "groq-test-120b").complete(
+    return GroqProvider("gq-1", "openai/gpt-oss-test").complete(
         "SYSTEM",
         [Turn("user", "hi")],
         max_tokens=700,
@@ -403,7 +403,9 @@ def test_groq_request_and_reply(http):
         {"role": "system", "content": "SYSTEM"},
         {"role": "user", "content": "hi"},
     ]
-    assert (call["json"]["max_tokens"], call["json"]["temperature"]) == (700, 0.2)
+    # gpt-oss reasons first: a reasoning allowance on top of the reply, at low effort
+    assert call["json"]["max_tokens"] == 700 + GroqProvider.reasoning_allowance
+    assert (call["json"]["temperature"], call["json"]["reasoning_effort"]) == (0.2, "low")
     assert (result.text, result.model, result.input_tokens, result.output_tokens) == (
         "Rs. 1.00 in total.",
         "groq-test-120b",
@@ -509,3 +511,15 @@ def test_the_last_rate_limit_headers_are_kept_per_provider(http):
     _groq_call()
     assert base.RATE_LIMIT_HEADERS["groq"]["x-ratelimit-remaining-tokens"] == "1200"
     assert base.RATE_LIMIT_HEADERS["groq"]["x-ratelimit-reset-tokens"] == "40.5s"
+
+
+def test_only_groqs_gpt_oss_models_get_a_reasoning_effort(http):
+    script = http((200, GROQ_OK, None), (200, MISTRAL_OK, None))
+    GroqProvider("gq", "qwen/qwen-test").complete(
+        "S", [Turn("user", "hi")], max_tokens=700, temperature=0.2, deadline=time.monotonic() + 45
+    )
+    _mistral_call()
+    assert "reasoning_effort" not in script.calls[0]["json"]
+    assert script.calls[0]["json"]["max_tokens"] == 700 + GroqProvider.reasoning_allowance
+    assert "reasoning_effort" not in script.calls[1]["json"]
+    assert script.calls[1]["json"]["max_tokens"] == 700
