@@ -1,0 +1,6 @@
+{
+  "index_code": "KSE100",
+  "dataset_version": "MOCK-kse100-test",
+  "source": "MOCK fixture for tests; not PSX data",
+  "sha256": "21f15da13f96a84e388615ac8116c140dc835902913cd81cd7989abdbf3e51ba"
+}

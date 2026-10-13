@@ -22,6 +22,9 @@ export const withSign = (value: string): string =>
 export const formatPctString = (value: string | null | undefined, signed = false): string =>
   value == null ? '—' : `⁦${signed ? withSign(value) : value}%⁩`;
 
+/** Percentage points with a sign, kept left-to-right inside Urdu sentences. */
+export const formatPp = (value: string): string => `⁦${withSign(value)}⁩`;
+
 export const formatSignedPct = (value: number | null | undefined, digits = 2): string => {
   if (value == null) return '—';
   const arrow = value > 0 ? '▲' : value < 0 ? '▼' : '';

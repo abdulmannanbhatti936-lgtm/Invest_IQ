@@ -357,3 +357,143 @@ export type PortfolioErrorCode =
   | 'portfolio_archived'
   | 'portfolio_not_found'
   | 'predictions_unavailable';
+
+/** A fraction as a decimal string: "0.235491" is +23.5491% (backtest metrics). */
+export type Ratio = string;
+
+export interface BacktestCustomMix {
+  capital: string;
+  filer_status: FilerStatus;
+  holdings: { ticker: string; weight_pct: string }[];
+}
+
+/** Either a stored portfolio or the user's own mix, never both. */
+export type RunBacktestRequest =
+  { years: number; portfolio_id: string } | { years: number; custom: BacktestCustomMix };
+
+export interface BacktestMetrics {
+  total_return: Ratio;
+  total_return_before_sale: Ratio;
+  annualised_return: Ratio;
+  sharpe_ratio: Ratio | null;
+  max_drawdown: Ratio;
+  drawdown_peak_date: string | null;
+  drawdown_trough_date: string | null;
+  win_rate: Ratio | null;
+  months_won: number;
+  months_total: number;
+}
+
+export interface BacktestCosts {
+  buy_charges: Money;
+  dividends_gross: Money;
+  wht: Money;
+  sell_charges: Money;
+  cgt: Money;
+  idle_cash: Money;
+  end_value_before_sale: Money;
+  end_value_net: Money;
+}
+
+export interface BacktestHolding {
+  ticker: string;
+  name: string;
+  weight_pct: string | null;
+  buy_date: string;
+  shares_bought: number;
+  buy_price: Money;
+  buy_cost: Money;
+  dividends_net: Money;
+  dividend_payments: number;
+  sell_date: string;
+  shares_sold: number;
+  sell_price: Money;
+  sell_charges: Money;
+  cgt: Money;
+  sale_net: Money;
+  carried_forward_days: number;
+}
+
+export interface BacktestStrategy {
+  metrics: BacktestMetrics;
+  costs: BacktestCosts;
+  holdings: BacktestHolding[];
+}
+
+export interface BacktestSeriesPoint {
+  date: string;
+  portfolio: Money;
+  start_date_rules: Money | null;
+  /** The stand-in benchmark in rupees from the same capital */
+  benchmark: Money;
+  kse100: Money | null;
+}
+
+export interface BacktestResult {
+  id: string;
+  kind: 'portfolio' | 'custom';
+  portfolio_id: string | null;
+  created_at: string;
+  period: { years: number; start: string; end: string; trading_days: number };
+  inputs: {
+    capital: Money;
+    filer_status: FilerStatus;
+    commission_pct: string;
+    holdings: { ticker: string; name: string; weight_pct: string }[];
+  };
+  portfolio: BacktestStrategy;
+  start_date_rules: {
+    status: 'available' | 'not_applicable' | 'not_possible';
+    reason: 'too_few_stocks_with_history' | 'capital_too_low' | null;
+    risk_category: RiskCategory | null;
+    metrics: BacktestMetrics | null;
+    costs: BacktestCosts | null;
+    holdings: BacktestHolding[] | null;
+  };
+  benchmark: { kind: 'forecast_stocks_equal_weight'; tickers: string[]; metrics: BacktestMetrics };
+  kse100: {
+    status: 'available' | 'awaiting_permission' | 'not_covering_period';
+    dataset_version: string | null;
+    metrics: BacktestMetrics | null;
+  };
+  risk_free: {
+    source: string;
+    source_url: string;
+    version: string;
+    basis: string;
+    yield_at_start: Ratio;
+    auctions_in_period: number;
+    lowest_yield: Ratio | null;
+    highest_yield: Ratio | null;
+  };
+  assumptions: {
+    rates_version: string;
+    price_adjustment: string;
+    dividends_source: 'yahoo';
+    dividends_checked: boolean;
+    prices_as_of: string;
+    method_version: string;
+    carried_forward_days: number;
+  };
+  series: BacktestSeriesPoint[];
+}
+
+export interface BacktestUniverse {
+  latest_date: string | null;
+  min_years: number;
+  max_years: number | null;
+  stocks: { ticker: string; name: string; sector: string; first_date: string; max_years: number }[];
+  left_out: { ticker: string; reason: 'split_not_supported' }[];
+}
+
+export type BacktestErrorCode =
+  | 'risk_profile_required'
+  | 'portfolio_not_found'
+  | 'backtest_not_found'
+  | 'insufficient_history'
+  | 'weight_too_small'
+  | 'weights_not_100'
+  | 'duplicate_stocks'
+  | 'unknown_stock'
+  | 'split_not_supported'
+  | 'risk_free_unavailable';

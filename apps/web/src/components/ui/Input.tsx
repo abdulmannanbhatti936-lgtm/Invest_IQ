@@ -3,19 +3,24 @@ import { forwardRef, useId, type InputHTMLAttributes } from 'react';
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   error?: string;
+  /** Keeps the label for screen readers only, e.g. in repeated rows under a visible one */
+  hideLabel?: boolean;
 }
 
 // Label above the input (never placeholder-as-label), required fields marked with an
 // asterisk, and the inline error linked to the input for screen readers (Design.md §13).
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, className = '', id, required, ...props }, ref) => {
+  ({ label, error, hideLabel = false, className = '', id, required, ...props }, ref) => {
     const generatedId = useId();
     const inputId = id || generatedId;
     const errorId = `${inputId}-error`;
 
     return (
       <div className="flex w-full flex-col space-y-1.5">
-        <label htmlFor={inputId} className="text-sm font-medium text-gray-700">
+        <label
+          htmlFor={inputId}
+          className={hideLabel ? 'sr-only' : 'text-sm font-medium text-gray-700'}
+        >
           {label}
           {required && (
             <span className="ms-0.5 text-red-600" aria-hidden="true">

@@ -2,8 +2,9 @@
 The separate test database, shared by pytest (conftest.py) and the Playwright E2E run.
 
     python -m tests.testdb prepare        # create + migrate <db>_test
-    python -m tests.testdb serve --port 8001 --cors-origin http://localhost:5174
+    python -m tests.testdb serve --port 8001 --cors-origin http://localhost:5174 [--mock-market]
     python -m tests.testdb cleanup-e2e    # delete E2E accounts, print what is left
+    python -m tests.testdb clear-e2e-market   # remove the MOCK market (tests/e2e_market.py)
 
 Importing this module points `settings.DATABASE_URL` at the test database, so it must be
 imported before core.database creates its engine. Anything not named *_test is refused, so
@@ -74,10 +75,34 @@ def cleanup_e2e() -> tuple[int, int]:
     return deleted.rowcount, left
 
 
-def serve(port: int, cors_origins: list[str]) -> None:
+def clear_e2e_market() -> int:
+    from core.database import SessionLocal
+    from tests.e2e_market import clear_market
+
+    db = SessionLocal()
+    try:
+        return clear_market(db)
+    finally:
+        db.close()
+
+
+def serve(port: int, cors_origins: list[str], mock_market: bool = False) -> None:
     import uvicorn
 
     settings.CORS_ORIGINS = ",".join(cors_origins)
+    if mock_market:
+        # The backtest E2E test needs prices, forecasts and a model: the MOCK market and the
+        # MOCK model built for it, never the real ones
+        from core.database import SessionLocal
+        from tests.e2e_market import E2E_MODEL_DIR, E2E_TICKERS, seed_market
+
+        settings.MODEL_DIR = str(E2E_MODEL_DIR)
+        settings.TRACKED_TICKERS = ",".join(E2E_TICKERS)
+        db = SessionLocal()
+        try:
+            seed_market(db)
+        finally:
+            db.close()
     # Several registrations/logins per run from one IP; the limiter itself is covered by pytest
     settings.AUTH_RATE_LIMIT = 1000
     from main import app
@@ -92,7 +117,9 @@ if __name__ == "__main__":
     serve_parser = sub.add_parser("serve")
     serve_parser.add_argument("--port", type=int, required=True)
     serve_parser.add_argument("--cors-origin", action="append", required=True)
+    serve_parser.add_argument("--mock-market", action="store_true")
     sub.add_parser("cleanup-e2e")
+    sub.add_parser("clear-e2e-market")
     args = parser.parse_args()
 
     print(f"Test database: {TEST_DB_URL.database}")
@@ -100,7 +127,9 @@ if __name__ == "__main__":
         create_and_migrate()
     elif args.command == "serve":
         create_and_migrate()
-        serve(args.port, args.cors_origin)
+        serve(args.port, args.cors_origin, args.mock_market)
+    elif args.command == "clear-e2e-market":
+        print(f"E2E market cleared: {clear_e2e_market()} MOCK stock(s) removed")
     else:
         deleted, left = cleanup_e2e()
         print(f"E2E cleanup: deleted {deleted} E2E account(s); {left} user(s) left in the test DB")

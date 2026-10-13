@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Briefcase } from 'lucide-react';
+import { Briefcase, History } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import {
   getErrorCode,
   getErrorDetail,
@@ -197,6 +198,13 @@ export const PortfolioPage = () => {
             ))}
           </div>
           <RollCheckPanel key={portfolio.id} portfolioId={portfolio.id} />
+          <Link
+            to="/backtest"
+            className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700"
+          >
+            <History className="h-4 w-4" />
+            {t('portfolio.backtestLink')}
+          </Link>
           <Card>
             <details>
               <summary className="cursor-pointer text-base font-semibold text-gray-900">

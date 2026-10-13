@@ -14,6 +14,8 @@ import { DashboardPage } from './features/dashboard/DashboardPage';
 import { StocksPage } from './features/stocks/StocksPage';
 import { StockDetailPage } from './features/stocks/StockDetailPage';
 import { PortfolioPage } from './features/portfolio/PortfolioPage';
+import { BacktestPage } from './features/backtest/BacktestPage';
+import { BacktestReportPage } from './features/backtest/BacktestReportPage';
 import { ComingSoonPage } from './features/common/ComingSoonPage';
 import { AppLayout } from './components/layout/AppLayout';
 
@@ -89,16 +91,24 @@ function App() {
               </AppPage>
             }
           />
-
-          {/* Later phases (Phases.md) */}
           <Route
             path="/backtest"
             element={
               <AppPage>
-                <ComingSoonPage section="backtest" phase={6} />
+                <BacktestPage />
               </AppPage>
             }
           />
+          <Route
+            path="/backtest/:id"
+            element={
+              <AppPage>
+                <BacktestReportPage />
+              </AppPage>
+            }
+          />
+
+          {/* Later phases (Phases.md) */}
           <Route
             path="/notifications"
             element={

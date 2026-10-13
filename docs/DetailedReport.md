@@ -621,24 +621,103 @@ Architecture §7 and §8, Memory §2/§3/§4, Phases.md Phase 0 and Phase 5 crit
 
 ---
 
+## Phase 6: Backtesting (complete 2026-10-13, except the KSE-100 series)
+
+Branch `feat/phase-6-backtesting`. The proposals (benchmark data, method, hindsight, metrics, libraries, hand fixture, data model, UI) were reviewed by the team before any code was written; the decisions are in Memory.md §3. The team re-ran the hand fixture independently and every figure matched.
+
+### Step 6.1 - Database models (migration `95d20f23f1ca`)
+
+`backtest_results`: one row per run, owned by the user (a custom mix has no portfolio), with the period, every input (capital, filer status, commission, weights) and data version (rates file, risk-free file, `split-v1`, dividend source, prices as of, method `bt-v1`). The headline (the portfolio as given) has NUMERIC columns (money NUMERIC(16,2), ratios NUMERIC(12,6) as fractions); the start-date variant, the benchmarks, the risk-free summary and the daily series are JSONB. `index_points`: daily closes of a licensed index file, one version beside another. Only new tables; upgrade, downgrade and upgrade again ran cleanly on the dev DB.
+
+### Step 6.2 - Benchmark and risk-free data
+
+- **KSE-100: not available.** Tried: the PSX data portal (its chart endpoint answers 403 to scripts, and the PSX terms forbid robots, systematic retrieval to build databases and storing index levels without written permission), Yahoo (`^KSE`, `^KSE100`, `KSE100.KA`, `^KSE-100`: no rows; `HBL.KA` returned data in the same run), stooq (browser check for scripts), SBP (no daily series), opendata.com.pk (ends April 2021, no licence), a Kaggle copy (ends 2024, unknown origin), `psxdata` (scrapes PSX). The official KSE-100 is a total-return index; KSE100PR (from 30 Jun 2025, back-calculated) is the price-only version. A permission request to PSX Market Data is drafted in `docs/psx-data-permission-request.md` (the team sends it).
+- **Loader ready for a licensed file** (`services/index_data.py`): CSV plus a manifest (index code, version, source, SHA-256). Refused: malformed rows, repeated dates, non-positive closes, a manifest mismatch, a spot check more than 0.01 points off a published figure, and any MOCK file outside tests. Flagged for review: trading days with no close (a day counts as a trading day when at least half of the stocks with history by then have a bar) and the reverse, the same close on consecutive days, moves over 5%, and KSE100 growing less than KSE100PR. Each load writes `<file>.validation.json`. Tested on `tests/fixtures/MOCK_kse100.csv`.
+- **Stand-in benchmark** (shown as "Benchmark", never as KSE-100): the 18 forecast stocks in equal parts, bought and held, gross cash dividends kept as cash, no costs or taxes. The report says "KSE-100: awaiting PSX permission".
+- **Risk-free rate:** the SBP 3-month Market Treasury Bill cut-off yield, from the SBP auction history workbook (`tb.xlsx`, sheet "New Detailed Format"), read with the standard library by `integrations/sbp_tbills.py` into `integrations/data/sbp_mtb_3m_2026-09-30.csv` (321 auctions, 9 Jul 2014 to 30 Sep 2026; 3 with no yield, "BR"/"NBR", skipped) with a manifest holding both SHA-256s. Cross-check: 30 Sep 2026 = 11.9944% in the workbook and in the SBP auction-result PDF. Day-count basis: the SBP investor guide does not state it, so it was tested on SBP figures: (100 / cut-off price - 1) x 365 / days reproduces 878 of 881 auctions to 0.000001; a 360-day basis reproduces none. Over the 3-year window the yield ran from 22.50% (Oct 2023) down to about 10%, so a single rate would distort the Sharpe ratio.
+
+### Step 6.3 - Engine and metrics (`services/backtest.py`, `services/backtest_metrics.py`)
+
+Buy and hold, no rebalancing. Whole shares by the Phase 5 `max_affordable_shares` within weight x capital at the start date's stored close; all charges from the cost engine; leftover cash earns nothing; cash dividends net of WHT credited on the ex-date and kept as cash; each holding kept in today's share units (shares x the start bar's split factor), so its value follows the split-adjusted closes and the provider's split-adjusted dividends; everything sold at the end close with charges and CGT. A stock without a close within 5 trading days before the start, or whose history begins after the requested start, is refused (a period is never shortened). Today's rates file for every date (labelled).
+
+Metrics (V0 = capital on the start date; buy charges fall in the first period; selling charges and CGT reach only the net total return):
+
+| Metric       | Formula                                                                                                                                                |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Total return | (cash + dividends after WHT + sale proceeds after charges and CGT) / capital - 1; "before selling" = last value / capital - 1                          |
+| Annualised   | (1 + total return)^(365.25 / calendar days) - 1                                                                                                        |
+| Sharpe       | mean(r - rf) / sd(r - rf, n - 1) x sqrt(trading days per year observed); rf = yield of the latest auction on or before the previous close x days / 365 |
+| Max drawdown | min over t of V_t / max(V_0..V_t) - 1, with peak and trough dates                                                                                      |
+| Win rate     | months whose last value beat the previous month's last value (the first against V_0) / months with a trading day after the start; no change is no win  |
+
+Libraries: Backtrader 1.9.78.123 runs on Python 3.13 but was last released on 19 Apr 2023 and models commission in floats, so it would have duplicated the Decimal cost engine; not used. QuantStats 0.0.86 (27 Sep 2026) installs with the pinned numpy 2.2.6 / pandas 3.0.6 / yfinance 1.7.0; it is a test-only cross-check (its defaults differ: 252 days a year; its win rate leaves out unchanged periods).
+
+### Hand-worked fixture (MOCK_A / MOCK_B, `tests/test_backtest_engine.py`)
+
+Rs 100,000 split 60/40, filer, PSX floor commission, rates `psx-costs-2026-10-11.2`, a point on the 1st of each month from Jan 2025 to Jan 2026, a constant 12% risk-free rate, a Rs 5 MOCK_A dividend with ex-date 1 Jul 2025.
+
+- Buy: A 598 shares, Rs 59,800.00 + charges 108.45 (commission 89.70, sales tax 13.46, CDC 2.15, PSX fee 2.09, SECP 0.39, NCCPL 0.48 + 0.18) = 59,908.45; B 798 shares, 39,900.00 + 72.37 = 39,972.37; cash 119.18.
+- Dividend: 598 x 5 = 2,990.00, WHT 448.50, net 2,541.50.
+- Monthly values: 103,009.18; 102,811.18; 106,199.18; 106,197.18; 105,201.18; 114,522.68; 117,114.68; 115,720.68; 119,108.68; 123,694.68; 123,496.68; 127,482.68.
+- Sale: A 77,740.00 - 140.99 charges, gain 17,690.56, CGT 2,653.58, net 74,945.43; B 47,082.00 - 85.38, gain 7,024.25, CGT 1,053.64, net 45,942.98. End value 123,549.09.
+- Total return +23.5491% (+27.4827% before selling); annualised 23.5670%; Sharpe 1.3252 (mean excess 0.010793, sd 0.028223, sqrt(12.008219)); max drawdown -1.1903% (1 Aug to 1 Sep 2025); win rate 7 of 12 = 58.33%.
+
+Every figure is an exact-match test; QuantStats gives the same Sharpe, drawdown and win rate. The fixture passed before the engine was wired to the API.
+
+### Steps 6.4-6.5 - Endpoints and tests
+
+`POST /backtest/run` (`{years, portfolio_id}` or `{years, custom: {capital, filer_status, holdings: [{ticker, weight_pct}]}}`, 3 to 10 whole years), `GET /backtest/{id}`, `GET /backtest/universe` (stocks with at least three years of served history and their whole years; FHAM is left out because its 0.5 reverse-split factor can leave part of a share). All need a login and a risk profile (409). Errors: 404 `portfolio_not_found` / `backtest_not_found` (also for another user's), 422 `insufficient_history` (required start, each stock's first date), `weight_too_small`, `weights_not_100`, `duplicate_stocks`, `unknown_stock`, `split_not_supported`, 503 `risk_free_unavailable`. A run takes about 2 s (3 years) to 3 s (5 years) and is not a background job. Tests: `test_benchmark_data.py` (12), `test_backtest_engine.py` (16), `test_backtest_api.py` (16). Two bugs found by these tests and fixed: a 5-year request on 4.4 years of data was silently shortened, and the universe endpoint failed on an empty price table.
+
+**Real portfolio check (dev DB, temporary account, deleted afterwards):** Moderate, Rs 100,000, filer, PSX floor commission, generated 2026-10-13 from the 9 Oct 2026 close (MARI, EFERT, FFC, OGDC, HUBC, PSO, MEBL, HBL). 3 years, 9 Oct 2023 to 9 Oct 2026, 734 trading days:
+
+| Line                          | Total return                                           | Per year | Sharpe | Largest fall                   | Months up |
+| ----------------------------- | ------------------------------------------------------ | -------- | ------ | ------------------------------ | --------- |
+| Portfolio as recommended (V1) | +254.94% (Rs 354,942.95 kept; +291.81% before selling) | +52.53%  | 1.47   | -20.25% (23 Jan to 2 Mar 2026) | 27 of 37  |
+| Rules at the start date (V2)  | +338.32%                                               | +63.64%  | 1.76   | -22.67%                        | 29 of 37  |
+| Stand-in benchmark            | +381.49%                                               | +68.84%  | 1.60   | -25.79%                        | 29 of 37  |
+
+Costs: buying Rs 178.37, dividends Rs 58,299.02 (WHT 8,744.93), selling 618.05, CGT 36,245.08, cash never invested 1,457.24 (MARI cost Rs 1,524.38 a share before its 1-for-9 split: bought 9, sold 81 at Rs 639.22). Four years: V1 +285.21%, Sharpe 1.09; V2 not possible (fewer than 250 closes before Oct 2022). Five years is refused for this portfolio (MARI's history starts 11 Oct 2021, after the requested 9 Oct). V2 beat V1 over three years, so on this portfolio today's information did not add return; all three lines rode the same 2023-2026 rally, and the benchmark, also chosen in 2026, did best.
+
+### Step 6.6 - Frontend (`apps/web/src/features/backtest/`)
+
+`/backtest`: test the stored portfolio for a chosen whole-year period (3 up to its shortest history) or "Test your own mix" (companies from the universe, a share per company totalling exactly 100%, amount, filer status, period; problems listed before sending). `/backtest/:id`: period line, hindsight label, headline total return after charges and tax with "Rs X became Rs Y" and the before-selling figure, the benchmark line and "KSE-100: awaiting PSX permission"; chart in rupees with the portfolio solid blue, the start-date rules dotted amber and the benchmark dashed grey, legend always visible, text summary underneath; metrics table (portfolio, rules at start date, benchmark; KSE-100 once loaded) with one plain line per measure and the hindsight gap in percentage points; where the money went; each company; "How this was calculated" (buy and hold, today's rates, Yahoo dividends not checked, split adjustment and carried-forward days, the SBP rate and its range, annualisation, win-rate rule). Figures are shifted and rounded as decimal strings, never recalculated. Skeleton, empty, not-found and error states. New shared `Select` (same rules as `Input`, which gained the same `hideLabel`). The portfolio page links to the backtest. en and ur. Screenshots: `docs/screenshots/phase6/`.
+
+### Step 6.7 - Docs
+
+Architecture §3, §7 and §8, Memory §2/§3/§4/§9/§10/§15, Phases.md Phase 6, Workflow.md Step 6.2 note, this report.
+
+### Deviations from the docs
+
+- **No KSE-100 series** (Workflow Step 6.2, FR32): pending PSX permission; the report shows a stand-in benchmark, labelled. The Phase 6 exit box for the benchmark stays unticked.
+- `backtest_results` extends the Architecture §7 draft (inputs, versions, costs, JSONB variant and series, `user_id` for custom mixes); `index_points` is new. Architecture §7 updated.
+- Backtrader not used; QuantStats is a test-only dependency. Architecture §3 updated.
+- `GET /backtest/universe` is an extra endpoint, needed by the custom mix and the period choice (FR29, FR30).
+- Today's rates for every past date; past charges and CGT rules were different (labelled).
+- For start dates before three splits Yahoo had already applied (SAZEW Oct 2021, SYS Mar 2022, MEBL Aug 2022), the stored "raw" close is already split-adjusted, so the purchase uses the adjusted price, not the PSX quote of the day.
+- Dividends are Yahoo amounts (not checked against PSX), including the 73 that the dividend price-adjustment rule held back.
+- The Playwright backtest test runs on a MOCK market (`tests/e2e_market.py`: six invented stocks, synthetic prices, dividends and forecasts, and a MOCK model in `tests/fixtures/model_e2e`) seeded into the test database by the E2E API (`tests.testdb serve --mock-market`) and removed afterwards; the risk-free rate is the committed SBP file (public SBP figures, not stock data).
+
+---
+
 ## Frontend Pages Summary
 
 Code is organised by feature (Rules.md §4.2) under `apps/web/src/features/`.
 
-| Route                                  | Component                                     | Access                                                  |
-| -------------------------------------- | --------------------------------------------- | ------------------------------------------------------- |
-| `/`                                    | redirect                                      | → `/dashboard`                                          |
-| `/login`, `/register`                  | `auth/LoginPage`, `auth/RegisterPage`         | Logged-out only                                         |
-| `/onboarding`                          | `onboarding/OnboardingPage`                   | Logged in; with a completed profile only as `?retake=1` |
-| `/dashboard`                           | `dashboard/DashboardPage`                     | Logged in + completed risk profile                      |
-| `/stocks`, `/stocks/:ticker`           | `stocks/StocksPage`, `stocks/StockDetailPage` | Logged in + completed risk profile (Phases 2-3)         |
-| `/portfolio`                           | `portfolio/PortfolioPage`                     | Logged in + completed risk profile (Phase 5)            |
-| `/backtest`, `/chat`, `/notifications` | `common/ComingSoonPage`                       | Logged in + completed risk profile (Phases 6–8)         |
-| `/admin`                               | `common/ComingSoonPage`                       | Admin role only (Phase 9)                               |
+| Route                        | Component                                              | Access                                                  |
+| ---------------------------- | ------------------------------------------------------ | ------------------------------------------------------- |
+| `/`                          | redirect                                               | → `/dashboard`                                          |
+| `/login`, `/register`        | `auth/LoginPage`, `auth/RegisterPage`                  | Logged-out only                                         |
+| `/onboarding`                | `onboarding/OnboardingPage`                            | Logged in; with a completed profile only as `?retake=1` |
+| `/dashboard`                 | `dashboard/DashboardPage`                              | Logged in + completed risk profile                      |
+| `/stocks`, `/stocks/:ticker` | `stocks/StocksPage`, `stocks/StockDetailPage`          | Logged in + completed risk profile (Phases 2-3)         |
+| `/portfolio`                 | `portfolio/PortfolioPage`                              | Logged in + completed risk profile (Phase 5)            |
+| `/backtest`, `/backtest/:id` | `backtest/BacktestPage`, `backtest/BacktestReportPage` | Logged in + completed risk profile (Phase 6)            |
+| `/chat`, `/notifications`    | `common/ComingSoonPage`                                | Logged in + completed risk profile (Phases 7–8)         |
+| `/admin`                     | `common/ComingSoonPage`                                | Admin role only (Phase 9)                               |
 
 ---
 
-## Database Schema (current, Alembic head `259b1d19deaa`)
+## Database Schema (current, Alembic head `95d20f23f1ca`)
 
 ```sql
 users
@@ -697,52 +776,69 @@ portfolio_holdings
   | position | shares INT | reference_price NUMERIC(14,2) | target_weight | allocation_pct  -- NUMERIC(7,4), percent
   | gross_value | commission | sales_tax | cdc_fee | psx_trading_fee | psx_regulatory_fee | secp_levy
   | nccpl_trade_fee | nccpl_secp_fee | buy_charges | total_cost  -- NUMERIC(16,2) | projection JSONB
+
+backtest_results   -- Phase 6; kind 'portfolio' (portfolio_id set) or 'custom' (NULL)
+  id UUID PK | user_id FK(users) ON DELETE CASCADE | portfolio_id FK(portfolios) NULL ON DELETE CASCADE | kind
+  | created_at TIMESTAMPTZ | years | period_start | period_end DATE | trading_days | carried_forward_days
+  | capital NUMERIC(16,2) | filer_status | commission_rate NUMERIC(6,5) | rates_version | risk_free_version
+  | price_adjustment | dividends_source | prices_as_of DATE | method_version | inputs JSONB
+  | buy_charges | dividends_gross | wht | sell_charges | cgt | idle_cash | end_value_before_sale | end_value_net  -- NUMERIC(16,2)
+  | total_return | total_return_before_sale | annualised_return | sharpe_ratio NULL | max_drawdown | win_rate NULL  -- NUMERIC(12,6), fractions
+  | drawdown_peak_date | drawdown_trough_date | months_won | months_total
+  | holdings | start_date_rules | benchmark | kse100 | risk_free | series  -- JSONB
+
+index_points       -- licensed daily index closes (KSE-100 once PSX grants permission)
+  id BIGSERIAL PK | index_code | dataset_version | trade_date DATE | close NUMERIC(14,4) | source | loaded_at TIMESTAMPTZ
+  UNIQUE (index_code, dataset_version, trade_date)
 ```
 
 ---
 
 ## Automated Tests
 
-| Suite                  | File                                 | Tests                                                                            |
-| ---------------------- | ------------------------------------ | -------------------------------------------------------------------------------- |
-| Backend (pytest)       | `tests/test_auth.py`                 | 25                                                                               |
-|                        | `tests/test_config.py`               | 14                                                                               |
-|                        | `tests/test_admin_guard.py`          | 4                                                                                |
-|                        | `tests/test_risk_profile.py`         | 35                                                                               |
-|                        | `tests/test_i18n_labels.py`          | 3                                                                                |
-|                        | `tests/test_datetimes.py`            | 4                                                                                |
-|                        | `tests/test_health.py`               | 1                                                                                |
-|                        | `tests/test_stocks.py`               | 25                                                                               |
-|                        | `tests/test_split_adjustment.py`     | 9                                                                                |
-|                        | `tests/test_data_quality.py`         | 3                                                                                |
-|                        | `tests/test_dividend_adjustment.py`  | 10                                                                               |
-|                        | `tests/test_ml_dataset.py`           | 3                                                                                |
-|                        | `tests/test_indicators.py`           | 14                                                                               |
-|                        | `tests/test_splits.py`               | 5                                                                                |
-|                        | `tests/test_ml_metrics.py`           | 8                                                                                |
-|                        | `tests/test_ml_pipeline.py`          | 17                                                                               |
-|                        | `tests/test_predictions.py`          | 18                                                                               |
-|                        | `tests/test_ml_promotion.py`         | 8                                                                                |
-|                        | `tests/test_news_http.py`            | 7                                                                                |
-|                        | `tests/test_news_matching.py`        | 5                                                                                |
-|                        | `tests/test_news_sources.py`         | 6                                                                                |
-|                        | `tests/test_news_ingestion.py`       | 6                                                                                |
-|                        | `tests/test_sentiment_scoring.py`    | 5                                                                                |
-|                        | `tests/test_sentiment_api.py`        | 10                                                                               |
-|                        | `tests/test_sentiment_fallback.py`   | 3                                                                                |
-|                        | `tests/test_sentiment_eval.py`       | 4                                                                                |
-|                        | `tests/test_sentiment_experiment.py` | 6                                                                                |
-|                        | `tests/test_migration_sentiment.py`  | 2                                                                                |
-|                        | `tests/test_cost_engine.py`          | 22                                                                               |
-|                        | `tests/test_allocation.py`           | 11                                                                               |
-|                        | `tests/test_rolling.py`              | 7                                                                                |
-|                        | `tests/test_portfolio_universe.py`   | 4                                                                                |
-|                        | `tests/test_portfolio_api.py`        | 15                                                                               |
-| Web (Node test runner) | `apps/web/src/**/*.test.ts`          | 27 (draft-save ordering, route guards, formatting, forecast and portfolio views) |
-| API client             | `packages/api-client/src/*.test.ts`  | 6 (token refresh coordination)                                                   |
-| i18n                   | `packages/i18n/scripts/*.test.mjs`   | 3 (parity checker)                                                               |
+| Suite                  | File                                 | Tests                                                                                      |
+| ---------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------ |
+| Backend (pytest)       | `tests/test_auth.py`                 | 25                                                                                         |
+|                        | `tests/test_config.py`               | 14                                                                                         |
+|                        | `tests/test_admin_guard.py`          | 4                                                                                          |
+|                        | `tests/test_risk_profile.py`         | 35                                                                                         |
+|                        | `tests/test_i18n_labels.py`          | 3                                                                                          |
+|                        | `tests/test_datetimes.py`            | 4                                                                                          |
+|                        | `tests/test_health.py`               | 1                                                                                          |
+|                        | `tests/test_stocks.py`               | 25                                                                                         |
+|                        | `tests/test_split_adjustment.py`     | 9                                                                                          |
+|                        | `tests/test_data_quality.py`         | 3                                                                                          |
+|                        | `tests/test_dividend_adjustment.py`  | 10                                                                                         |
+|                        | `tests/test_ml_dataset.py`           | 3                                                                                          |
+|                        | `tests/test_indicators.py`           | 14                                                                                         |
+|                        | `tests/test_splits.py`               | 5                                                                                          |
+|                        | `tests/test_ml_metrics.py`           | 8                                                                                          |
+|                        | `tests/test_ml_pipeline.py`          | 17                                                                                         |
+|                        | `tests/test_predictions.py`          | 18                                                                                         |
+|                        | `tests/test_ml_promotion.py`         | 8                                                                                          |
+|                        | `tests/test_news_http.py`            | 7                                                                                          |
+|                        | `tests/test_news_matching.py`        | 5                                                                                          |
+|                        | `tests/test_news_sources.py`         | 6                                                                                          |
+|                        | `tests/test_news_ingestion.py`       | 6                                                                                          |
+|                        | `tests/test_sentiment_scoring.py`    | 5                                                                                          |
+|                        | `tests/test_sentiment_api.py`        | 10                                                                                         |
+|                        | `tests/test_sentiment_fallback.py`   | 3                                                                                          |
+|                        | `tests/test_sentiment_eval.py`       | 4                                                                                          |
+|                        | `tests/test_sentiment_experiment.py` | 6                                                                                          |
+|                        | `tests/test_migration_sentiment.py`  | 2                                                                                          |
+|                        | `tests/test_cost_engine.py`          | 22                                                                                         |
+|                        | `tests/test_allocation.py`           | 11                                                                                         |
+|                        | `tests/test_rolling.py`              | 7                                                                                          |
+|                        | `tests/test_portfolio_universe.py`   | 4                                                                                          |
+|                        | `tests/test_portfolio_api.py`        | 15                                                                                         |
+|                        | `tests/test_benchmark_data.py`       | 12                                                                                         |
+|                        | `tests/test_backtest_engine.py`      | 16                                                                                         |
+|                        | `tests/test_backtest_api.py`         | 16                                                                                         |
+| Web (Node test runner) | `apps/web/src/**/*.test.ts`          | 38 (draft-save ordering, route guards, formatting, forecast, portfolio and backtest views) |
+| API client             | `packages/api-client/src/*.test.ts`  | 6 (token refresh coordination)                                                             |
+| i18n                   | `packages/i18n/scripts/*.test.mjs`   | 3 (parity checker)                                                                         |
 
-Backend total: **345** (2026-10-11, Phase 5). All run in CI on every push; Playwright E2E runs locally.
+Backend total: **389** (2026-10-13, Phase 6). All run in CI on every push; Playwright E2E (3 tests: Phase 1 flow, Urdu RTL, Phase 6 backtest flow) runs locally.
 
 ```bash
 cd services/api && python -m pytest          # backend
@@ -766,7 +862,7 @@ The root [`README.md`](../README.md) "Local Setup" section is the maintained, st
 | Phase 3  | Prediction engine                                                        | ✅ Re-audited 2026-10-10 (models do not beat their baselines; documented)                          |
 | Phase 4  | FinBERT sentiment endpoint + "what's driving this" panel                 | Complete 2026-10-11 (news model not promoted; FinBERT 67.7% on PSX headlines)                      |
 | Phase 5  | Portfolio generation + cost engine                                       | Complete 2026-10-11 (CDC, NCCPL and non-filer CGT rates unverified; KSE-100 benchmark unavailable) |
-| Phase 6  | Backtesting vs KSE-100                                                   | Not started                                                                                        |
+| Phase 6  | Backtesting vs KSE-100                                                   | Complete 2026-10-13 except the KSE-100 series (PSX permission pending; stand-in benchmark shown)   |
 | Phase 7  | Autonomous agent & notifications                                         | Not started                                                                                        |
 | Phase 8  | LLM chatbot (bilingual)                                                  | Not started                                                                                        |
 | Phase 9  | Admin panel                                                              | Not started                                                                                        |
@@ -783,4 +879,4 @@ The root [`README.md`](../README.md) "Local Setup" section is the maintained, st
 
 ---
 
-_Last updated: 2026-10-11_
+_Last updated: 2026-10-13_

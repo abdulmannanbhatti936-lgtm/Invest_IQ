@@ -430,6 +430,130 @@
       "archived": "This portfolio has been replaced by a newer one. Reload the page.",
       "notInPortfolio": "That company is not in this portfolio.",
       "load": "Your portfolio could not be loaded."
+    },
+    "backtestLink": "Test this portfolio on past prices"
+  },
+  "backtest": {
+    "title": "Backtest",
+    "subtitle": "See how a portfolio would have done on past PSX prices, with every charge and tax.",
+    "landing": {
+      "portfolioTitle": "Your portfolio",
+      "portfolioSummary": "Your {{category}} portfolio: {{companies}} companies, {{capital}}.",
+      "noPortfolio": "You have no portfolio yet. Build one first, then test it here.",
+      "buildPortfolio": "Build a portfolio",
+      "period": "Period",
+      "yearsOption": "Last {{years}} years",
+      "run": "Test on past prices",
+      "running": "Calculating…",
+      "mixTitle": "Test your own mix",
+      "mixBody": "Choose companies and how much of your money goes into each. It is tested the same way as a portfolio and is not saved as one.",
+      "loadError": "The list of companies could not be loaded.",
+      "noPrices": "No prices are stored yet, so nothing can be tested."
+    },
+    "mix": {
+      "company": "Company",
+      "choose": "Choose a company",
+      "weight": "Share of money (%)",
+      "addRow": "Add a company",
+      "remove": "Remove this row",
+      "totalLabel": "Total: {{total}}",
+      "needStock": "Choose a company in every row.",
+      "duplicate": "Each company can appear only once.",
+      "weightInvalid": "Each share must be more than 0% and at most 100%, with up to two decimals.",
+      "total": "The shares must add up to exactly 100%.",
+      "maxYears": "With these companies the longest period is {{years}} years.",
+      "leftOut": "Not offered: {{tickers}} (a share split left part of a share)."
+    },
+    "report": {
+      "titlePortfolio": "How your portfolio would have done",
+      "titleCustom": "How your mix would have done",
+      "period": "{{start}} to {{end}} · {{years}} years · {{days}} trading days",
+      "hindsightPortfolio": "This portfolio was chosen with today's information: today's price swings, today's forecasts and today's list of companies. Tested on the past, it looks better than an investor could have done at the time.",
+      "hindsightCustom": "You chose this mix knowing how these companies have done since. Past results do not show what will happen next.",
+      "headline": "Total return after charges and tax",
+      "growth": "{{capital}} became {{end}}",
+      "beforeSale": "Before selling: {{pct}} ({{value}}). Selling charges and capital gains tax take the difference.",
+      "benchmarkLine": "Benchmark (18 forecast companies in equal parts): {{pct}}",
+      "kseAwaiting": "KSE-100: awaiting PSX permission",
+      "kseNotCovering": "KSE-100: the index data loaded does not cover this period",
+      "kseLine": "KSE-100: {{pct}}",
+      "newTest": "New test"
+    },
+    "columns": {
+      "portfolio": "Your portfolio",
+      "custom": "Your mix",
+      "startDateRules": "Rules at the start date",
+      "benchmark": "Benchmark",
+      "kse100": "KSE-100"
+    },
+    "metrics": {
+      "caption": "Results for each line on the chart",
+      "measure": "Measure",
+      "totalReturn": "Total return",
+      "totalReturnHelp": "After every charge and tax. The benchmark has no costs.",
+      "annualised": "Return per year",
+      "annualisedHelp": "The same growth spread evenly over each year.",
+      "sharpe": "Sharpe ratio",
+      "sharpeHelp": "Return above what 3-month T-bills paid, for each unit of ups and downs. The target is above 1.",
+      "drawdown": "Largest fall",
+      "drawdownHelp": "The biggest drop from a high point.",
+      "drawdownDates": "{{from}} to {{to}}",
+      "winRate": "Months up",
+      "winRateHelp": "Months in which the value rose.",
+      "winRateValue": "{{won}} of {{total}}"
+    },
+    "gap": {
+      "available": "Rules at the start date use only the prices known on that day, with no forecast or news. Your portfolio's total return minus theirs: {{pp}} percentage points. That difference is roughly what hindsight changed.",
+      "tooFew": "Rules at the start date could not be applied: too few companies had a full year of prices before {{date}}.",
+      "capitalTooLow": "Rules at the start date could not be applied: the amount was too small for the rules at that day's prices."
+    },
+    "benchmarkNote": "The benchmark is the 18 companies InvestIQ forecasts, in equal parts, bought and held with dividends and no costs. It is not the KSE-100. These companies were chosen in 2026, so the benchmark also benefits from hindsight.",
+    "chart": {
+      "title": "Value over time",
+      "axis": "Rs.",
+      "summary": "After {{years}} years, before selling: your portfolio {{portfolio}}, benchmark {{benchmark}}."
+    },
+    "costs": {
+      "title": "Where the money went",
+      "capital": "Amount invested",
+      "buyCharges": "Charges when buying",
+      "dividends": "Dividends before tax",
+      "wht": "Tax on dividends (WHT)",
+      "sellCharges": "Charges when selling",
+      "cgt": "Capital gains tax",
+      "idleCash": "Cash not invested",
+      "endBeforeSale": "Value before selling",
+      "endNet": "What you keep"
+    },
+    "holdings": {
+      "title": "Each company",
+      "company": "Company",
+      "bought": "Bought",
+      "dividends": "Dividends after tax",
+      "sold": "Sold",
+      "kept": "Kept after selling",
+      "trade": "{{shares}} at {{price}}"
+    },
+    "method": {
+      "title": "How this was calculated",
+      "buyHold": "Bought at the close on the start date and held to the end, with no changes. Whole shares only; cash left over earned nothing.",
+      "rates": "Charges and taxes use today's PSX rates ({{version}}) for every date; past rates were different.",
+      "dividends": "Dividends come from Yahoo Finance and are added on the ex-date after tax. Amounts not checked against PSX announcements.",
+      "prices": "Prices are adjusted for share splits, up to {{date}}. On {{days}} company-days there was no trade and the last close was used.",
+      "riskFree": "The Sharpe ratio subtracts the SBP 3-month T-bill cut-off yield: {{start}} at the start, from {{low}} to {{high}} during the period. It is a simple yield on a 365-day year, checked against SBP's own auction prices.",
+      "annualise": "Ratios are annualised with the number of trading days per year in the data.",
+      "winRate": "Months up compares each month's last value with the previous month's; a month with no change does not count.",
+      "source": "T-bill source"
+    },
+    "error": {
+      "load": "This test could not be loaded.",
+      "notFound": "This test was not found.",
+      "insufficientHistory": "Not every company has prices back to {{date}}: {{stocks}}. Choose a shorter period or other companies.",
+      "weightTooSmall": "{{tickers}}: the share is too small to buy one share at that day's price.",
+      "unknownStock": "One of the companies is not in the list.",
+      "splitNotSupported": "{{ticker}} cannot be tested: a share split left part of a share.",
+      "riskFree": "The T-bill rate for this period is missing, so the test cannot run.",
+      "portfolioNotFound": "This portfolio was not found."
     }
   }
 }

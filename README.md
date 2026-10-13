@@ -211,7 +211,7 @@ Tests never touch the dev database: `pytest` creates and migrates a separate `<d
 
 ### End-to-end tests (Playwright, local only)
 
-Browser smoke tests of the Phase 1 flow (register → onboarding with resume → dashboard → logout → login) and an Urdu right-to-left run. They are not part of CI yet.
+Browser smoke tests of the Phase 1 flow (register → onboarding with resume → dashboard → logout → login), an Urdu right-to-left run, and the Phase 6 backtest flow (generate a portfolio → 3-year backtest report → a custom mix refused for not totalling 100%). They are not part of CI yet.
 
 One-time setup, from the repo root:
 
@@ -226,7 +226,7 @@ Each run:
 2. Make sure the backend venv exists in `services/api/venv` with `requirements.txt` installed (step 2 above).
 3. From the repo root: `npm run e2e`
 
-`npm run e2e` starts its **own** API on port 8001 (pointed at the `<db>_test` database; it refuses any database not named `*_test`) and its own web dev server on port 5174, so it never touches your dev servers or the dev database. Ports 8001 and 5174 must be free. Every account the tests create (`e2e_…@example.com`) is deleted before and after the run; the last line of output reports how many users are left in the test database.
+`npm run e2e` starts its **own** API on port 8001 (pointed at the `<db>_test` database; it refuses any database not named `*_test`) and its own web dev server on port 5174, so it never touches your dev servers or the dev database. Ports 8001 and 5174 must be free. For the backtest test the API seeds a MOCK market into the test database (six invented `MOCKE2E…` stocks with synthetic prices, dividends and forecasts, and the MOCK model in `services/api/tests/fixtures/model_e2e`; `services/api/tests/e2e_market.py`), never PSX data. Every account the tests create (`e2e_…@example.com`) is deleted before and after the run, and the MOCK market after it; the last lines of output report how many users are left in the test database and how many MOCK stocks were removed.
 
 On failure, screenshots and traces are saved to `apps/web/e2e-results/` and an HTML report to `apps/web/e2e-report/` (both git-ignored). Open a trace with `npx playwright show-trace <path-to-trace.zip>`.
 

@@ -57,7 +57,7 @@ One backend, multiple clients. The web app and mobile app are both thin clients 
 | Background Jobs          | Celery + Redis                                                                                                                                                                                    | Market monitoring agent, model retraining jobs, notification dispatch                                                                                                                                                                                                      |
 | Notifications            | Firebase Cloud Messaging (FCM)                                                                                                                                                                    | Cross-platform push (web + mobile)                                                                                                                                                                                                                                         |
 | Technical Indicators     | Hand-written in pandas (`services/api/ml/features.py`) with TA-Lib's exact definitions; **TA-Lib is not a dependency** (decided 2026-10-10)                                                       | RSI, MACD, Bollinger Bands, SMA. Verified against TA-Lib 0.8.1 reference values and the published Wilder RSI example (`tests/test_indicators.py`); TA-Lib's native C build is painful on Windows and CI. One deliberate difference: RSI of a flat window is 50 (TA-Lib: 0) |
-| Backtesting              | Backtrader or QuantStats                                                                                                                                                                          | Historical strategy simulation                                                                                                                                                                                                                                             |
+| Backtesting              | Own Decimal engine and metrics (`services/backtest.py`, `services/backtest_metrics.py`); QuantStats as a test-only cross-check (decided 2026-10-12)                                               | Buy-and-hold simulation; every charge from the Phase 5 cost engine. Backtrader not used: last release 19 Apr 2023 and a float commission model that would duplicate the cost engine                                                                                        |
 | Data Sources             | Yahoo Finance API, PSX Data API/website                                                                                                                                                           | Price + fundamentals                                                                                                                                                                                                                                                       |
 | News/Sentiment Ingestion | Custom scrapers (`requests`/`BeautifulSoup` or `Scrapy`), optional Tweepy for Twitter/X                                                                                                           | Feeds FinBERT pipeline. As built: `requests` + `BeautifulSoup`/`lxml` over sitemaps, RSS and Mettis's JSON feed (no Scrapy, no Tweepy); `vaderSentiment==3.3.2` for the fallback                                                                                           |
 | Auth                     | JWT (access + refresh tokens), bcrypt/argon2 password hashing                                                                                                                                     | Stateless auth across web + mobile                                                                                                                                                                                                                                         |
@@ -245,14 +245,28 @@ portfolio_holdings
   secp_levy, nccpl_trade_fee, nccpl_secp_fee, buy_charges, total_cost NUMERIC(16,2)
   projection JSONB                             -- break-even, one-day forecast exit (CGT), dividends (WHT): estimates
 
-backtest_results
+backtest_results                             -- Phase 6 (as built 2026-10-12; extends the draft, see note below)
   id UUID PK
-  portfolio_id UUID FK -> portfolios.id
-  period_start DATE, period_end DATE
-  total_return NUMERIC
-  sharpe_ratio NUMERIC
-  max_drawdown NUMERIC
-  win_rate NUMERIC
+  user_id UUID FK -> users.id ON DELETE CASCADE      -- a custom mix has no portfolio
+  portfolio_id UUID FK -> portfolios.id NULL ON DELETE CASCADE
+  kind VARCHAR CHECK ('portfolio','custom')
+  created_at TIMESTAMPTZ
+  years INT, period_start DATE, period_end DATE, trading_days INT, carried_forward_days INT
+  capital NUMERIC(16,2), filer_status, commission_rate NUMERIC(6,5)
+  rates_version, risk_free_version, price_adjustment, dividends_source, prices_as_of DATE, method_version
+  inputs JSONB                                 -- tickers and weights as requested
+  buy_charges, dividends_gross, wht, sell_charges, cgt, idle_cash,
+  end_value_before_sale, end_value_net NUMERIC(16,2)
+  total_return, total_return_before_sale, annualised_return, sharpe_ratio NULL,
+  max_drawdown, win_rate NULL NUMERIC(12,6)    -- fractions
+  drawdown_peak_date, drawdown_trough_date DATE, months_won INT, months_total INT
+  holdings, start_date_rules, benchmark, kse100, risk_free, series JSONB
+
+index_points                                 -- licensed daily index closes (KSE-100 once PSX permits)
+  id BIGSERIAL PK
+  index_code VARCHAR                           -- 'KSE100' / 'KSE100PR'
+  dataset_version VARCHAR, trade_date DATE, close NUMERIC(14,4), source VARCHAR, loaded_at TIMESTAMPTZ
+  UNIQUE (index_code, dataset_version, trade_date)   -- a new version is added, readers use the newest
 
 notifications
   id UUID PK
@@ -279,6 +293,8 @@ admin_action_logs
 ```
 
 > **Phase 5 schema deviation (2026-10-11):** the draft `portfolio_holdings` had one `brokerage_fee` and `gross_price` / `net_price` columns and `TIMESTAMP`. As built, every charge line on a contract note has its own column (so the API figures can be checked line by line against the cost engine's tests), timestamps are `TIMESTAMPTZ` like every other table, and each portfolio stores its inputs, rates version and per-stock calculation so it can be explained later. CGT and WHT are projections and live in `projection`. All money math is in `services/api/services/cost_engine.py` (Decimal); the portfolio code calls it and never repeats it.
+
+> **Phase 6 schema deviation (2026-10-12):** the draft `backtest_results` had only the period and four metrics. As built, each result stores who ran it (`user_id`, since a custom mix has no portfolio), every input and data version, the money lines as NUMERIC(16,2), the headline ratios as NUMERIC(12,6) fractions, and the start-date variant, both benchmarks, the risk-free summary and the daily series as JSONB, so any result can be explained later exactly as it was run. `index_points` is new: no KSE-100 source may be scraped, so a licensed file is loaded by `python -m services.index_data load` with validation (Memory.md §4).
 
 ## 8. API Surface (representative, not exhaustive)
 
@@ -307,8 +323,10 @@ POST   /portfolio/{id}/roll-check       # changes nothing; benchmark = forecast 
 PATCH  /portfolio/{id}/exclude-stock    # returns the regenerated portfolio without that stock
                                         # every /portfolio endpoint: 409 risk_profile_required without a profile
 
-POST   /backtest/run
-GET    /backtest/{id}
+POST   /backtest/run                    # {years, portfolio_id} or {years, custom: {capital, filer_status, holdings}}; 201
+GET    /backtest/{id}                   # 404 for another user's result
+GET    /backtest/universe               # stocks a custom mix may use, with whole years of history
+                                        # every /backtest endpoint: 409 risk_profile_required without a profile
 
 GET    /notifications
 PATCH  /notifications/preferences
@@ -456,13 +474,13 @@ Separate `.env` files (or platform secret managers — Railway/Vercel env vars) 
 
 ## 19. Testing Strategy (high-level)
 
-| Layer             | Approach                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Backend (FastAPI) | Pytest — unit tests for portfolio/fee-tax calculation logic (these must be exact, not approximate), integration tests for key endpoints. Tests never touch the dev DB: `pytest` creates and migrates a separate `<db>_test` database and rolls every test back. A backend test also checks that every questionnaire id/option, safety cap and risk category the API returns has an English and an Urdu label                                                                                                        |
-| ML models         | Offline evaluation notebooks/scripts reporting RMSE, directional accuracy, Sharpe ratio against held-out test data before any model is promoted to "active"                                                                                                                                                                                                                                                                                                                                                         |
-| Frontend (web)    | Node's built-in test runner (`node --test`, no extra dependency) for logic kept in pure modules: route-guard rules, date/number formatting, ordered draft saves (`apps/web`), and the token-refresh coordinator (`packages/api-client`). `en`/`ur` key parity is checked in CI. There are no React component tests; screens are covered by the Playwright smoke tests and the manual walkthrough                                                                                                                    |
-| Mobile            | Manual QA on Android emulator/device each phase; automated testing is a stretch goal given FYP time constraints                                                                                                                                                                                                                                                                                                                                                                                                     |
-| End-to-end        | Playwright (Chromium only) smoke tests in `apps/web/e2e`, run locally with `npm run e2e` (not in CI yet): the Phase 1 flow (register → partial onboarding → reload and resume → finish → dashboard → logout → login) and an Urdu right-to-left run. The run starts its own API on the `<db>_test` database and its own web server, and deletes every account it created. Plus at least one manual full-flow walkthrough (register → prediction → portfolio → backtest → chat → notification) before each phase demo |
+| Layer             | Approach                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend (FastAPI) | Pytest — unit tests for portfolio/fee-tax calculation logic (these must be exact, not approximate), integration tests for key endpoints. Tests never touch the dev DB: `pytest` creates and migrates a separate `<db>_test` database and rolls every test back. A backend test also checks that every questionnaire id/option, safety cap and risk category the API returns has an English and an Urdu label                                                                                                                                                                                                                                                                                                                        |
+| ML models         | Offline evaluation notebooks/scripts reporting RMSE, directional accuracy, Sharpe ratio against held-out test data before any model is promoted to "active"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Frontend (web)    | Node's built-in test runner (`node --test`, no extra dependency) for logic kept in pure modules: route-guard rules, date/number formatting, ordered draft saves (`apps/web`), and the token-refresh coordinator (`packages/api-client`). `en`/`ur` key parity is checked in CI. There are no React component tests; screens are covered by the Playwright smoke tests and the manual walkthrough                                                                                                                                                                                                                                                                                                                                    |
+| Mobile            | Manual QA on Android emulator/device each phase; automated testing is a stretch goal given FYP time constraints                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| End-to-end        | Playwright (Chromium only) smoke tests in `apps/web/e2e`, run locally with `npm run e2e` (not in CI yet): the Phase 1 flow (register → partial onboarding → reload and resume → finish → dashboard → logout → login) an Urdu right-to-left run, and the backtest flow (generate a portfolio, 3-year report with headline, metrics table and legend, custom mix refused unless it totals 100%) on a MOCK market seeded by `tests/e2e_market.py`. The run starts its own API on the `<db>_test` database and its own web server, and deletes every account it created and the MOCK market. Plus at least one manual full-flow walkthrough (register → prediction → portfolio → backtest → chat → notification) before each phase demo |
 
 ## 20. CI/CD (lightweight, FYP-appropriate)
 
