@@ -137,6 +137,11 @@ def post_json(
                 logger.warning("%s answered 429 (attempt %d)", provider, attempt)
                 last = LLMRateLimited(retry_after)
                 wait = min(retry_after, MAX_RETRY_AFTER_S) if retry_after else wait
+            elif response.status_code == 413:
+                # Groq's free tier answers 413 when one request (input plus max_tokens) is larger
+                # than its tokens-per-minute limit: a capacity limit like 429, so it may fail over
+                logger.warning("%s refused a request as too large (413)", provider)
+                raise LLMUnavailable("HTTP 413", failover=True)
             elif response.status_code >= 500:
                 logger.warning(
                     "%s answered %d (attempt %d)", provider, response.status_code, attempt

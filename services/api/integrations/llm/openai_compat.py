@@ -14,6 +14,10 @@ class ChatCompletionsProvider(Provider):
     def extra_body(self) -> dict:
         return {}
 
+    def output_tokens(self, system: str, turns, max_tokens: int) -> int:
+        """The max_tokens sent: the reply budget plus any reasoning allowance."""
+        return max_tokens + self.reasoning_allowance
+
     def __init__(self, api_key: str, model: str):
         self._key = api_key
         self.model = model
@@ -27,7 +31,7 @@ class ChatCompletionsProvider(Provider):
                 {"role": "system", "content": system},
                 *({"role": t.role, "content": t.content} for t in turns),
             ],
-            "max_tokens": max_tokens + self.reasoning_allowance,
+            "max_tokens": self.output_tokens(system, turns, max_tokens),
             "temperature": temperature,
             **self.extra_body(),
         }

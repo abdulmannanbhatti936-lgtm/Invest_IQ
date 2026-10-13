@@ -523,3 +523,29 @@ def test_only_groqs_gpt_oss_models_get_a_reasoning_effort(http):
     assert script.calls[0]["json"]["max_tokens"] == 700 + GroqProvider.reasoning_allowance
     assert "reasoning_effort" not in script.calls[1]["json"]
     assert script.calls[1]["json"]["max_tokens"] == 700
+
+
+def test_groq_caps_max_tokens_so_one_request_fits_its_8000_tokens_a_minute(http):
+    from integrations.llm import groq
+
+    script = http((200, GROQ_OK, None), (200, GROQ_OK, None))
+    short = GroqProvider("gq", "openai/gpt-oss-test")
+    short.complete("S", [Turn("user", "hi")], max_tokens=1200, temperature=0.2,
+                   deadline=time.monotonic() + 45)  # fmt: skip
+    # An Urdu prompt of the size that drew a 413 (21,905 characters, about 6,441 tokens)
+    short.complete("x" * 21_905, [Turn("user", "hi")], max_tokens=1200, temperature=0.2,
+                   deadline=time.monotonic() + 45)  # fmt: skip
+
+    assert script.calls[0]["json"]["max_tokens"] == 1200 + GroqProvider.reasoning_allowance
+    capped = script.calls[1]["json"]["max_tokens"]
+    input_estimate = int(21_907 / groq.CHARS_PER_TOKEN)
+    assert input_estimate + capped + groq.MARGIN_TOKENS <= groq.REQUEST_TOKEN_CAP
+    assert capped >= groq.MIN_REQUEST_OUTPUT
+
+
+def test_a_413_fails_over_at_once(http):
+    script = http((413, {"error": {"message": "Request too large"}}, None), (200, GROQ_OK, None))
+    with pytest.raises(LLMUnavailable) as caught:
+        _groq_call()
+    assert caught.value.failover is True
+    assert len(script.calls) == 1
