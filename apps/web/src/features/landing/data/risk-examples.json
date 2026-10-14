@@ -1,4 +1,6 @@
 {
+  "forecast_companies": 18,
+  "history_start": "2021-10-08",
   "capital": "100000",
   "filer_status": "filer",
   "prices_as_of": "2026-10-09",

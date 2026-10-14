@@ -17,6 +17,7 @@ import sys
 from decimal import Decimal
 from pathlib import Path
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from core.database import SessionLocal
@@ -25,6 +26,8 @@ from models.risk_profile import RiskCategory
 from services import portfolio_service
 from services.cost_engine import FilerStatus
 from services.portfolio_service import PortfolioInputs, plan_allocation
+from services.prediction_service import covered_tickers
+from services.stock_service import PSX_TRADING_DATE, SERVED
 
 CAPITAL = Decimal("100000")
 
@@ -32,6 +35,11 @@ CAPITAL = Decimal("100000")
 def _pct(part: Decimal) -> str:
     # The same rounding as a stored holding's allocation_pct (portfolio_service)
     return str(portfolio_service._pct(part / CAPITAL, "0.0001"))
+
+
+def _history_start(db: Session):
+    """The first PSX trading date of any served price we store."""
+    return db.query(func.min(PSX_TRADING_DATE)).filter(SERVED).scalar()
 
 
 def build(db: Session) -> dict:
@@ -46,6 +54,9 @@ def build(db: Session) -> dict:
     for category in RiskCategory:
         plan = plan_allocation(db, category.value, inputs)
         meta = {
+            # Facts the landing page quotes, each from our own data
+            "forecast_companies": len(covered_tickers()),
+            "history_start": _history_start(db).isoformat(),
             "capital": str(CAPITAL),
             "filer_status": "filer",
             "prices_as_of": plan.universe.prices_as_of.isoformat(),
