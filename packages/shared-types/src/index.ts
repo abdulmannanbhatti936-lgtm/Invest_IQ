@@ -497,3 +497,44 @@ export type BacktestErrorCode =
   | 'unknown_stock'
   | 'split_not_supported'
   | 'risk_free_unavailable';
+
+// Chat (Phase 8, PRD.md FR37-FR41)
+export type ChatLanguage = 'en' | 'ur' | 'ur-latn';
+
+export interface ChatSourceTag {
+  kind: 'portfolio' | 'prediction' | 'sentiment' | 'backtest' | 'price' | 'risk_profile';
+  ticker?: string | null;
+  date?: string | null;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  language: ChatLanguage;
+  created_at: string;
+  sources: ChatSourceTag[];
+  figure_check: 'passed' | 'regenerated' | 'fallback' | null;
+}
+
+export interface SendChatMessageRequest {
+  content: string;
+  /** The language toggle; a message written in Roman Urdu is answered in Roman Urdu anyway */
+  language: 'en' | 'ur';
+}
+
+export interface SendChatMessageResponse {
+  user_message: ChatMessage;
+  reply: ChatMessage;
+}
+
+export interface ChatHistory {
+  /** Newest first */
+  messages: ChatMessage[];
+  next_before: string | null;
+  chat_available: boolean;
+  unavailable_reason: 'not_configured' | null;
+}
+
+export type ChatErrorCode =
+  'risk_profile_required' | 'rate_limited' | 'chat_unavailable' | 'message_not_found';

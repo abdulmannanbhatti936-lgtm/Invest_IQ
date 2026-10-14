@@ -1,11 +1,43 @@
 @import 'tailwindcss';
 
 /*
- * Urdu body text uses a Naskh-style font for readability at small UI sizes (Design.md §3;
- * Nastaliq is not used). Self-hosted so the demo works offline; SIL Open Font License,
- * see public/fonts/OFL-NotoNaskhArabic.txt. The unicode-range limits it to Arabic-script
- * characters, so English text, numbers and emails keep the system UI font.
+ * Urdu text is set in Nastaleeq (team decision 2026-10-13, Design.md §3). "InvestIQ Urdu" uses
+ * Jameel Noori Nastaleeq when the viewer has it installed (it is never shipped: its licence does
+ * not clearly allow web embedding), otherwise Noto Nastaliq Urdu (SIL Open Font License),
+ * self-hosted from @fontsource/noto-nastaliq-urdu so the demo works offline and makes no
+ * third-party request. Only weights 400 and 700 are loaded (about 156 KB each, fetched only
+ * when Urdu is on screen); 500 and 600 use the nearest. The unicode-range keeps every Latin
+ * letter, digit, ticker and email in the system UI font. Noto Naskh Arabic stays as the
+ * fallback for any glyph Nastaliq lacks (public/fonts/OFL-NotoNaskhArabic.txt).
  */
+@font-face {
+  font-family: 'InvestIQ Urdu';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src:
+    local('Jameel Noori Nastaleeq'),
+    local('JameelNooriNastaleeq'),
+    url('@fontsource/noto-nastaliq-urdu/files/noto-nastaliq-urdu-arabic-400-normal.woff2')
+      format('woff2');
+  unicode-range:
+    U+0600-06FF, U+0750-077F, U+0870-089F, U+08A0-08FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFF;
+}
+
+@font-face {
+  font-family: 'InvestIQ Urdu';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src:
+    local('Jameel Noori Nastaleeq'),
+    local('JameelNooriNastaleeq'),
+    url('@fontsource/noto-nastaliq-urdu/files/noto-nastaliq-urdu-arabic-700-normal.woff2')
+      format('woff2');
+  unicode-range:
+    U+0600-06FF, U+0750-077F, U+0870-089F, U+08A0-08FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFF;
+}
+
 @font-face {
   font-family: 'Noto Naskh Arabic';
   font-style: normal;
@@ -24,6 +56,43 @@
 
 @theme {
   --font-sans:
+    'InvestIQ Urdu', 'Noto Naskh Arabic', ui-sans-serif, system-ui, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+}
+
+/*
+ * Nastaleeq is tall and slants down to the left, so Urdu text needs a taller line than English
+ * or its dots and descenders are clipped. This rule is outside Tailwind's layers, so it wins over
+ * the text-* utilities' line-heights for any element in Urdu: the whole page when the app is in
+ * Urdu, or one Urdu chat reply inside an English page.
+ */
+[lang='ur'],
+[lang='ur'] * {
+  line-height: 2;
+}
+
+/*
+ * Native inputs and selects clip their text to a fixed content box (h-10 leaves 24px; a 2.0 line
+ * at 14px needs 28px), which cut the tops of letters like ک. In Urdu they grow instead.
+ */
+[lang='ur'] :is(input, select) {
+  height: auto;
+  min-height: 2.5rem;
+}
+
+/*
+ * A native select draws its value on one fixed line whatever the line-height, and Nastaleeq's
+ * tall letters (ک, گ) still lose their tops there, so a select's own text uses the compact Naskh
+ * fallback. Everything else stays Nastaleeq.
+ */
+[lang='ur'] select {
+  font-family:
     'Noto Naskh Arabic', ui-sans-serif, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+    sans-serif;
+}
+
+/* English or Roman Urdu inside an Urdu page (a chat reply) keeps the normal line heights */
+[lang='ur'] [lang]:not([lang='ur']),
+[lang='ur'] [lang]:not([lang='ur']) * {
+  line-height: revert-layer;
 }

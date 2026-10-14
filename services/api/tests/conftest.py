@@ -1,4 +1,5 @@
 import os
+import time
 import uuid
 
 import pytest
@@ -10,6 +11,10 @@ os.environ.setdefault("JWT_REFRESH_SECRET", "test-refresh-secret")
 # Tests are a development context (weak test secrets, /docs on); .env or CI usually set it too
 os.environ.setdefault("ENVIRONMENT", "development")
 os.environ["AUTH_RATE_LIMIT"] = "10000"
+# No LLM keys or backup from a developer's .env: local runs see what CI sees (no provider at all)
+for _name in ("GEMINI_API_KEY", "GROQ_API_KEY", "MISTRAL_API_KEY", "CLAUDE_API_KEY"):
+    os.environ[_name] = ""
+os.environ["LLM_BACKUP_PROVIDER"] = ""
 
 # Tests never touch the dev/demo database: importing testdb switches settings to the separate
 # "<db>_test" database (or TEST_DATABASE_URL) before core.database creates its engine.
@@ -74,6 +79,31 @@ def _no_news_or_finbert_network(monkeypatch):
     monkeypatch.setattr("ml.sentiment.build_pipeline", blocked)
 
 
+LLM_HOSTS = (
+    "generativelanguage.googleapis.com",
+    "api.groq.com",
+    "api.mistral.ai",
+    "api.anthropic.com",
+)
+
+
+@pytest.fixture(autouse=True)
+def _no_llm_network(monkeypatch):
+    """
+    CI never calls a real LLM. Every adapter sends through integrations.llm.base, so every
+    provider call fails loudly there, whatever the host (Gemini, Groq, Mistral and Claude are
+    named in the message so a failure is easy to read); tests script the responses instead.
+    """
+
+    def blocked(url, *args, **kwargs):
+        raise RuntimeError(
+            f"LLM network calls are disabled in tests ({', '.join(LLM_HOSTS)}); fake the "
+            f"provider instead of calling {url}"
+        )
+
+    monkeypatch.setattr("integrations.llm.base.httpx.post", blocked)
+
+
 @pytest.fixture
 def client():
     return TestClient(app)
@@ -91,21 +121,39 @@ class FakeRedis:
 
     def __init__(self):
         self.store: dict[str, str] = {}
+        self.ttls: dict[str, int] = {}
+        self.expires_at: dict[str, float] = {}  # keys set with px (millisecond expiry)
         self.get_calls = 0
+
+    def _drop_expired(self, key):
+        if key in self.expires_at and time.monotonic() >= self.expires_at[key]:
+            self.store.pop(key, None)
+            del self.expires_at[key]
 
     def get(self, key):
         self.get_calls += 1
+        self._drop_expired(key)
         return self.store.get(key)
 
-    def set(self, key, value, ex=None):
+    def set(self, key, value, ex=None, nx=False, px=None):
+        self._drop_expired(key)
+        if nx and key in self.store:
+            return None
         self.store[key] = value
+        if px:
+            self.expires_at[key] = time.monotonic() + px / 1000
+        return True
 
     def incr(self, key):
         self.store[key] = str(int(self.store.get(key, 0)) + 1)
         return int(self.store[key])
 
     def expire(self, key, seconds):
+        self.ttls[key] = seconds
         return True
+
+    def ttl(self, key):
+        return self.ttls.get(key, -1)
 
     def scan_iter(self, pattern):
         prefix = pattern.rstrip("*")
@@ -121,6 +169,8 @@ def fake_redis(monkeypatch):
     fake = FakeRedis()
     monkeypatch.setattr("services.stock_service.get_redis_client", lambda: fake)
     monkeypatch.setattr("core.rate_limit.get_redis_client", lambda: fake)
+    monkeypatch.setattr("services.chat_service.get_redis_client", lambda: fake)
+    monkeypatch.setattr("integrations.llm.base.get_redis_client", lambda: fake)
     return fake
 
 

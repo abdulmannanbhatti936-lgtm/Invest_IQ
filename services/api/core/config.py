@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 API_ROOT = Path(__file__).resolve().parent.parent
 
 MIN_JWT_SECRET_LENGTH = 32
+LLM_PROVIDERS = ("gemini", "groq", "mistral", "claude")
 # Markers of the placeholder values in .env.example and of other obviously unset secrets
 _PLACEHOLDER_MARKERS = ("placeholder", "changeme", "change-me", "change_me", "your_", "your-")
 
@@ -50,6 +51,33 @@ class Settings(BaseSettings):
     LOW_CONFIDENCE_THRESHOLD: float = 0.6  # PRD.md FR16
     MIN_HISTORY_DAYS: int = 120  # below this we refuse to predict (PRD.md FR10)
 
+    # Chatbot (Phase 8). The provider and model are configuration only (Architecture.md §6.4
+    # deviation, 2026-10-13): groq (default, chosen by the bake-off), gemini (backup), mistral or
+    # claude.
+    # "mock" is a fixed test provider for the Playwright run, refused outside development.
+    LLM_PROVIDER: str = "groq"
+    LLM_MODEL: str = ""
+    GEMINI_API_KEY: str = ""
+    GROQ_API_KEY: str = ""
+    MISTRAL_API_KEY: str = ""
+    CLAUDE_API_KEY: str = ""
+    # Optional backup: a 429, 5xx or timeout from the primary retries the same message here once
+    LLM_BACKUP_PROVIDER: str = ""
+    LLM_BACKUP_MODEL: str = ""
+    # Grounding budget (context plus history, in estimated tokens) per provider. Groq's free tier
+    # allows 8,000 tokens a minute, so it gets about 4,000: the approved drop order (headline
+    # titles, then per-holding charge lines) is applied up front (decided 2026-10-13)
+    CHAT_CONTEXT_TOKENS: dict[str, int] = {
+        "gemini": 12_000,
+        "groq": 4_000,
+        "mistral": 12_000,
+        "claude": 12_000,
+        "mock": 12_000,
+    }
+    CHAT_LIMIT_PER_WINDOW: int = 10  # messages per user per CHAT_LIMIT_WINDOW_SECONDS
+    CHAT_LIMIT_WINDOW_SECONDS: int = 300
+    CHAT_LIMIT_PER_DAY: int = 100
+
     # Fail-safe: unset means production (strict secret checks, no public /docs). Local .env
     # and CI set ENVIRONMENT=development explicitly.
     ENVIRONMENT: str = "production"
@@ -90,6 +118,56 @@ class Settings(BaseSettings):
             )
         return self
 
+    @model_validator(mode="after")
+    def mock_llm_only_in_development(self) -> "Settings":
+        if self.LLM_PROVIDER == "mock" and not self.is_development:
+            raise ValueError(
+                f"Refusing to start with ENVIRONMENT={self.ENVIRONMENT}: LLM_PROVIDER=mock is a "
+                "test provider and only allowed in development."
+            )
+        return self
+
+    def api_key_for(self, provider: str) -> str:
+        return {
+            "gemini": self.GEMINI_API_KEY,
+            "groq": self.GROQ_API_KEY,
+            "mistral": self.MISTRAL_API_KEY,
+            "claude": self.CLAUDE_API_KEY,
+        }.get(provider, "")
+
+    @property
+    def llm_api_key(self) -> str:
+        """The key of the configured provider; a placeholder counts as no key."""
+        key = self.api_key_for(self.LLM_PROVIDER)
+        return "" if any(marker in key.lower() for marker in _PLACEHOLDER_MARKERS) else key
+
+    def _provider_problem(self, provider: str, model: str, setting: str) -> str | None:
+        if provider not in LLM_PROVIDERS:
+            return f"{setting}={provider!r} is not a supported provider"
+        if not model:
+            return f"{setting.replace('PROVIDER', 'MODEL')} is not set"
+        key = self.api_key_for(provider)
+        if not key or any(marker in key.lower() for marker in _PLACEHOLDER_MARKERS):
+            return f"{provider.upper()}_API_KEY is not set"
+        return None
+
+    def chat_unavailable_reason(self) -> str | None:
+        """Why the chat cannot run with this configuration, or None if it can."""
+        if self.LLM_PROVIDER == "mock":
+            return None
+        return self._provider_problem(self.LLM_PROVIDER, self.LLM_MODEL, "LLM_PROVIDER")
+
+    def backup_unavailable_reason(self) -> str | None:
+        """Why a configured backup provider cannot be used; None if it can or none is set."""
+        if not self.LLM_BACKUP_PROVIDER:
+            return None
+        return self._provider_problem(
+            self.LLM_BACKUP_PROVIDER, self.LLM_BACKUP_MODEL, "LLM_BACKUP_PROVIDER"
+        )
+
+    def chat_context_tokens(self, provider: str) -> int:
+        return self.CHAT_CONTEXT_TOKENS.get(provider, 12_000)
+
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
@@ -118,3 +196,13 @@ def warn_if_weak_jwt_secrets(config: Settings = settings) -> None:
             "Allowed only because ENVIRONMENT=development.",
             problem,
         )
+
+
+def warn_if_chat_unavailable(config: Settings = settings) -> None:
+    """The API starts without an LLM key; the chat then shows its 'unavailable' state."""
+    reason = config.chat_unavailable_reason()
+    if reason:
+        logging.getLogger("core.config").warning("Chat disabled: %s.", reason)
+    backup = config.backup_unavailable_reason()
+    if backup:
+        logging.getLogger("core.config").warning("Chat backup provider disabled: %s.", backup)

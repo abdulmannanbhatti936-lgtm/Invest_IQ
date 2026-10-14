@@ -16,6 +16,7 @@ import { StockDetailPage } from './features/stocks/StockDetailPage';
 import { PortfolioPage } from './features/portfolio/PortfolioPage';
 import { BacktestPage } from './features/backtest/BacktestPage';
 import { BacktestReportPage } from './features/backtest/BacktestReportPage';
+import { ChatPage } from './features/chat/ChatPage';
 import { ComingSoonPage } from './features/common/ComingSoonPage';
 import { AppLayout } from './components/layout/AppLayout';
 
@@ -107,6 +108,14 @@ function App() {
               </AppPage>
             }
           />
+          <Route
+            path="/chat"
+            element={
+              <AppPage>
+                <ChatPage />
+              </AppPage>
+            }
+          />
 
           {/* Later phases (Phases.md) */}
           <Route
@@ -114,14 +123,6 @@ function App() {
             element={
               <AppPage>
                 <ComingSoonPage section="notifications" phase={7} />
-              </AppPage>
-            }
-          />
-          <Route
-            path="/chat"
-            element={
-              <AppPage>
-                <ComingSoonPage section="chat" phase={8} />
               </AppPage>
             }
           />

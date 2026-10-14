@@ -555,5 +555,75 @@
       "riskFree": "The T-bill rate for this period is missing, so the test cannot run.",
       "portfolioNotFound": "This portfolio was not found."
     }
+  },
+  "chat": {
+    "title": "Chat",
+    "subtitle": "Ask about your portfolio, forecasts, news sentiment or backtest. Answers use only your InvestIQ data.",
+    "privacy": "Your messages are sent to an outside AI service to write the answer. Do not type personal details such as your CNIC or bank account number.",
+    "empty": {
+      "title": "No messages yet",
+      "body": "Start with one of these questions, or type your own in English, Urdu or Roman Urdu."
+    },
+    "starters": {
+      "portfolio": "What does my portfolio look like?",
+      "lowConfidence": "Why are my forecasts marked low confidence?",
+      "sentiment": "What is driving the news sentiment for my stocks?",
+      "backtest": "How did my portfolio do in the backtest?"
+    },
+    "inputLabel": "Your message",
+    "inputPlaceholder": "Ask about your portfolio",
+    "counter": "{{count}} / {{max}}",
+    "send": "Send",
+    "keyboardHint": "Enter to send, Shift + Enter for a new line",
+    "you": "You said",
+    "assistant": "InvestIQ assistant replied",
+    "typing": "The assistant is writing a reply",
+    "loadOlder": "Show earlier messages",
+    "loadError": "Your chat history could not be loaded.",
+    "error": {
+      "failed": "The message could not be sent.",
+      "busy": "The assistant is busy right now. Try again in a minute.",
+      "rateLimited": "You have sent a lot of messages. You can send more in {{seconds}} seconds.",
+      "busyCountdown": "The assistant is busy; try again in {{seconds}} seconds.",
+      "rateLimitedLater": "You have sent a lot of messages. Try again a little later.",
+      "ready": "You can send your message now."
+    },
+    "unavailable": {
+      "title": "Chat is unavailable right now",
+      "body": "The assistant is not set up on this server. Your earlier messages are still here."
+    },
+    "clear": "Clear chat history",
+    "clearConfirm": "Delete all your chat messages? This cannot be undone.",
+    "clearYes": "Delete messages",
+    "clearNo": "Keep them",
+    "clearError": "Your chat history could not be deleted.",
+    "sourcesLabel": "Where these figures come from",
+    "source": {
+      "portfolio": "From your portfolio generated {{date}}",
+      "prediction": "From the {{ticker}} forecast, {{date}}",
+      "sentiment": "From {{ticker}} news sentiment, {{date}}",
+      "backtest": "From your backtest of {{date}}",
+      "price": "From the {{ticker}} close of {{date}}",
+      "risk_profile": "From your risk profile"
+    },
+    "disclaimerRomanUrdu": "Sirf mashwara. Licensed financial advisor nahi. Forecasts sirf imkanaat hain. Trade sirf licensed PSX broker ke zariye karein."
+  },
+  "terms": {
+    "forecast": "Forecast",
+    "confidence": "Confidence",
+    "lowConfidence": "Low confidence",
+    "baselineNotBeaten": "Not better than assuming tomorrow's close equals today's",
+    "sector": {
+      "automobileAssembler": "Automobile Assembler",
+      "cableElectricalGoods": "Cable & Electrical Goods",
+      "cement": "Cement",
+      "commercialBanks": "Commercial Banks",
+      "fertilizer": "Fertilizer",
+      "oilGasExploration": "Oil & Gas Exploration Companies",
+      "oilGasMarketing": "Oil & Gas Marketing Companies",
+      "powerGeneration": "Power Generation & Distribution",
+      "refinery": "Refinery",
+      "technologyCommunication": "Technology & Communication"
+    }
   }
 }

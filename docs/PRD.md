@@ -197,6 +197,7 @@ Novice investors in Pakistan lack access to an intelligent, data-driven, and acc
 - **FR39** — Chatbot responses are **grounded** in the user's actual live portfolio/prediction/sentiment data — never generic, unsourced financial advice
 - **FR40** — Chatbot clearly discloses uncertainty/probabilistic nature when discussing predictions
 - **FR41** — Edge case: user asks something outside system scope (e.g., "should I buy Bitcoin") → chatbot states this is outside InvestIQ's PSX-only scope rather than improvising
+- _Scope addition (Phase 8, 2026-10-13, team decision):_ a user can clear their own chat history (`DELETE /chat/history`), for privacy. A message written in Roman Urdu is answered in Roman Urdu (FR37).
 
 ### 7.9 Admin Module
 
@@ -216,6 +217,8 @@ Novice investors in Pakistan lack access to an intelligent, data-driven, and acc
 | Notification latency      | < 5 seconds                        |
 | Mobile app load time      | < 3 seconds                        |
 | Backtesting data coverage | 3+ years of PSX history            |
+
+_Chatbot replies are exempt from the 2-second target (decided 2026-10-13): a reply waits on an outside LLM and on the figure check. Target: p95 under 15 seconds, measured from `chat_messages.latency_ms`._
 
 ### 8.2 Model Quality
 
@@ -311,6 +314,7 @@ Novice investors in Pakistan lack access to an intelligent, data-driven, and acc
 
 - Yahoo Finance API and/or PSX data sources remain accessible and rate-limit-tolerant throughout development
 - A Claude/GPT API key is available and budgeted for the chatbot + bilingual translation layer
+  - _Deviation (2026-10-13):_ no paid key is budgeted yet, so the chatbot runs on a free tier: Google Gemini (primary) or Groq (backup), whichever wins the Phase 8 bake-off, with test accounts only. The Claude API remains a configuration switch (Architecture.md §6.4).
 - Team has access to sufficient historical PSX data (3+ years) for model training and backtesting
 - Mobile app targets Android first; iOS support is a stretch goal, not guaranteed for FYP submission
 - Development team (2 members) can realistically split web/backend and ML/mobile responsibilities

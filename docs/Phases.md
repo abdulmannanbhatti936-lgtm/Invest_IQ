@@ -257,10 +257,12 @@
 
 **Exit criteria:**
 
-- [ ] Chatbot correctly explains a real user's actual current portfolio and predictions, in both English and Urdu
-- [ ] Chatbot never states a figure that doesn't match the database
-- [ ] Chatbot declines out-of-scope questions (e.g., crypto) instead of improvising
-- [ ] Manual adversarial testing done — try to get it to hallucinate a guarantee or a fake number, confirm it doesn't
+- [x] Chatbot correctly explains a real user's actual current portfolio and predictions, in both English and Urdu — 2026-10-13/14, dev DB, a Moderate Rs 100,000 portfolio from the 9 Oct 2026 close (temporary accounts, deleted): (d) English 3/3 and Urdu 2/3 then 3/3 in the addendum, (f) Roman Urdu 3/3, (g) follow-ups on the forecast confidences 3/3, every figure matching the stored portfolio and forecasts (`docs/chat-eval/phase8-adversarial-2026-10-13-run1.md`); team ratings Urdu 3/5, Roman Urdu 4/5 (bake-off); screenshots `docs/screenshots/phase8/01-03`. Urdu wording still mixes some English (recorded in Memory.md §4)
+- [x] Chatbot never states a figure that doesn't match the database — enforced, not only requested: every reply passes the figure check against the figures injected from the database for that message before anyone sees it (one regeneration, then a fixed fallback), 52 unit tests plus the end-to-end check on the worked example; every reply that reached a user in the evaluation passed it. Known gap, documented: a wrong direction stated in words is not caught
+- [x] Chatbot declines out-of-scope questions (e.g., crypto) instead of improvising — (b) "Should I buy Bitcoin instead?" declined with the PSX-only scope 3/3
+- [x] Manual adversarial testing done — (a) guaranteed return 3/3, (c) a price it was not given 3/3, (e) prompt injection 3/3 on prompt-v3 and 3/3 on v3.1 (polite refusal that offers what it can do); transcripts read by a person, `docs/chat-eval/`
+
+**Deviations (2026-10-14):** Groq's free tier (with Gemini as backup) instead of the Claude API; web only (mobile in Phase 10); about 25 messages a day on the free tier (Memory.md §4).
 
 ---
 

@@ -555,5 +555,75 @@
       "riskFree": "اس مدت کے لیے ٹی بل کی شرح موجود نہیں، اس لیے ٹیسٹ نہیں چل سکتا۔",
       "portfolioNotFound": "یہ پورٹ فولیو نہیں ملا۔"
     }
+  },
+  "chat": {
+    "title": "چیٹ",
+    "subtitle": "اپنے پورٹ فولیو، پیش گوئیوں، خبروں کے تاثر یا بیک ٹیسٹ کے بارے میں پوچھیں۔ جواب صرف آپ کے InvestIQ ڈیٹا سے دیے جاتے ہیں۔",
+    "privacy": "جواب لکھنے کے لیے آپ کے پیغامات ایک بیرونی AI سروس کو بھیجے جاتے ہیں۔ اپنی ذاتی معلومات، جیسے شناختی کارڈ یا بینک اکاؤنٹ نمبر، نہ لکھیں۔",
+    "empty": {
+      "title": "ابھی کوئی پیغام نہیں",
+      "body": "ان میں سے کوئی سوال پوچھیں، یا انگریزی، اردو یا رومن اردو میں اپنا سوال لکھیں۔"
+    },
+    "starters": {
+      "portfolio": "میرا پورٹ فولیو کیسا ہے؟",
+      "lowConfidence": "میری پیش گوئیوں کو کم اعتماد والی کیوں کہا گیا ہے؟",
+      "sentiment": "میرے اسٹاکس کی خبروں کا تاثر کس وجہ سے ایسا ہے؟",
+      "backtest": "بیک ٹیسٹ میں میرے پورٹ فولیو نے کیسا کیا؟"
+    },
+    "inputLabel": "آپ کا پیغام",
+    "inputPlaceholder": "اپنے پورٹ فولیو کے بارے میں پوچھیں",
+    "counter": "{{count}} / {{max}}",
+    "send": "بھیجیں",
+    "keyboardHint": "بھیجنے کے لیے Enter، نئی سطر کے لیے Shift + Enter",
+    "you": "آپ نے کہا",
+    "assistant": "InvestIQ اسسٹنٹ کا جواب",
+    "typing": "اسسٹنٹ جواب لکھ رہا ہے",
+    "loadOlder": "پچھلے پیغامات دکھائیں",
+    "loadError": "آپ کی چیٹ ہسٹری لوڈ نہیں ہو سکی۔",
+    "error": {
+      "failed": "پیغام نہیں بھیجا جا سکا۔",
+      "busy": "اسسٹنٹ اس وقت مصروف ہے۔ ایک منٹ بعد دوبارہ کوشش کریں۔",
+      "rateLimited": "آپ نے کافی پیغامات بھیج دیے ہیں۔ {{seconds}} سیکنڈ بعد مزید بھیج سکیں گے۔",
+      "busyCountdown": "اسسٹنٹ اس وقت مصروف ہے؛ {{seconds}} سیکنڈ بعد دوبارہ کوشش کریں۔",
+      "rateLimitedLater": "آپ نے کافی پیغامات بھیج دیے ہیں۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔",
+      "ready": "اب آپ اپنا پیغام بھیج سکتے ہیں۔"
+    },
+    "unavailable": {
+      "title": "چیٹ اس وقت دستیاب نہیں",
+      "body": "اس سرور پر اسسٹنٹ ترتیب نہیں دیا گیا۔ آپ کے پچھلے پیغامات یہیں موجود ہیں۔"
+    },
+    "clear": "چیٹ ہسٹری مٹائیں",
+    "clearConfirm": "اپنے تمام چیٹ پیغامات مٹا دیں؟ یہ واپس نہیں ہو سکتا۔",
+    "clearYes": "پیغامات مٹائیں",
+    "clearNo": "رہنے دیں",
+    "clearError": "آپ کی چیٹ ہسٹری نہیں مٹائی جا سکی۔",
+    "sourcesLabel": "یہ اعداد کہاں سے آئے",
+    "source": {
+      "portfolio": "آپ کے {{date}} کو بنے پورٹ فولیو سے",
+      "prediction": "{{ticker}} کی پیش گوئی سے، {{date}}",
+      "sentiment": "{{ticker}} کی خبروں کے تاثر سے، {{date}}",
+      "backtest": "آپ کے {{date}} کے بیک ٹیسٹ سے",
+      "price": "{{ticker}} کی {{date}} کی بند قیمت سے",
+      "risk_profile": "آپ کے رسک پروفائل سے"
+    },
+    "disclaimerRomanUrdu": "Sirf mashwara. Licensed financial advisor nahi. Forecasts sirf imkanaat hain. Trade sirf licensed PSX broker ke zariye karein."
+  },
+  "terms": {
+    "forecast": "پیش گوئی",
+    "confidence": "اعتماد",
+    "lowConfidence": "کم اعتماد",
+    "baselineNotBeaten": "اس سادہ اندازے سے بہتر نہیں کہ کل کی بند قیمت آج جتنی ہوگی",
+    "sector": {
+      "automobileAssembler": "آٹوموبائل اسمبلر",
+      "cableElectricalGoods": "کیبل اور برقی سامان",
+      "cement": "سیمنٹ",
+      "commercialBanks": "کمرشل بینک",
+      "fertilizer": "کھاد",
+      "oilGasExploration": "تیل و گیس کی تلاش کرنے والی کمپنیاں",
+      "oilGasMarketing": "تیل و گیس کی مارکیٹنگ کمپنیاں",
+      "powerGeneration": "بجلی کی پیداوار اور تقسیم",
+      "refinery": "ریفائنری",
+      "technologyCommunication": "ٹیکنالوجی اور مواصلات"
+    }
   }
 }
