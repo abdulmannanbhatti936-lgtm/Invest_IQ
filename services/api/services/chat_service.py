@@ -37,6 +37,8 @@ logger = logging.getLogger(__name__)
 
 HISTORY_MESSAGES = 6
 HISTORY_MESSAGE_CHARS = 1500
+# The previous question and answer: never dropped for budget (see _turns)
+LAST_EXCHANGE = 2
 DEADLINE_S = 45.0
 # Urdu takes more tokens than English for the same text (the prompt still asks ~180 words)
 MAX_REPLY_TOKENS = {"en": 700, "ur": 1200, "ur-latn": 1200}
@@ -88,9 +90,16 @@ def recent_messages(db: Session, user: User, limit: int = HISTORY_MESSAGES) -> l
 
 
 def _turns(history: list, content: str, budget_chars: int) -> list[Turn]:
-    """The memory turns plus the new message; the oldest turns go first if over budget."""
+    """
+    The memory turns plus the new message; the oldest turns go first if over budget, but the
+    last exchange always stays, or a follow-up ("and the second one?") would lose its referent
+    whenever the required context alone fills the budget (Groq's 4k).
+    """
     turns = [Turn(m.role, m.content[:HISTORY_MESSAGE_CHARS]) for m in history]
-    while turns and sum(len(t.content) for t in turns) + len(content) > budget_chars:
+    while (
+        len(turns) > LAST_EXCHANGE
+        and sum(len(t.content) for t in turns) + len(content) > budget_chars
+    ):
         turns.pop(0)
     # The providers expect the conversation to start with a user turn
     while turns and turns[0].role != "user":

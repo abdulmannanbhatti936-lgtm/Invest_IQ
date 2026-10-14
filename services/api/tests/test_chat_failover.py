@@ -319,3 +319,32 @@ def test_prompt_v3_carries_every_rule(rule):
 @pytest.mark.parametrize("language, words", [("en", 120), ("ur", 150), ("ur-latn", 150)])
 def test_reply_length_guidance_depends_on_the_language(language, words):
     assert f"in about {words} words" in chat_prompt.system_prompt("{}", language)
+
+
+def test_the_last_exchange_survives_even_when_the_context_fills_the_budget():
+    from integrations.llm.base import Turn
+
+    history = [  # oldest first, as stored
+        Turn("user", "older question"),
+        Turn("assistant", "older answer"),
+        Turn("user", "Which holding has the lowest confidence?"),
+        Turn("assistant", "MARI, EFERT, FFC, HUBC and MEBL are tied at 49%."),
+    ]
+    turns = chat_service._turns(history, "and the second lowest one?", budget_chars=-500)
+
+    assert [t.content for t in turns] == [
+        "Which holding has the lowest confidence?",
+        "MARI, EFERT, FFC, HUBC and MEBL are tied at 49%.",
+        "and the second lowest one?",
+    ]
+
+
+def test_groq_keeps_the_last_exchange_in_a_real_context(client, db, portfolio_user):
+    from integrations.llm.base import Turn
+
+    ctx = _context(db, portfolio_user)
+    history = [Turn("user", "Which is lowest?"), Turn("assistant", "MARI is lowest at 49%.")]
+
+    _, turns = chat_service.prepare(ctx, history, "and the second?", "groq")
+
+    assert [t.role for t in turns] == ["user", "assistant", "user"]
