@@ -400,6 +400,26 @@ def _json(value):
     return value
 
 
+def latest_summary(db: Session, portfolio: Portfolio) -> dict | None:
+    """The newest backtest of a portfolio, as the dashboard's headline (stored values only)."""
+    result = (
+        db.query(BacktestResult)
+        .filter(BacktestResult.portfolio_id == portfolio.id)
+        .order_by(BacktestResult.created_at.desc())
+        .first()
+    )
+    if result is None:
+        return None
+    return {
+        "id": result.id,
+        "created_at": result.created_at,
+        "years": result.years,
+        "period_start": result.period_start,
+        "period_end": result.period_end,
+        "total_return": str(result.total_return),
+    }
+
+
 def portfolio_inputs(portfolio: Portfolio, years: int) -> RunInputs:
     # Stored target weights are percent with 4 decimals and total 100
     weights = {h.stock.ticker: Decimal(h.target_weight) / 100 for h in portfolio.holdings}

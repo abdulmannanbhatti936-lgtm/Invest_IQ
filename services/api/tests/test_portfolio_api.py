@@ -186,6 +186,7 @@ def test_current_returns_the_active_portfolio(client, investor, worked_example):
     current = client.get("/portfolio/current", headers=investor).json()
     assert current["id"] == created["id"]
     assert current["holdings"] == created["holdings"]
+    assert current["latest_backtest"] is None
 
 
 def test_generating_again_archives_the_old_portfolio(client, db, investor, worked_example):

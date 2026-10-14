@@ -232,8 +232,11 @@ class StockService:
         return history
 
     @staticmethod
-    def search(db: Session, q: str, limit: int = 100) -> list[Stock]:
-        """Search/browse the stock universe by ticker, name or sector (PRD.md FR9)."""
+    def search(db: Session, q: str, limit: int = 100) -> list[dict[str, Any]]:
+        """
+        Search/browse the stock universe by ticker, name or sector (PRD.md FR9), each with its
+        latest served close and that close's PSX trading date (None when nothing is stored).
+        """
         query = db.query(Stock)
         term = q.strip()
         if term:
@@ -248,4 +251,30 @@ class StockService:
         # Exact ticker matches first, then alphabetical
         stocks = query.order_by(Stock.ticker).limit(limit).all()
         upper = term.upper()
-        return sorted(stocks, key=lambda s: (s.ticker != upper, s.ticker))
+        stocks = sorted(stocks, key=lambda s: (s.ticker != upper, s.ticker))
+        latest = {
+            row.stock_id: row
+            for row in db.query(
+                PricePoint.stock_id,
+                PricePoint.close,
+                PricePoint.split_factor,
+                PSX_TRADING_DATE.label("trading_date"),
+            )
+            .filter(PricePoint.stock_id.in_([s.id for s in stocks]), SERVED)
+            .distinct(PricePoint.stock_id)
+            .order_by(PricePoint.stock_id, PricePoint.timestamp.desc())
+            .all()
+        }
+        results = []
+        for stock in stocks:
+            row = latest.get(stock.id)
+            results.append(
+                {
+                    "ticker": stock.ticker,
+                    "name": stock.name,
+                    "sector": stock.sector,
+                    "last_close": _adjusted(row.close, row.split_factor) if row else None,
+                    "last_close_date": row.trading_date if row else None,
+                }
+            )
+        return results

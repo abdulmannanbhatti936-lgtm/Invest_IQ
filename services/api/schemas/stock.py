@@ -1,3 +1,5 @@
+import datetime
+
 from pydantic import BaseModel, ConfigDict
 
 from schemas.types import UTCDateTime
@@ -7,6 +9,11 @@ class StockSummary(BaseModel):
     ticker: str
     name: str
     sector: str | None = None
+    # Optional, added for the stock list (UI round): the latest served close and its PSX
+    # trading date, and whether the current model forecasts this stock
+    last_close: float | None = None
+    last_close_date: datetime.date | None = None
+    forecast_covered: bool | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -58,6 +58,11 @@ export interface StockSummary {
   ticker: string;
   name: string;
   sector: string | null;
+  /** Latest served close and its PSX trading date (optional, UI round) */
+  last_close?: number | null;
+  last_close_date?: string | null;
+  /** Whether the current model forecasts this stock (the forecast is a separate request) */
+  forecast_covered?: boolean | null;
 }
 
 export interface StockQuote {
@@ -313,6 +318,17 @@ export interface Portfolio {
   /** FR24: flagged when the cash could buy more shares but a limit stopped it */
   idle: { amount: Money; flagged: boolean; blocked_by: Record<string, 'stock_cap' | 'sector_cap'> };
   holdings: PortfolioHolding[];
+  /** Newest backtest of this portfolio; only GET /portfolio/current fills it (UI round) */
+  latest_backtest?: LatestBacktest | null;
+}
+
+export interface LatestBacktest {
+  id: string;
+  created_at: string;
+  years: number;
+  period_start: string;
+  period_end: string;
+  total_return: string;
 }
 
 export type RollStatus =
