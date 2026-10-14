@@ -320,10 +320,16 @@ def test_the_glossary_covers_the_new_terms_and_every_forecast_stocks_sector(db):
         "a tie counts as one place, so the second lowest is the next different value",
         "When you refuse such a request, stay polite",
         "then offer what you can do instead (explain their portfolio, a forecast, news sentiment",
+        # prompt-v3.3 (UI round, 2026-10-15): the Phase 8 wording fixes
+        'after that, call it by "portfolio_short_name", so the full name is never repeated',
+        '"you could look at", "you should consider", "a good option is", "I suggest"',
+        "write the glossary word alone, never followed by its English in brackets",
+        'only with the glossary\'s words for "Risk profile" and for their category',
+        'use the words in CONTEXT\'s "roman_urdu_glossary" for the finance terms it lists',
     ],
 )
 def test_prompt_v3_carries_every_rule(rule):
-    assert chat_prompt.PROMPT_VERSION == "prompt-v3.2"
+    assert chat_prompt.PROMPT_VERSION == "prompt-v3.3"
     assert rule in chat_prompt.system_prompt("{}", "en")
 
 
@@ -407,6 +413,44 @@ def test_the_context_names_the_portfolio_as_a_recommendation(
 ):
     ctx = _context(db, portfolio_user, lang=language)
     assert ctx.data["portfolio_name"] == name
+    # After the first mention a reply uses the short name instead of repeating the full one
+    assert (
+        ctx.data["portfolio_short_name"]
+        == {
+            "en": "this portfolio",
+            "ur": "یہ پورٹ فولیو",
+            "ur-latn": "ye portfolio",
+        }[language]
+    )
     # Its stocks are "recommended_stocks", never "holdings", and nothing says "bought"
     assert "recommended_stocks" in ctx.data["portfolio"]
     assert '"holdings"' not in ctx.json and "bought" not in ctx.data["portfolio"]["totals"]
+
+
+# prompt-v3.3 wording fixes (UI round, 2026-10-15)
+
+
+def test_the_risk_level_has_one_urdu_term_from_the_app():
+    assert chat_context.urdu_glossary()["Risk profile"] == "رسک پروفائل"
+    sent = chat_context.glossary_for('{"risk_profile":{"category":"moderate"}}')
+    assert sent["Risk profile"] == "رسک پروفائل" and sent["Moderate"] == "متوازن"
+
+
+@pytest.mark.parametrize("language, present", [("ur-latn", True), ("ur", False), ("en", False)])
+def test_only_roman_urdu_replies_get_the_roman_glossary(
+    client, db, portfolio_user, language, present
+):
+    ctx = _context(db, portfolio_user, lang=language)
+    assert bool(ctx.data["roman_urdu_glossary"]) is present
+
+
+def test_the_roman_glossary_comes_from_i18n_and_only_what_the_context_uses(
+    client, db, portfolio_user
+):
+    sent = _context(db, portfolio_user, lang="ur-latn").data["roman_urdu_glossary"]
+    # The worked-example portfolio is Moderate, with break-even prices and forecasts
+    assert sent["Moderate"] == "mutawazin"
+    assert sent["Break-even price"] == "break-even qeemat"
+    assert sent["Forecast"] == "pesh goi"
+    assert "Aggressive" not in sent
+    assert all(v.strip() and "{{" not in v for v in sent.values())
