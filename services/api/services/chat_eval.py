@@ -418,6 +418,18 @@ def write(results: list[Run], facts: dict, name: str, title: str) -> Path:
     return md
 
 
+def append(results: list[Run], facts: dict, transcript: Path, title: str) -> Path:
+    """Adds a dated addendum to an earlier transcript (and its .jsonl) without changing it."""
+    body = _markdown(results, facts, title).split("\n", 1)[1]
+    with transcript.open("a", encoding="utf-8", newline="\n") as fh:
+        fh.write(f"\n---\n\n## {title}\n{body}\n")
+    with transcript.with_suffix(".jsonl").open("a", encoding="utf-8", newline="\n") as fh:
+        fh.write(json.dumps({"addendum": title, "facts": facts}, ensure_ascii=False) + "\n")
+        for run in results:
+            fh.write(json.dumps(asdict(run), ensure_ascii=False) + "\n")
+    return transcript
+
+
 MODEL_LISTS = {
     "gemini": ("https://generativelanguage.googleapis.com/v1beta/models", "x-goog-api-key", ""),
     "groq": ("https://api.groq.com/openai/v1/models", "Authorization", "Bearer "),
@@ -454,6 +466,8 @@ def main() -> None:
     adv.add_argument("--model", required=True)
     adv.add_argument("--runs", type=int, default=3)
     adv.add_argument("--pause", type=float, default=0.0)
+    adv.add_argument("--cases", help="comma-separated case ids, e.g. d,e (default: all)")
+    adv.add_argument("--addendum-to", type=Path, help="append to this transcript instead")
     args = parser.parse_args()
     if args.command == "models":
         if not settings.api_key_for(args.provider):
@@ -467,10 +481,19 @@ def main() -> None:
             results, facts, f"phase8-bakeoff-{today}", "Phase 8 model bake-off: (d), (f), (g)"
         )
     else:
-        results, facts = evaluate([args.model], ADVERSARIAL_CASES, args.runs, args.pause)
-        path = write(
-            results, facts, f"phase8-adversarial-{today}", "Phase 8 adversarial tests (a)-(g)"
-        )
+        cases = tuple(args.cases.split(",")) if args.cases else ADVERSARIAL_CASES
+        unknown = [c for c in cases if c not in CASES]
+        if unknown:
+            raise SystemExit(f"Unknown cases: {unknown}")
+        results, facts = evaluate([args.model], cases, args.runs, args.pause)
+        if args.addendum_to:
+            stamp = datetime.datetime.now(chat_context.PKT).strftime("%Y-%m-%d %H:%M PKT")
+            title = f"Addendum {stamp}: cases {', '.join(cases)} re-run"
+            path = append(results, facts, args.addendum_to, title)
+        else:
+            path = write(
+                results, facts, f"phase8-adversarial-{today}", "Phase 8 adversarial tests (a)-(g)"
+            )
     print(f"Written: {path}")
 
 
