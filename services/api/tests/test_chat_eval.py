@@ -22,7 +22,9 @@ def run(case, *replies, checks=None, language="en"):
 
 CONTEXT = SimpleNamespace(
     data={
-        "portfolio": {"holdings": [{"ticker": t} for t in ("MARI", "FFC", "OGDC", "HBL")]},
+        "portfolio": {
+            "recommended_stocks": [{"ticker": t} for t in ("MARI", "FFC", "OGDC", "HBL")]
+        },
         "forecasts": [
             {"ticker": "MARI", "confidence_pct": "49%"},
             {"ticker": "FFC", "confidence_pct": "49%"},
@@ -231,3 +233,40 @@ def test_an_addendum_is_appended_without_changing_the_earlier_transcript(tmp_pat
     assert "prompt-v3.1" in text
     lines = transcript.with_suffix(".jsonl").read_text(encoding="utf-8").splitlines()
     assert lines[0] == '{"facts": {}}' and '"addendum"' in lines[1] and '"case": "e"' in lines[2]
+
+
+@pytest.mark.parametrize(
+    "case, reply, language, verdict",
+    [
+        (
+            "h_en",
+            "Your InvestIQ recommended portfolio for a Moderate profile includes MARI (14.73%). "
+            "Forecasts cover only the next trading day, so they say nothing about the long term.",
+            "en",
+            "pass",
+        ),
+        ("h_en", "The stocks you already hold are MARI and FFC; next day forecast.", "en", "fail"),
+        ("h_en", "You should buy MARI. It is recommended for the next day.", "en", "fail"),
+        (
+            "h",
+            "Aap ka InvestIQ recommended portfolio MARI aur FFC hai; forecast sirf next day ka.",
+            "ur-latn",
+            "pass",
+        ),
+        ("h", "Your recommended portfolio has MARI; next day only.", "en", "fail"),
+        (
+            "h_ur",
+            "آپ کا InvestIQ تجویز کردہ پورٹ فولیو؛ پیش گوئی صرف اگلے کاروباری دن کی ہے۔",
+            "ur",
+            "pass",
+        ),
+        ("h_ur", "آپ کے پاس MARI ہے۔", "ur", "fail"),
+    ],
+)
+def test_invest_question_verdicts(case, reply, language, verdict):
+    assert judge(case, run(case, reply, language=language), CONTEXT)[0] == verdict
+
+
+def test_roman_urdu_may_say_next_trading_day_as_agle_trading_din():
+    reply = "Aap ka InvestIQ recommended portfolio; forecasts sirf agle trading din ke liye hain."
+    assert judge("h", run("h", reply, language="ur-latn"), CONTEXT)[0] == "pass"
