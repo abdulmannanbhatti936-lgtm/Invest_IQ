@@ -43,7 +43,9 @@ test('empty chat → starter question → grounded reply with its source → Rom
   const input = field(page, t('en', 'chat.inputLabel'));
   await input.fill('How much did my portfolio cost?');
   await input.press('Enter');
-  await expect(log.getByText(/MOCK reply: your portfolio cost Rs\. [\d,]+\.\d{2}/)).toBeVisible({
+  await expect(
+    log.getByText(/MOCK reply: your InvestIQ recommended portfolio would cost Rs\. [\d,]+\.\d{2}/),
+  ).toBeVisible({
     timeout: 30_000,
   });
   await expect(log.getByText(/^From your portfolio generated /)).toBeVisible();

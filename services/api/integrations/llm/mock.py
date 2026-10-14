@@ -36,7 +36,7 @@ class MockProvider(Provider):
         else:
             totals = portfolio["totals"]
             text = (
-                f"MOCK reply: your portfolio cost {totals['total_cost']} and "
-                f"{totals['cash_left']} was left as cash."
+                f"MOCK reply: your InvestIQ recommended portfolio would cost "
+                f"{totals['total_cost']} and leave {totals['left_uninvested']} uninvested."
             )
         return LLMResult(text=text, model=MOCK_MODEL, input_tokens=None, output_tokens=None)

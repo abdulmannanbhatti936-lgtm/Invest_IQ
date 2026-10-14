@@ -39,7 +39,7 @@ from services.stock_service import PriceDataUnavailable, StockService
 
 logger = logging.getLogger(__name__)
 
-CONTEXT_VERSION = "ctx-v2"
+CONTEXT_VERSION = "ctx-v3"
 PKT = ZoneInfo("Asia/Karachi")
 
 # Urdu replies use the app's own Urdu words for these terms (packages/i18n), so the chat and the
@@ -65,10 +65,10 @@ GLOSSARY_MARKERS: dict[str, str | None] = {
     "nav.portfolio": ALWAYS,
     "nav.stocks": ALWAYS,
     "nav.backtest": ALWAYS,
-    "portfolio.totals.gross": "bought_value",
+    "portfolio.totals.gross": "value_of_shares",
     "portfolio.totals.charges": "buying_charges",
     "portfolio.totals.cost": "total_cost",
-    "portfolio.totals.cash": "cash_left",
+    "portfolio.totals.cash": "left_uninvested",
     "portfolio.holding.charges.commission": "commission",
     "portfolio.holding.breakEven": "break_even_price",
     "portfolio.holding.cgt": '"cgt"',
@@ -81,6 +81,7 @@ GLOSSARY_MARKERS: dict[str, str | None] = {
     "backtest.metrics.sharpe": "sharpe_ratio",
     "backtest.metrics.drawdown": "largest_fall",
     "backtest.metrics.winRate": "months_up",
+    "backtest.mix.weight": "share_of_capital_pct",
     # Added for the chat in Phase 8 (Urdu wording for team review, Memory.md §4)
     "terms.forecast": "forecast",
     "terms.confidence": "confidence_pct",
@@ -308,12 +309,12 @@ def _portfolio(rec: _Recorder, portfolio) -> dict:
         "commission_pct": rec.pct(payload["commission_pct"], src, places=3),
         "number_of_stocks": rec.number(len(payload["holdings"]), src),
         "totals": {
-            "bought_value": rec.money(totals["gross"], src),
+            "value_of_shares": rec.money(totals["gross"], src),
             "buying_charges": rec.money(totals["charges"], src),
             "total_cost": rec.money(totals["cost"], src),
-            "cash_left": rec.money(totals["idle_cash"], src),
+            "left_uninvested": rec.money(totals["idle_cash"], src),
         },
-        "holdings": [_holding(rec, h) for h in payload["holdings"]],
+        "recommended_stocks": [_holding(rec, h) for h in payload["holdings"]],
     }
 
 
@@ -527,9 +528,11 @@ def build_context(
     if result is not None:
         refs["backtest_id"] = str(result.id)
 
-    held = [h["ticker"] for h in portfolio_data["holdings"]] if portfolio_data else []
+    recommended = (
+        [h["ticker"] for h in portfolio_data["recommended_stocks"]] if portfolio_data else []
+    )
     named = mentioned_tickers(db, [message, *recent_user_messages[-2:]])
-    focus = list(dict.fromkeys([*held, *named]))
+    focus = list(dict.fromkeys([*recommended, *named]))
     stocks = {s.ticker: s for s in db.query(Stock).filter(Stock.ticker.in_(focus))}
 
     forecasts, sentiments, others, prediction_ids = [], [], [], []
@@ -548,7 +551,7 @@ def build_context(
                 missing.append(f"No forecast for {ticker} has been made yet.")
         if ticker in settings.tracked_tickers:
             sentiments.append(_sentiment(rec, db, stock))
-        if ticker not in held and ticker not in covered:
+        if ticker not in recommended and ticker not in covered:
             price = _price(rec, db, ticker, covered=False)
             if price:
                 others.append(price)
@@ -562,6 +565,8 @@ def build_context(
         "context_version": CONTEXT_VERSION,
         "today": rec.date(datetime.datetime.now(datetime.timezone.utc)),
         "reply_language": reply_language,
+        # InvestIQ never buys anything: the portfolio is always named as a recommendation
+        "portfolio_name": portfolio_name(reply_language),
         "risk_profile": _risk_profile(rec, user),
         "portfolio": portfolio_data,
         "forecasts": forecasts,
@@ -614,6 +619,20 @@ def _glossary_entries() -> list[tuple[str, str, str]]:
     return entries
 
 
+@lru_cache(maxsize=3)
+def portfolio_name(language: str) -> str:
+    """ "Your InvestIQ recommended portfolio" in the reply's language, from packages/i18n."""
+    key = (
+        "terms.recommendedPortfolioRomanUrdu"
+        if language == "ur-latn"
+        else "terms.recommendedPortfolio"
+    )
+    try:
+        return _lookup(_locale("ur" if language == "ur" else "en"), key)
+    except FileNotFoundError:
+        return "your InvestIQ recommended portfolio"
+
+
 def glossary_for(context_text: str) -> dict[str, str]:
     """The glossary entries whose term this context holds (screen names always)."""
     text = context_text.lower()
@@ -648,7 +667,7 @@ def fit_to_budget(
         context.trimmed.append("headlines")
         keep_figures_in(context.json)
     if over() and context.data["portfolio"]:
-        for holding in context.data["portfolio"]["holdings"]:
+        for holding in context.data["portfolio"]["recommended_stocks"]:
             holding["charges"] = {"total": holding["charges"]["total"]}
         context.trimmed.append("charge_lines")
         keep_figures_in(context.json)
