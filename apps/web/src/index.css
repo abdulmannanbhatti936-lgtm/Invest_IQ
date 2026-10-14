@@ -45,19 +45,165 @@
   font-display: swap;
   src: url('/fonts/noto-naskh-arabic-arabic.woff2') format('woff2');
   unicode-range:
-    U+0600-06FF, U+0750-077F, U+0870-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011,
-    U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC, U+102E0-102FB, U+10E60-10E7E,
-    U+10EC2-10EC7, U+10EC9-10EEE, U+10EF0-10EFF, U+1EE00-1EE03, U+1EE05-1EE1F, U+1EE21-1EE22,
-    U+1EE24, U+1EE27, U+1EE29-1EE32, U+1EE34-1EE37, U+1EE39, U+1EE3B, U+1EE42, U+1EE47, U+1EE49,
-    U+1EE4B, U+1EE4D-1EE4F, U+1EE51-1EE52, U+1EE54, U+1EE57, U+1EE59, U+1EE5B, U+1EE5D, U+1EE5F,
+    U+0600-06FF, U+0750-077F, U+0870-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+204F, U+2E41,
+    U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC, U+102E0-102FB, U+10E60-10E7E, U+10EC2-10EC7,
+    U+10EC9-10EEE, U+10EF0-10EFF, U+1EE00-1EE03, U+1EE05-1EE1F, U+1EE21-1EE22, U+1EE24, U+1EE27,
+    U+1EE29-1EE32, U+1EE34-1EE37, U+1EE39, U+1EE3B, U+1EE42, U+1EE47, U+1EE49, U+1EE4B,
+    U+1EE4D-1EE4F, U+1EE51-1EE52, U+1EE54, U+1EE57, U+1EE59, U+1EE5B, U+1EE5D, U+1EE5F,
     U+1EE61-1EE62, U+1EE64, U+1EE67-1EE6A, U+1EE6C-1EE72, U+1EE74-1EE77, U+1EE79-1EE7C, U+1EE7E,
     U+1EE80-1EE89, U+1EE8B-1EE9B, U+1EEA1-1EEA3, U+1EEA5-1EEA9, U+1EEAB-1EEBB, U+1EEF0-1EEF1;
 }
 
-@theme {
+/*
+ * Hyphens (U+2010, U+2011) are deliberately outside the Naskh range above: Naskh draws them low,
+ * so an English reply's "low‑confidence" read as "low_confidence" (UI audit 2026-10-15).
+ */
+
+/*
+ * Colours, elevation and motion come from @investiq/design-tokens as --iq-* variables (inlined
+ * into <head> by vite.config.ts, dark by default, light under [data-theme='light']). Tailwind's
+ * stock palette is switched off so every colour on screen is a token (Design.md §2).
+ */
+@theme inline {
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-primary: var(--iq-primary);
+  --color-primary-hover: var(--iq-primary-hover);
+  --color-primary-tint: var(--iq-primary-tint);
+  --color-secondary: var(--iq-secondary);
+  --color-success: var(--iq-success);
+  --color-success-tint: var(--iq-success-tint);
+  --color-danger: var(--iq-danger);
+  --color-danger-tint: var(--iq-danger-tint);
+  --color-warning: var(--iq-warning);
+  --color-warning-tint: var(--iq-warning-tint);
+  --color-neutral: var(--iq-neutral);
+  --color-bg: var(--iq-background);
+  --color-surface: var(--iq-surface);
+  --color-sunken: var(--iq-surface-sunken);
+  --color-line: var(--iq-border);
+  --color-line-strong: var(--iq-border-strong);
+  --color-ink: var(--iq-text-primary);
+  --color-muted: var(--iq-text-secondary);
+  --color-inverse: var(--iq-text-inverse);
+  --color-focus: var(--iq-focus-ring);
+  --color-chart-portfolio: var(--iq-chart-portfolio);
+  --color-chart-rules: var(--iq-chart-rules);
+  --color-chart-benchmark: var(--iq-chart-benchmark);
+  --color-chart-forecast: var(--iq-chart-forecast);
+  --color-gradient-1: var(--iq-gradient-1);
+  --color-gradient-2: var(--iq-gradient-2);
+  --color-gradient-3: var(--iq-gradient-3);
+
+  --shadow-e1: var(--iq-elevation-1);
+  --shadow-e2: var(--iq-elevation-2);
+  --shadow-e3: var(--iq-elevation-3);
+
+  --radius-control: 10px;
+  --radius-card: 16px;
+
+  --ease-enter: var(--iq-ease-enter);
+  --ease-exit: var(--iq-ease-exit);
+
   --font-sans:
     'InvestIQ Urdu', 'Noto Naskh Arabic', ui-sans-serif, system-ui, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+    'Helvetica Neue', Arial, sans-serif;
+  /* Latin display face for the landing page only; Urdu letters fall through to Nastaleeq */
+  --font-display:
+    'Bricolage Grotesque Variable', 'InvestIQ Urdu', 'Noto Naskh Arabic', ui-sans-serif, system-ui,
+    sans-serif;
+}
+
+@layer base {
+  html,
+  body {
+    background-color: var(--iq-background);
+    color: var(--iq-text-primary);
+  }
+
+  /* One visible focus style everywhere (Design.md §9) */
+  :focus-visible {
+    outline: 2px solid var(--iq-focus-ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--iq-primary-tint);
+    color: var(--iq-text-primary);
+  }
+}
+
+/*
+ * English names inside Urdu pages: isolated left to right and cut at their end (Design.md §24).
+ * In an Urdu layout they still line up on the right, like the Urdu text around them.
+ */
+.iq-truncate-end {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  unicode-bidi: isolate;
+}
+
+[dir='rtl'] .iq-truncate-end {
+  text-align: right;
+}
+
+/* A screen fades in once when the route changes (Design.md §11: panels 200-300 ms, ease-out) */
+.iq-page {
+  animation: iq-enter var(--iq-duration-panel) var(--iq-ease-enter) both;
+}
+
+@keyframes iq-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+/* Skeleton shimmer (Design.md §12.1) */
+.iq-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, var(--iq-surface) 70%, transparent) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: iq-shimmer 1.4s linear infinite;
+}
+
+@keyframes iq-shimmer {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+
+/* Landing page only: the slow turn of the step icons' dashed ring (Design.md §11 deviation) */
+.iq-orbit {
+  animation: iq-orbit 18s linear infinite;
+}
+
+@keyframes iq-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Design.md §11: non-essential motion off for people who ask for less */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /*

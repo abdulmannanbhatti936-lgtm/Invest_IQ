@@ -4,13 +4,22 @@ import { Loader2 } from 'lucide-react';
 import { useTranslation } from '@investiq/i18n';
 import { useAuth } from './AuthContext';
 import { ErrorState } from '../../components/ui/Feedback';
-import { adminRedirect, guestRedirect, protectedRouteRedirect } from './guardRules';
+import {
+  adminRedirect,
+  guestRedirect,
+  landingRedirect,
+  protectedRouteRedirect,
+} from './guardRules';
 
-const FullPageSpinner = () => (
-  <div className="flex min-h-screen items-center justify-center bg-gray-50">
-    <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-  </div>
-);
+export const FullPageSpinner = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-bg" role="status">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+      <span className="sr-only">{t('common.loading')}</span>
+    </div>
+  );
+};
 
 /** Logged-in users only; others go to /login and come back afterwards. */
 export const RequireAuth = ({ children }: { children: ReactNode }) => {
@@ -59,6 +68,15 @@ export const GuestOnly = ({ children }: { children: ReactNode }) => {
   if (isLoading) return <FullPageSpinner />;
   const from = (location.state as { from?: Location } | null)?.from;
   const redirect = guestRedirect(user, from ? from.pathname + from.search : null);
+  if (redirect) return <Navigate to={redirect} replace />;
+  return <>{children}</>;
+};
+
+/** "/": the public landing page for visitors; logged-in users go on to the app. */
+export const LandingGate = ({ children }: { children: ReactNode }) => {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return <FullPageSpinner />;
+  const redirect = landingRedirect(user);
   if (redirect) return <Navigate to={redirect} replace />;
   return <>{children}</>;
 };

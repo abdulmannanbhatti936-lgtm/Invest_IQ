@@ -2,6 +2,7 @@ import { useId, type FormEvent, type KeyboardEvent } from 'react';
 import { SendHorizontal } from 'lucide-react';
 import { useTranslation } from '@investiq/i18n';
 import { Button } from '../../components/ui/Button';
+import { ltr } from '../../lib/format';
 import { MAX_MESSAGE_CHARS, canSend } from './chatView';
 
 export const ChatComposer = ({
@@ -42,7 +43,7 @@ export const ChatComposer = ({
 
   return (
     <form onSubmit={submit} className="space-y-2">
-      <label htmlFor={id} className="block text-sm font-medium text-gray-700">
+      <label htmlFor={id} className="block text-sm font-medium text-ink">
         {t('chat.inputLabel')}
       </label>
       <div className="flex items-end gap-2">
@@ -58,17 +59,17 @@ export const ChatComposer = ({
           aria-describedby={hintId}
           aria-invalid={over}
           placeholder={t('chat.inputPlaceholder')}
-          className="min-h-[44px] flex-1 resize-y rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
+          className="min-h-[44px] flex-1 resize-y rounded-control border border-line-strong px-4 py-2 text-sm focus:border-primary disabled:bg-sunken"
         />
         <Button type="submit" isLoading={sending} disabled={!ready} aria-label={t('chat.send')}>
           {!sending && <SendHorizontal className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />}
           <span className="ms-2 hidden sm:inline">{t('chat.send')}</span>
         </Button>
       </div>
-      <div id={hintId} className="flex justify-between text-xs text-gray-500">
+      <div id={hintId} className="flex justify-between text-xs text-muted">
         <span>{t('chat.keyboardHint')}</span>
-        <span className={`tabular-nums ${over ? 'text-red-600' : ''}`}>
-          {t('chat.counter', { count: value.length, max: MAX_MESSAGE_CHARS })}
+        <span className={`tabular-nums ${over ? 'text-danger' : ''}`}>
+          {ltr(t('chat.counter', { count: value.length, max: MAX_MESSAGE_CHARS }))}
         </span>
       </div>
     </form>

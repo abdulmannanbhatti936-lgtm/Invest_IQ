@@ -1,7 +1,16 @@
 // Run with: npm test (Node's built-in test runner)
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { formatDate, formatMoney, formatPctString, formatPp, withSign } from './format.ts';
+import {
+  ARROW,
+  direction,
+  formatDate,
+  formatMoney,
+  formatPctString,
+  formatPp,
+  ltr,
+  withSign,
+} from './format.ts';
 
 test('API timestamps (UTC, "Z") are shown as the Pakistan date', () => {
   // 21:18 UTC on 8 Oct is 02:18 on 9 Oct in Karachi — the day the user actually saw
@@ -44,4 +53,19 @@ test('positive figures get a plus sign, zero and negative ones keep theirs', () 
 test('percentage points carry a sign and stay left-to-right', () => {
   assert.equal(formatPp('5.00'), '⁦+5.00⁩');
   assert.equal(formatPp('-0.24'), '⁦-0.24⁩');
+});
+
+test('ltr keeps a counter in reading order inside Urdu (audit: "1000 / 0")', () => {
+  const text = ltr('0 / 1000');
+  assert.equal(text, '⁦0 / 1000⁩');
+  assert.equal(text.codePointAt(0), 0x2066); // LEFT-TO-RIGHT ISOLATE
+  assert.equal(text.codePointAt(text.length - 1), 0x2069); // POP DIRECTIONAL ISOLATE
+});
+
+test('direction and arrow: gains ▲, losses ▼, no change — (Design §5)', () => {
+  assert.equal(direction(2.5), 'up');
+  assert.equal(direction('-0.31'), 'down');
+  assert.equal(direction('0.00'), 'flat');
+  assert.equal(direction(null), 'flat');
+  assert.deepEqual([ARROW.up, ARROW.down, ARROW.flat], ['▲', '▼', '—']);
 });

@@ -4,17 +4,21 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   /** `warning`: the tinted treatment for low-confidence AI output (Design.md §6.4) */
   tone?: 'default' | 'warning';
+  /** Inner padding; `none` for cards whose rows run edge to edge */
+  padding?: 'none' | 'md';
 }
 
 const TONES = {
-  default: 'bg-white border border-gray-100',
-  warning: 'bg-amber-50/40 border-2 border-amber-300',
+  default: 'border border-line bg-surface',
+  warning: 'border-2 border-warning bg-warning-tint',
 };
 
+/** The one card used everywhere (Design.md §6.2). Clickable cards lift slightly on hover. */
 export const Card = ({
   children,
   className = '',
   tone = 'default',
+  padding = 'md',
   onClick,
   ...props
 }: CardProps) => {
@@ -33,8 +37,10 @@ export const Card = ({
     : {};
   return (
     <div
-      className={`${TONES[tone]} rounded-xl shadow-sm p-6 ${
-        onClick ? 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500' : ''
+      className={`${TONES[tone]} rounded-card shadow-e1 ${padding === 'md' ? 'p-4 sm:p-6' : ''} ${
+        onClick
+          ? 'cursor-pointer transition-[transform,box-shadow] duration-150 ease-enter hover:-translate-y-0.5 hover:shadow-e2'
+          : ''
       } ${className}`}
       onClick={onClick}
       {...interactive}
@@ -59,7 +65,7 @@ export const CardTitle = ({
 }: {
   children: ReactNode;
   className?: string;
-}) => <h3 className={`text-lg font-semibold text-gray-900 ${className}`}>{children}</h3>;
+}) => <h2 className={`text-lg font-semibold text-ink ${className}`}>{children}</h2>;
 
 export const CardContent = ({
   children,

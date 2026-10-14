@@ -1,11 +1,11 @@
-import type { ReactNode } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { AlertTriangle, Info, RefreshCw } from 'lucide-react';
 import { useTranslation } from '@investiq/i18n';
 import { Button } from './Button';
 
-/** Skeleton placeholder block (Design.md §12.1). */
+/** Skeleton placeholder shaped like the content it stands for (Design.md §12.1). */
 export const Skeleton = ({ className = '' }: { className?: string }) => (
-  <div className={`animate-pulse rounded-md bg-gray-200 ${className}`} aria-hidden="true" />
+  <div className={`iq-shimmer rounded-control bg-sunken ${className}`} aria-hidden="true" />
 );
 
 /** Inline, section-scoped error with a retry action (Design.md §12.3). */
@@ -14,13 +14,13 @@ export const ErrorState = ({ message, onRetry }: { message: string; onRetry?: ()
   return (
     <div
       role="alert"
-      className="flex flex-col items-center gap-3 rounded-lg border border-red-100 bg-red-50 p-6 text-center"
+      className="flex flex-col items-center gap-4 rounded-card border border-danger bg-danger-tint p-6 text-center"
     >
-      <AlertTriangle className="h-6 w-6 text-red-500" />
-      <p className="text-sm text-red-700">{message}</p>
+      <AlertTriangle className="h-6 w-6 text-danger" aria-hidden="true" />
+      <p className="text-sm text-ink">{message}</p>
       {onRetry && (
         <Button variant="secondary" onClick={onRetry}>
-          <RefreshCw className="h-4 w-4 me-2" />
+          <RefreshCw className="h-4 w-4" aria-hidden="true" />
           {t('common.retry')}
         </Button>
       )}
@@ -28,7 +28,31 @@ export const ErrorState = ({ message, onRetry }: { message: string; onRetry?: ()
   );
 };
 
-/** Neutral explanatory message, e.g. an empty or "insufficient data" state. */
+/** A designed empty state: why it is empty and what to do next (Design.md §12.2). */
+export const EmptyState = ({
+  icon: Icon,
+  title,
+  children,
+  action,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  title: string;
+  children?: ReactNode;
+  action?: ReactNode;
+}) => (
+  <div className="flex flex-col items-center gap-4 px-4 py-8 text-center">
+    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-tint text-primary">
+      <Icon className="h-6 w-6" />
+    </span>
+    <div className="max-w-md space-y-2">
+      <h2 className="text-lg font-semibold text-ink">{title}</h2>
+      {children && <div className="text-sm text-muted">{children}</div>}
+    </div>
+    {action}
+  </div>
+);
+
+/** Neutral explanatory message, e.g. an "insufficient data" note. */
 export const Notice = ({
   children,
   tone = 'neutral',
@@ -37,18 +61,16 @@ export const Notice = ({
   tone?: 'neutral' | 'warning';
 }) => (
   <div
-    className={`flex items-start gap-3 rounded-lg border p-4 text-sm ${
-      tone === 'warning'
-        ? 'border-amber-200 bg-amber-50 text-amber-900'
-        : 'border-gray-200 bg-gray-50 text-gray-700'
+    className={`flex items-start gap-4 rounded-control border p-4 text-sm text-ink ${
+      tone === 'warning' ? 'border-warning bg-warning-tint' : 'border-line bg-sunken'
     }`}
   >
     {tone === 'warning' ? (
-      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+      <AlertTriangle className="mt-2 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
     ) : (
-      <Info className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" />
+      <Info className="mt-2 h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
     )}
-    <div>{children}</div>
+    <div className="min-w-0">{children}</div>
   </div>
 );
 
@@ -56,7 +78,7 @@ export const Notice = ({
 export const DisclaimerBanner = () => {
   const { t } = useTranslation();
   return (
-    <div className="rounded-lg border border-gray-200 bg-gray-100 px-4 py-3 text-center text-sm text-gray-700">
+    <div className="rounded-control border border-line bg-sunken px-4 py-4 text-center text-sm text-muted">
       {t('disclaimer')}
     </div>
   );
