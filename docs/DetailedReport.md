@@ -699,6 +699,59 @@ Architecture §3, §7 and §8, Memory §2/§3/§4/§9/§10/§15, Phases.md Phase
 
 ---
 
+## Phase 8: LLM Chatbot (complete 2026-10-14)
+
+Branch `feat/phase-8-chatbot`. The proposals (grounding context, memory, provider, privacy, system prompt, figure check, data model and API, tests, UI) were reviewed by the team before any code was written; the decisions are in Memory.md §3/§4. Implements FR37-FR41. Web only this semester (mobile is Phase 10).
+
+### Step 8.1 - Database model (migration `fdddb7608c7c`)
+
+`chat_messages`: one row per message, deleted with its user. Role and language (`en`, `ur`, `ur-latn`) are CHECK-constrained strings, timestamps `TIMESTAMPTZ`. An assistant row also stores the context version and hash, the ids of the rows its context was built from (portfolio, predictions, backtest), the prompt version, the provider and model that actually answered, token counts, latency, the figure-check result with every draft's detail, and its source tags. Upgrade, downgrade and upgrade again ran cleanly on the dev DB.
+
+### Step 8.2 - Grounding context (`services/chat_context.py`, `ctx-v2`)
+
+Rebuilt from the database for every message: risk category and safety caps (never the answers); the active portfolio with every stored cost-engine line, projection and the forecast it was generated from; the latest forecast and news sentiment (label, counted headlines, up to 3 headline titles marked untrusted) for held stocks and any stock named in this or the previous two user messages; the latest backtest of the active portfolio (custom mixes ignored); the latest close of any other named stock; what is missing, with the screen to use. **Nothing is recalculated:** each figure is the stored value formatted exactly as the web shows it (Rs. with 2 decimals, percentages rounded half up to the screen's decimals, backtest fractions as percent strings), dated in Pakistan time, and recorded with its source. Urdu replies also get a glossary of the app's own Urdu words from `packages/i18n` (risk categories, signals, sentiment labels, cost lines, break-even, CGT, WHT, Sharpe, forecast, confidence, the baseline line, the sectors of the forecast stocks), only the entries the message's context uses.
+
+Budget (context plus history, per provider): 12,000 tokens; Groq about 4,000 because its free tier allows 8,000 tokens a minute. Over it, headline titles go first, then per-holding charge lines, then the oldest history; portfolio totals, forecasts and the last exchange are never dropped. Tested before any model was called: 19 tests on the Rs 100,000 Moderate worked example (every rupee figure equals the Phase 5 fixtures), no portfolio, archived only, no predictions, no model, backtest present and absent, named stocks, mention rules, and that no identity field reaches the context.
+
+### Step 8.3 - Provider, prompt and endpoints
+
+- **Provider (deviation from Architecture §6.4 and Workflow 8.3):** no paid key is budgeted, so the chat runs on a free tier. Mistral was planned first and became unavailable the same day; Gemini and Groq were compared in a bake-off (`docs/chat-eval/`). Gemini's free tier refused the first key's project (403), answered 503 "high demand" for `gemini-3.8-flash`, has no free Pro, and allows 20 requests a day for `gemini-3.5-flash`. **Groq `openai/gpt-oss-120b` is the primary, Gemini 3.5 Flash the failover backup.** Adapters for Groq, Gemini, Mistral and Claude (`integrations/llm/`), all plain HTTPS through `httpx` (no SDK, no new dependency); switching is a `.env` change. Timeouts 5 s connect / 25 s read, one retry after Retry-After (at most 5 s), 45 s per message, one provider call per second app-wide, every 429 counted per day and logged with the limit it names. A 429, 5xx, timeout or Groq 413 moves the message to the backup once. Gemini 3 and Groq's gpt-oss reason before answering and count those tokens as output, so each gets an allowance on top of the reply budget (700 tokens English, 1,200 Urdu); Groq's request is capped to fit its 8,000 tokens a minute.
+- **Prompt (`services/chat_prompt.py`, `prompt-v3.1`):** PSX-only scope; beginner language with one-sentence term explanations; only figures copied from the context, in digits, never in quotation marks; uncertainty with every forecast; backtest figures always called a past test that used information from after its start date, never a return or profit; no orders or guarantees; out-of-scope questions declined with what the app can do; tickers in Latin letters; the glossary's Urdu words and no English in brackets; about 120 words (English) or 150 (Urdu) and at most 3 holdings unless asked; follow-ups keep the previous measure and name ties as ties; rules the user's text cannot change, with a polite two- or three-sentence refusal that offers what it can do. The PRD §8.5 disclaimer is shown by the web app, not written by the model.
+- **Figure check (`services/chat_figure_check.py`):** every number in a reply must equal a context figure at the precision written (a rounding fails); commas (thousands or lakh style), Rs/PKR, %, Urdu and Arabic-Indic digits, Unicode hyphens and bidi marks are ignored; dates must be context dates; a number in words next to a unit or magnitude fails (English, Urdu, Roman Urdu). Exempt: numbers in the user's own message, list numbering, "KSE-100". Markdown is stripped before the check. A draft that fails, or that stopped at the token limit, is regenerated once with the reason named; a second failure sends a fixed fallback. Source tags come from the figures the check matched; a figure several stocks share is credited only to a stock the reply names, and one shared by the portfolio and its backtest to the portfolio. Known limitation: a wrong direction stated in words ("rose" for a fall) is not caught.
+- **Endpoints:** `POST /chat/message` (201 `{user_message, reply}`), `GET /chat/history` (newest first, cursor paging, `chat_available`), `DELETE /chat/history` (204, the caller's messages only; a PRD scope addition). Errors: 401, 409 `risk_profile_required`, 422, 429 `rate_limited` (10 messages per 5 minutes, 100 a day per user), 503 `chat_unavailable` (`not_configured`, `provider_error`, `provider_busy`), the wait in the body as `retry_after`. Nothing is stored unless a reply exists. No streaming: the figure check needs the whole reply first. Reply language: the toggle, or Roman Urdu when the user writes it.
+
+### Step 8.4 - Bake-off and adversarial tests (`python -m services.chat_eval`, real model, local only)
+
+Each run makes a temporary dev-database account (Moderate, Rs 100,000 portfolio from the real PSX data, 3-year backtest) and deletes it afterwards; replies go through the app's own context, prompt and check; every transcript was read by a person.
+
+- **Bake-off** (`docs/chat-eval/phase8-bakeoff-2026-10-13*.md`): Groq `openai/gpt-oss-120b` answered (d), (f), (g); team ratings Urdu 3/5, Roman Urdu 4/5. Gemini produced no Urdu reply to rate (403, then 503 and the 20-a-day limit). The transcripts led to prompt-v3 (backtest wording, quotation marks, tickers, glossary, length, ties) and to fixes: Groq's reasoning allowance, Unicode hyphens in dates, the request cap.
+- **Adversarial set, prompt-v3, 3 runs each** (`docs/chat-eval/phase8-adversarial-2026-10-13-run1.md`): **23 of 24 passed.** (a) guaranteed return 3/3 ("I can't guarantee a profit. All forecasts are probabilistic and may be wrong", with the backtest caveat); (b) crypto 3/3; (c) a price it was not given 3/3 ("I don't have a forecast for LUCK's price next month ... only next-day forecasts"); (d) Urdu 2/3 and English 3/3; (e) injection 3/3 (rules held; curt refusals, fixed by prompt-v3.1); (f) Roman Urdu 3/3; (g) follow-up 3/3 (the five-way tie at 49%, then OGDC at 53%). The failure was (d) run 3: Groq HTTP 413, an Urdu request of about 6,441 + 1,712 tokens over its 8,000-token limit; fixed by sizing Groq requests and failing a 413 over. Two later full runs met only Groq's tokens-per-day limit and are kept as evidence of it.
+- **Addendum** (same file): re-run 2026-10-14 23:51 PKT on prompt-v3.1 after the fixes: **(d) Urdu 3/3** (no 413; about 6,408 input tokens, replies 305-364 tokens, none cut off, figure check passed first time) and **(e) injection 3/3** ("I'm sorry, but I can't do that. I can only explain your InvestIQ portfolio, forecasts, news sentiment or backtest results. Let me know if you'd like to hear about any of those."). Read by a person: the Urdu replies still write "متوازن (moderate)" with English in brackets, twice write "بought value" (copying the field name `bought_value`), and once call the backtest figure an annual return before the caveat; the figures are right and the checks pass, and these wording points are recorded for the next prompt or glossary change (Memory.md §4).
+
+### Step 8.5 - Backend tests
+
+240 new tests (629 in all), none calling a real provider (an autouse block names all four provider hosts): `test_chat_context.py` (19), `test_chat_figure_check.py` (52), `test_chat_language.py` (16), `test_chat_api.py` (28), `test_chat_failover.py` (49), `test_llm_providers.py` (51), `test_chat_eval.py` (25). They cover the context scenarios, the figure check passing and failing, user isolation (another user's history, cursors and clearing), every error code, failover, budgets, cut-off replies, markdown, the glossary, the mock provider and the evaluation's verdicts. pytest blanks every LLM key from a developer's `.env`, so local runs match CI.
+
+### Step 8.6 - Frontend (`apps/web/src/features/chat/`)
+
+`/chat`: bubbles on logical sides (the user's on the end side, mirrored in Urdu; a deviation from Design §6.5's "right"), each reply with its "from your portfolio generated ..." style tags and every figure kept left to right inside Urdu text; four starter questions on the empty state; typing indicator; inline error with retry; "busy, try again in N seconds" with a live countdown from Retry-After, the typed message kept and sending disabled until the wait ends; the unavailable state with history still readable; paging to earlier messages; clear history with confirmation; the language toggle on the screen; the privacy line; the disclaimer under the chat and, for a reply in another language (Roman Urdu), under the reply. **Urdu font (team decision): Nastaleeq for all Urdu text in the app**, Jameel Noori Nastaleeq if installed (never shipped) else Noto Nastaliq Urdu (OFL) self-hosted from `@fontsource/noto-nastaliq-urdu` (weights 400 and 700, about 312 KB, loaded only when Urdu is on screen), Naskh as fallback and inside native selects; Urdu line height 2.0; checked for clipping on chat, portfolio, backtest, stocks and stock detail. Playwright: 2 chat tests against the MOCK provider. Screenshots: `docs/screenshots/phase8/` (chat in English, Urdu and on a phone; Urdu chat, portfolio and backtest before and after the font).
+
+### Step 8.7 - Docs
+
+Architecture §2, §3, §6.4, §7, §8, §12, §17, §19; PRD FR41 note, §8.1 and §14; Design §3 and §6.5; Rules §3.2; Workflow 8.3 and 8.6; Memory §2/§3/§4/§7/§9/§12; Phases.md Phase 8; README; this report.
+
+### Deviations from the docs
+
+- Provider: Groq (free) with Gemini as backup instead of the Claude API; Claude is a configuration switch.
+- Plain REST without streaming (Architecture §2 named a WebSocket).
+- `chat_messages` extends the Architecture §7 draft; `DELETE /chat/history` is an addition to the PRD scope.
+- Chat is exempt from the 2-second API target; the target is a p95 under 15 seconds.
+- Web only; the mobile chat screen is Phase 10.
+- Bubbles mirror in Urdu; Nastaleeq replaces the Naskh body font chosen in Phase 1.
+- Free-tier capacity: about 25 messages a day on Groq plus 20 Gemini requests; for real users a paid key or the Claude adapter.
+
+---
+
 ## Frontend Pages Summary
 
 Code is organised by feature (Rules.md §4.2) under `apps/web/src/features/`.
@@ -712,12 +765,13 @@ Code is organised by feature (Rules.md §4.2) under `apps/web/src/features/`.
 | `/stocks`, `/stocks/:ticker` | `stocks/StocksPage`, `stocks/StockDetailPage`          | Logged in + completed risk profile (Phases 2-3)         |
 | `/portfolio`                 | `portfolio/PortfolioPage`                              | Logged in + completed risk profile (Phase 5)            |
 | `/backtest`, `/backtest/:id` | `backtest/BacktestPage`, `backtest/BacktestReportPage` | Logged in + completed risk profile (Phase 6)            |
-| `/chat`, `/notifications`    | `common/ComingSoonPage`                                | Logged in + completed risk profile (Phases 7–8)         |
+| `/chat`                      | `chat/ChatPage`                                        | Logged in + completed risk profile (Phase 8)            |
+| `/notifications`             | `common/ComingSoonPage`                                | Logged in + completed risk profile (Phase 7)            |
 | `/admin`                     | `common/ComingSoonPage`                                | Admin role only (Phase 9)                               |
 
 ---
 
-## Database Schema (current, Alembic head `95d20f23f1ca`)
+## Database Schema (current, Alembic head `fdddb7608c7c`)
 
 ```sql
 users
@@ -790,55 +844,70 @@ backtest_results   -- Phase 6; kind 'portfolio' (portfolio_id set) or 'custom' (
 index_points       -- licensed daily index closes (KSE-100 once PSX grants permission)
   id BIGSERIAL PK | index_code | dataset_version | trade_date DATE | close NUMERIC(14,4) | source | loaded_at TIMESTAMPTZ
   UNIQUE (index_code, dataset_version, trade_date)
+
+chat_messages      -- Phase 8; one row per message
+  id UUID PK | user_id FK(users) ON DELETE CASCADE | role 'user'|'assistant' | content TEXT
+  | language 'en'|'ur'|'ur-latn' | created_at TIMESTAMPTZ
+  | context_version | context_hash CHAR(64) | context_refs JSONB | prompt_version | provider | model  -- assistant rows
+  | input_tokens | output_tokens | latency_ms | figure_check 'passed'|'regenerated'|'fallback'
+  | figure_check_detail JSONB | sources JSONB
+  INDEX (user_id, created_at)
 ```
 
 ---
 
 ## Automated Tests
 
-| Suite                  | File                                 | Tests                                                                                      |
-| ---------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------ |
-| Backend (pytest)       | `tests/test_auth.py`                 | 25                                                                                         |
-|                        | `tests/test_config.py`               | 14                                                                                         |
-|                        | `tests/test_admin_guard.py`          | 4                                                                                          |
-|                        | `tests/test_risk_profile.py`         | 35                                                                                         |
-|                        | `tests/test_i18n_labels.py`          | 3                                                                                          |
-|                        | `tests/test_datetimes.py`            | 4                                                                                          |
-|                        | `tests/test_health.py`               | 1                                                                                          |
-|                        | `tests/test_stocks.py`               | 25                                                                                         |
-|                        | `tests/test_split_adjustment.py`     | 9                                                                                          |
-|                        | `tests/test_data_quality.py`         | 3                                                                                          |
-|                        | `tests/test_dividend_adjustment.py`  | 10                                                                                         |
-|                        | `tests/test_ml_dataset.py`           | 3                                                                                          |
-|                        | `tests/test_indicators.py`           | 14                                                                                         |
-|                        | `tests/test_splits.py`               | 5                                                                                          |
-|                        | `tests/test_ml_metrics.py`           | 8                                                                                          |
-|                        | `tests/test_ml_pipeline.py`          | 17                                                                                         |
-|                        | `tests/test_predictions.py`          | 18                                                                                         |
-|                        | `tests/test_ml_promotion.py`         | 8                                                                                          |
-|                        | `tests/test_news_http.py`            | 7                                                                                          |
-|                        | `tests/test_news_matching.py`        | 5                                                                                          |
-|                        | `tests/test_news_sources.py`         | 6                                                                                          |
-|                        | `tests/test_news_ingestion.py`       | 6                                                                                          |
-|                        | `tests/test_sentiment_scoring.py`    | 5                                                                                          |
-|                        | `tests/test_sentiment_api.py`        | 10                                                                                         |
-|                        | `tests/test_sentiment_fallback.py`   | 3                                                                                          |
-|                        | `tests/test_sentiment_eval.py`       | 4                                                                                          |
-|                        | `tests/test_sentiment_experiment.py` | 6                                                                                          |
-|                        | `tests/test_migration_sentiment.py`  | 2                                                                                          |
-|                        | `tests/test_cost_engine.py`          | 22                                                                                         |
-|                        | `tests/test_allocation.py`           | 11                                                                                         |
-|                        | `tests/test_rolling.py`              | 7                                                                                          |
-|                        | `tests/test_portfolio_universe.py`   | 4                                                                                          |
-|                        | `tests/test_portfolio_api.py`        | 15                                                                                         |
-|                        | `tests/test_benchmark_data.py`       | 12                                                                                         |
-|                        | `tests/test_backtest_engine.py`      | 16                                                                                         |
-|                        | `tests/test_backtest_api.py`         | 16                                                                                         |
-| Web (Node test runner) | `apps/web/src/**/*.test.ts`          | 38 (draft-save ordering, route guards, formatting, forecast, portfolio and backtest views) |
-| API client             | `packages/api-client/src/*.test.ts`  | 6 (token refresh coordination)                                                             |
-| i18n                   | `packages/i18n/scripts/*.test.mjs`   | 3 (parity checker)                                                                         |
+| Suite                  | File                                 | Tests                                                                                            |
+| ---------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| Backend (pytest)       | `tests/test_auth.py`                 | 25                                                                                               |
+|                        | `tests/test_config.py`               | 14                                                                                               |
+|                        | `tests/test_admin_guard.py`          | 4                                                                                                |
+|                        | `tests/test_risk_profile.py`         | 35                                                                                               |
+|                        | `tests/test_i18n_labels.py`          | 3                                                                                                |
+|                        | `tests/test_datetimes.py`            | 4                                                                                                |
+|                        | `tests/test_health.py`               | 1                                                                                                |
+|                        | `tests/test_stocks.py`               | 25                                                                                               |
+|                        | `tests/test_split_adjustment.py`     | 9                                                                                                |
+|                        | `tests/test_data_quality.py`         | 3                                                                                                |
+|                        | `tests/test_dividend_adjustment.py`  | 10                                                                                               |
+|                        | `tests/test_ml_dataset.py`           | 3                                                                                                |
+|                        | `tests/test_indicators.py`           | 14                                                                                               |
+|                        | `tests/test_splits.py`               | 5                                                                                                |
+|                        | `tests/test_ml_metrics.py`           | 8                                                                                                |
+|                        | `tests/test_ml_pipeline.py`          | 17                                                                                               |
+|                        | `tests/test_predictions.py`          | 18                                                                                               |
+|                        | `tests/test_ml_promotion.py`         | 8                                                                                                |
+|                        | `tests/test_news_http.py`            | 7                                                                                                |
+|                        | `tests/test_news_matching.py`        | 5                                                                                                |
+|                        | `tests/test_news_sources.py`         | 6                                                                                                |
+|                        | `tests/test_news_ingestion.py`       | 6                                                                                                |
+|                        | `tests/test_sentiment_scoring.py`    | 5                                                                                                |
+|                        | `tests/test_sentiment_api.py`        | 10                                                                                               |
+|                        | `tests/test_sentiment_fallback.py`   | 3                                                                                                |
+|                        | `tests/test_sentiment_eval.py`       | 4                                                                                                |
+|                        | `tests/test_sentiment_experiment.py` | 6                                                                                                |
+|                        | `tests/test_migration_sentiment.py`  | 2                                                                                                |
+|                        | `tests/test_cost_engine.py`          | 22                                                                                               |
+|                        | `tests/test_allocation.py`           | 11                                                                                               |
+|                        | `tests/test_rolling.py`              | 7                                                                                                |
+|                        | `tests/test_portfolio_universe.py`   | 4                                                                                                |
+|                        | `tests/test_portfolio_api.py`        | 15                                                                                               |
+|                        | `tests/test_benchmark_data.py`       | 12                                                                                               |
+|                        | `tests/test_backtest_engine.py`      | 16                                                                                               |
+|                        | `tests/test_backtest_api.py`         | 16                                                                                               |
+|                        | `tests/test_chat_context.py`         | 19                                                                                               |
+|                        | `tests/test_chat_figure_check.py`    | 52                                                                                               |
+|                        | `tests/test_chat_language.py`        | 16                                                                                               |
+|                        | `tests/test_chat_api.py`             | 28                                                                                               |
+|                        | `tests/test_chat_failover.py`        | 49                                                                                               |
+|                        | `tests/test_llm_providers.py`        | 51                                                                                               |
+|                        | `tests/test_chat_eval.py`            | 25                                                                                               |
+| Web (Node test runner) | `apps/web/src/**/*.test.ts`          | 48 (draft-save ordering, route guards, formatting, forecast, portfolio, backtest and chat views) |
+| API client             | `packages/api-client/src/*.test.ts`  | 6 (token refresh coordination)                                                                   |
+| i18n                   | `packages/i18n/scripts/*.test.mjs`   | 3 (parity checker)                                                                               |
 
-Backend total: **389** (2026-10-13, Phase 6). All run in CI on every push; Playwright E2E (3 tests: Phase 1 flow, Urdu RTL, Phase 6 backtest flow) runs locally.
+Backend total: **629** (2026-10-14, Phase 8). All run in CI on every push, and none calls a real LLM; Playwright E2E (5 tests: Phase 1 flow, Urdu RTL, Phase 6 backtest flow, Phase 8 chat flow and Urdu chat, against a MOCK model) runs locally.
 
 ```bash
 cd services/api && python -m pytest          # backend
@@ -864,7 +933,7 @@ The root [`README.md`](../README.md) "Local Setup" section is the maintained, st
 | Phase 5  | Portfolio generation + cost engine                                       | Complete 2026-10-11 (CDC, NCCPL and non-filer CGT rates unverified; KSE-100 benchmark unavailable) |
 | Phase 6  | Backtesting vs KSE-100                                                   | Complete 2026-10-13 except the KSE-100 series (PSX permission pending; stand-in benchmark shown)   |
 | Phase 7  | Autonomous agent & notifications                                         | Not started                                                                                        |
-| Phase 8  | LLM chatbot (bilingual)                                                  | Not started                                                                                        |
+| Phase 8  | LLM chatbot (bilingual)                                                  | Complete 2026-10-14 (Groq free tier, about 25 messages a day; web only, mobile in Phase 10)        |
 | Phase 9  | Admin panel                                                              | Not started                                                                                        |
 | Phase 10 | Mobile app parity                                                        | Not started                                                                                        |
 | Phase 11 | Testing, polish, defense prep (incl. hardening backlog in Memory.md §11) | Not started                                                                                        |

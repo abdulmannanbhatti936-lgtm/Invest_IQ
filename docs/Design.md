@@ -52,6 +52,8 @@
 | Urdu font                 | Noto Nastaliq Urdu (for headings/emphasis) or Noto Sans Arabic/Urdu (for body text, better readability at small sizes) | Body Urdu text should use the Naskh-style font, not Nastaliq, for readability at small UI sizes — reserve Nastaliq (if used at all) for large decorative headings only |
 | Numeric/financial figures | Tabular (monospaced-number) figures, e.g., Inter's tabular-nums feature                                                | Prevents prices/percentages from jittering in width as digits change                                                                                                   |
 
+**As built (team decision 2026-10-13, replacing the Naskh body font chosen on 2026-10-09):** all Urdu text uses **Nastaleeq**. The stack is "Jameel Noori Nastaleeq" when it is installed on the viewer's computer (never shipped: its licence does not clearly allow web embedding), then **Noto Nastaliq Urdu** (SIL Open Font License 1.1, self-hosted from `@fontsource/noto-nastaliq-urdu` so it works offline and makes no third-party request; weights 400 and 700 only, about 156 KB each, downloaded only when Urdu is on screen), then Noto Naskh Arabic. A `unicode-range` keeps Latin letters, digits, tickers and emails in the UI font. Urdu text (any element with `lang="ur"`, the whole page or one chat reply) gets a line height of 2.0 so dots and descenders are not clipped; Urdu inputs and selects grow instead of clipping, and the text inside a native `<select>` uses Naskh, because browsers draw a select's value on one fixed line that clips Nastaleeq's tall letters. Before/after screenshots: `docs/screenshots/phase8/before-*` and `after-*`.
+
 **Scale (web, rem-based):**
 
 ```

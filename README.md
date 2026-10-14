@@ -23,17 +23,17 @@ InvestIQ is an AI-powered investment advisory platform — web and mobile — bu
 
 ## 🧱 Tech Stack
 
-| Layer           | Technology                                                |
-| --------------- | --------------------------------------------------------- |
-| Web             | React.js, Vite, Tailwind CSS                              |
-| Mobile          | React Native (Expo)                                       |
-| Backend         | Python, FastAPI                                           |
-| AI/ML           | PyTorch, Scikit-learn, HuggingFace Transformers (FinBERT) |
-| LLM             | Claude API                                                |
-| Database        | PostgreSQL, Redis                                         |
-| Background Jobs | Celery                                                    |
-| Notifications   | Firebase Cloud Messaging                                  |
-| Data Sources    | Yahoo Finance API, PSX Data API                           |
+| Layer           | Technology                                                       |
+| --------------- | ---------------------------------------------------------------- |
+| Web             | React.js, Vite, Tailwind CSS                                     |
+| Mobile          | React Native (Expo)                                              |
+| Backend         | Python, FastAPI                                                  |
+| AI/ML           | PyTorch, Scikit-learn, HuggingFace Transformers (FinBERT)        |
+| LLM             | Groq (free tier) with Gemini as backup; Claude API adapter ready |
+| Database        | PostgreSQL, Redis                                                |
+| Background Jobs | Celery                                                           |
+| Notifications   | Firebase Cloud Messaging                                         |
+| Data Sources    | Yahoo Finance API, PSX Data API                                  |
 
 ## 📁 Project Structure
 
@@ -174,7 +174,16 @@ npm run dev
 
 Open `http://localhost:5173`, register, and complete the risk questionnaire.
 
-### 7. Mobile app
+### 7. Chat assistant (Phase 8)
+
+Set the provider in `services/api/.env` (see `.env.example`): `LLM_PROVIDER=groq`, `LLM_MODEL=openai/gpt-oss-120b`, `GROQ_API_KEY=...`, and as the backup `LLM_BACKUP_PROVIDER=gemini`, `LLM_BACKUP_MODEL=gemini-3.5-flash`, `GEMINI_API_KEY=...`. Without a key the API still starts, logs "Chat disabled" and the chat screen says the assistant is unavailable. Tests never call a real model.
+
+**Free-tier capacity (measured 2026-10-14):** one chat message costs about 6,300 tokens in English and 7,000 in Urdu, so Groq's free 200,000 tokens a day is about **25 messages a day for the whole app**, plus about **20 Gemini requests a day** as backup. Only test accounts are used on the free tiers (their providers may keep or review prompts).
+
+- **Do not run the evaluation scripts (`python -m services.chat_eval`) on a demo day**: one full adversarial run uses most of a day's Groq tokens.
+- For real users the path is a paid key, or the Claude adapter (`LLM_PROVIDER=claude`, `LLM_MODEL`, `CLAUDE_API_KEY`); switching is a `.env` change.
+
+### 8. Mobile app
 
 ```bash
 cd apps/mobile
@@ -197,7 +206,7 @@ npm run check -w @investiq/i18n    # en.json / ur.json parity: missing keys, emp
 npx tsc -b apps/web                # web type-check
 ```
 
-The Urdu font (Noto Naskh Arabic) is self-hosted in `apps/web/public/fonts/`, so nothing extra needs installing and the app works offline.
+The Urdu font is Nastaleeq: Jameel Noori Nastaleeq if it is installed on the computer (never shipped), otherwise Noto Nastaliq Urdu, which the web build bundles from `@fontsource/noto-nastaliq-urdu`. Noto Naskh Arabic (`apps/web/public/fonts/`) is the fallback. Nothing extra needs installing and the app works offline.
 
 From `services/api`, with the venv active:
 
@@ -211,7 +220,7 @@ Tests never touch the dev database: `pytest` creates and migrates a separate `<d
 
 ### End-to-end tests (Playwright, local only)
 
-Browser smoke tests of the Phase 1 flow (register → onboarding with resume → dashboard → logout → login), an Urdu right-to-left run, and the Phase 6 backtest flow (generate a portfolio → 3-year backtest report → a custom mix refused for not totalling 100%). They are not part of CI yet.
+Browser smoke tests of the Phase 1 flow (register → onboarding with resume → dashboard → logout → login), an Urdu right-to-left run, the Phase 6 backtest flow (generate a portfolio → 3-year backtest report → a custom mix refused for not totalling 100%), and the Phase 8 chat flow (starter question, grounded reply with its source tag, the busy countdown, Roman Urdu, clear history, Urdu right to left) against a MOCK model, so no real provider is called. They are not part of CI yet.
 
 One-time setup, from the repo root:
 
