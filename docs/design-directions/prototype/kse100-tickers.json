@@ -1,0 +1,386 @@
+{
+  "snapshot_date": "2026-10-10",
+  "source": "KSE-100 constituents snapshot (services/api/integrations/data/kse100_snapshot_2026-10-10.csv)",
+  "stocks": [
+    {
+      "t": "ABL",
+      "s": "Commercial Banks"
+    },
+    {
+      "t": "ABOT",
+      "s": "Pharmaceuticals"
+    },
+    {
+      "t": "AGP",
+      "s": "Pharmaceuticals"
+    },
+    {
+      "t": "AHCL",
+      "s": "Fertilizer"
+    },
+    {
+      "t": "AICL",
+      "s": "Insurance"
+    },
+    {
+      "t": "AIRLINK",
+      "s": "Technology & Communication"
+    },
+    {
+      "t": "AKBL",
+      "s": "Commercial Banks"
+    },
+    {
+      "t": "APL",
+      "s": "Oil & Gas Marketing Companies"
+    },
+    {
+      "t": "ATLH",
+      "s": "Automobile Assembler"
+    },
+    {
+      "t": "ATRL",
+      "s": "Refinery"
+    },
+    {
+      "t": "BAFL",
+      "s": "Commercial Banks"
+    },
+    {
+      "t": "BAHL",
+      "s": "Commercial Banks"
+    },
+    {
+      "t": "BNWM",
+      "s": "Woollen"
+    },
+    {
+      "t": "BOP",
+      "s": "Commercial Banks"
+    },
+    {
+      "t": "BWCL",
+      "s": "Cement"
+    },
+    {
+      "t": "CHCC",
+      "s": "Cement"
+    },
+    {
+      "t": "CNERGY",
+      "s": "Refinery"
+    },
+    {
+      "t": "COLG",
+      "s": "Food & Personal Care Products"
+    },
+    {
+      "t": "CPHL",
+      "s": "Pharmaceuticals"
+    },
+    {
+      "t": "DCR",
+      "s": "Real Estate Investment Trust"
+    },
+    {
+      "t": "DGKC",
+      "s": "Cement"
+    },
+    {
+      "t": "EFERT",
+      "s": "Fertilizer"
+    },
+    {
+      "t": "FABL",
+      "s": "Commercial Banks"
+    },
+    {
+      "t": "FATIMA",
+      "s": "Fertilizer"
+    },
+    {
+      "t": "FCCL",
+      "s": "Cement"
+    },
+    {
+      "t": "FFC",
+      "s": "Fertilizer"
+    },
+    {
+      "t": "FFL",
+      "s": "Food & Personal Care Products"
+    },
+    {
+      "t": "FHAM",
+      "s": "Modarabas"
+    },
+    {
+      "t": "GADT",
+      "s": "Textile Spinning"
+    },
+    {
+      "t": "GHGL",
+      "s": "Glass & Ceramics"
+    },
+    {
+      "t": "GHNI",
+      "s": "Automobile Assembler"
+    },
+    {
+      "t": "GLAXO",
+      "s": "Pharmaceuticals"
+    },
+    {
+      "t": "HALEON",
+      "s": "Pharmaceuticals"
+    },
+    {
+      "t": "HBL",
+      "s": "Commercial Banks"
+    },
+    {
+      "t": "HCAR",
+      "s": "Automobile Assembler"
+    },
+    {
+      "t": "HINOON",
+      "s": "Pharmaceuticals"
+    },
+    {
+      "t": "HMB",
+      "s": "Commercial Banks"
+    },
+    {
+      "t": "HUBC",
+      "s": "Power Generation & Distribution"
+    },
+    {
+      "t": "IBFL",
+      "s": "Synthetic & Rayon"
+    },
+    {
+      "t": "ILP",
+      "s": "Textile Composite"
+    },
+    {
+      "t": "IMAGE",
+      "s": "Apparel"
+    },
+    {
+      "t": "INDU",
+      "s": "Automobile Assembler"
+    },
+    {
+      "t": "INIL",
+      "s": "Engineering"
+    },
+    {
+      "t": "ISL",
+      "s": "Engineering"
+    },
+    {
+      "t": "JDWS",
+      "s": "Sugar & Allied Industries"
+    },
+    {
+      "t": "JVDC",
+      "s": "Property"
+    },
+    {
+      "t": "KAPCO",
+      "s": "Power Generation & Distribution"
+    },
+    {
+      "t": "KEL",
+      "s": "Power Generation & Distribution"
+    },
+    {
+      "t": "KOHC",
+      "s": "Cement"
+    },
+    {
+      "t": "KTML",
+      "s": "Textile Composite"
+    },
+    {
+      "t": "LCI",
+      "s": "Chemical"
+    },
+    {
+      "t": "LOTCHEM",
+      "s": "Chemical"
+    },
+    {
+      "t": "LUCK",
+      "s": "Cement"
+    },
+    {
+      "t": "MARI",
+      "s": "Oil & Gas Exploration Companies"
+    },
+    {
+      "t": "MCB",
+      "s": "Commercial Banks"
+    },
+    {
+      "t": "MEBL",
+      "s": "Commercial Banks"
+    },
+    {
+      "t": "MLCF",
+      "s": "Cement"
+    },
+    {
+      "t": "MTL",
+      "s": "Automobile Assembler"
+    },
+    {
+      "t": "MUREB",
+      "s": "Food & Personal Care Products"
+    },
+    {
+      "t": "NATF",
+      "s": "Food & Personal Care Products"
+    },
+    {
+      "t": "NBP",
+      "s": "Commercial Banks"
+    },
+    {
+      "t": "NCPL",
+      "s": "Power Generation & Distribution"
+    },
+    {
+      "t": "NESTLE",
+      "s": "Food & Personal Care Products"
+    },
+    {
+      "t": "NML",
+      "s": "Textile Composite"
+    },
+    {
+      "t": "NPL",
+      "s": "Power Generation & Distribution"
+    },
+    {
+      "t": "OGDC",
+      "s": "Oil & Gas Exploration Companies"
+    },
+    {
+      "t": "PAEL",
+      "s": "Cable & Electrical Goods"
+    },
+    {
+      "t": "PAKT",
+      "s": "Tobacco"
+    },
+    {
+      "t": "PGLC",
+      "s": "Leasing Companies"
+    },
+    {
+      "t": "PIBTL",
+      "s": "Transport"
+    },
+    {
+      "t": "PIOC",
+      "s": "Cement"
+    },
+    {
+      "t": "PKGS",
+      "s": "Paper, Board & Packaging"
+    },
+    {
+      "t": "POL",
+      "s": "Oil & Gas Exploration Companies"
+    },
+    {
+      "t": "POWER",
+      "s": "Cement"
+    },
+    {
+      "t": "PPL",
+      "s": "Oil & Gas Exploration Companies"
+    },
+    {
+      "t": "PSEL",
+      "s": "Miscellaneous"
+    },
+    {
+      "t": "PSO",
+      "s": "Oil & Gas Marketing Companies"
+    },
+    {
+      "t": "PSX",
+      "s": "Inv. Banks / Inv. Cos. / Securities Cos."
+    },
+    {
+      "t": "PTC",
+      "s": "Technology & Communication"
+    },
+    {
+      "t": "SAZEW",
+      "s": "Automobile Assembler"
+    },
+    {
+      "t": "SCBPL",
+      "s": "Commercial Banks"
+    },
+    {
+      "t": "SEARL",
+      "s": "Pharmaceuticals"
+    },
+    {
+      "t": "SHFA",
+      "s": "Miscellaneous"
+    },
+    {
+      "t": "SNGP",
+      "s": "Oil & Gas Marketing Companies"
+    },
+    {
+      "t": "SRVI",
+      "s": "Leather & Tanneries"
+    },
+    {
+      "t": "SSGC",
+      "s": "Oil & Gas Marketing Companies"
+    },
+    {
+      "t": "SSOM",
+      "s": "Vanaspati & Allied Industries"
+    },
+    {
+      "t": "SYS",
+      "s": "Technology & Communication"
+    },
+    {
+      "t": "TGL",
+      "s": "Glass & Ceramics"
+    },
+    {
+      "t": "THALL",
+      "s": "Automobile Parts & Accessories"
+    },
+    {
+      "t": "THCCL",
+      "s": "Cement"
+    },
+    {
+      "t": "TRG",
+      "s": "Technology & Communication"
+    },
+    {
+      "t": "UBL",
+      "s": "Commercial Banks"
+    },
+    {
+      "t": "UPFL",
+      "s": "Food & Personal Care Products"
+    },
+    {
+      "t": "YOUW",
+      "s": "Textile Weaving"
+    }
+  ]
+}
