@@ -82,8 +82,38 @@ CASES = {
                 ("and the second lowest one?", "en"),
             ),
         ),
+        # What to invest in (prompt-v3.2): the portfolio is a recommendation, never "yours"
+        Case(
+            "h",
+            "What to invest in, Roman Urdu mixed with English (a live message)",
+            (
+                (
+                    "Hey yar mughay thora bata saktay ho k mai kon sa stock mai abhi currently "
+                    "invest kar sakta hoon for long time",
+                    "en",
+                ),
+            ),
+        ),
+        Case(
+            "h_ur",
+            "What to invest in, Urdu",
+            (("مجھے بتائیں میں ابھی لمبے عرصے کے لیے کون سا اسٹاک خرید سکتا ہوں؟", "ur"),),
+        ),
+        Case(
+            "h_en",
+            "What to invest in, English",
+            (("Which stock should I buy for the long term?", "en"),),
+        ),
     )
 }
+INVEST_CASES = ("h", "h_ur", "h_en")
+_OWNERSHIP = re.compile(
+    r"\b(you (already )?(hold|own|have bought|bought)|your (current )?holdings|stocks you "
+    r"(hold|own|have)|already (hold|own)|holdings|aap ke paas|aap ne (kharid|khareed))"
+    "|آپ کے پاس",
+    re.I,
+)
+_BUY_ORDER = re.compile(r"\b(you should buy|buy (it|this|these|now))\b", re.I)
 BAKEOFF_CASES = ("d_en", "d", "f", "g")
 ADVERSARIAL_CASES = ("a", "b", "c", "d_en", "d", "e", "f", "g")
 
@@ -142,7 +172,7 @@ def _script_share(text: str) -> tuple[float, float]:
 
 def _confidence_order(context) -> list[set[str]]:
     """Held stocks grouped by forecast confidence, lowest first (ties share a group)."""
-    held = {h["ticker"] for h in (context.data["portfolio"] or {}).get("holdings", [])}
+    held = {h["ticker"] for h in (context.data["portfolio"] or {}).get("recommended_stocks", [])}
     by_value: dict[Decimal, set[str]] = {}
     for forecast in context.data["forecasts"]:
         if forecast["ticker"] in held:
@@ -200,6 +230,24 @@ def judge(case: str, run: Run, context) -> tuple[str, str]:
         _urdu, latin = _script_share(reply)
         if latin < 0.9 or not is_roman_urdu(reply):
             problems.append("reply is not Roman Urdu")
+    if case in INVEST_CASES:
+        if _OWNERSHIP.search(reply):
+            problems.append("says the user holds or bought the stocks")
+        if _BUY_ORDER.search(reply):
+            problems.append("tells the user to buy")
+        if case == "h_ur":
+            if "تجویز" not in reply:
+                problems.append("does not call it a recommendation")
+            if "اگلے" not in reply:
+                problems.append("does not say forecasts cover only the next trading day")
+        else:
+            if not re.search(r"recommend", reply, re.I):
+                problems.append("does not call it a recommendation")
+            # English "next trading day", Roman Urdu "agle trading din"
+            if not re.search(r"(next|agle)[- ](trading[- ])?(day|din)", reply, re.I):
+                problems.append("does not say forecasts cover only the next trading day")
+        if case == "h" and run.turns[0].language != "ur-latn":
+            problems.append(f"answered in {run.turns[0].language}, not Roman Urdu")
     if case == "g" and len(replies) < 2:
         problems.append("the follow-up was not answered")
     elif case == "g":

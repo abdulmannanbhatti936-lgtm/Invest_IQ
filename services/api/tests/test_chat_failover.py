@@ -179,13 +179,16 @@ def test_groq_gets_the_small_budget_with_the_drop_order_applied(client, db, port
     assert settings.chat_context_tokens("groq") == 4_000
     assert for_gemini.trimmed == []
     assert for_groq.trimmed == ["headlines", "charge_lines"]
-    holding = for_groq.data["portfolio"]["holdings"][0]
+    holding = for_groq.data["portfolio"]["recommended_stocks"][0]
     assert list(holding["charges"]) == ["total"]
     # Never dropped: the portfolio totals and the forecasts
     assert for_groq.data["portfolio"]["totals"] == for_gemini.data["portfolio"]["totals"]
     assert for_groq.data["forecasts"] == for_gemini.data["forecasts"]
     # The original is untouched, so a failover starts again from everything
-    assert ctx.trimmed == [] and "commission" in ctx.data["portfolio"]["holdings"][0]["charges"]
+    assert (
+        ctx.trimmed == []
+        and "commission" in ctx.data["portfolio"]["recommended_stocks"][0]["charges"]
+    )
 
 
 def test_a_failover_to_groq_sends_groq_the_trimmed_context(client, db, portfolio_user):
@@ -196,7 +199,7 @@ def test_a_failover_to_groq_sends_groq_the_trimmed_context(client, db, portfolio
     reply = generate([primary, backup], context=ctx)
 
     sent = json.loads(_CONTEXT.search(backup.calls[0]["system"]).group(1))
-    assert all(list(h["charges"]) == ["total"] for h in sent["portfolio"]["holdings"])
+    assert all(list(h["charges"]) == ["total"] for h in sent["portfolio"]["recommended_stocks"])
     assert reply.context.trimmed == ["headlines", "charge_lines"]
 
 
@@ -304,7 +307,15 @@ def test_the_glossary_covers_the_new_terms_and_every_forecast_stocks_sector(db):
         "Never call a backtest figure the portfolio's annual return, return or profit.",
         "(OGDC, never a transliteration)",
         "Do not add English words in brackets after Urdu words.",
-        "mention at most 3 holdings unless the user asks for all of them",
+        "mention at most 3 of its stocks unless the user asks for all of them",
+        'always call it by CONTEXT\'s "portfolio_name", exactly as written there',
+        "Never say the user holds, owns, has or bought these stocks, unless the user says so.",
+        "When the user asks what to invest in or which stock to buy, do not refuse.",
+        "with only a small, low-confidence forecast tilt",
+        "forecasts cover only the next trading day, so they say nothing about the long term",
+        "Point them to the Portfolio and Backtest screens.",
+        "Never write CONTEXT's field names (such as share_of_capital_pct or break_even_price)",
+        'Call them recommended stocks, never "holdings" or "your stocks".',
         "refers to the same measure as your previous answer",
         "a tie counts as one place, so the second lowest is the next different value",
         "When you refuse such a request, stay polite",
@@ -312,7 +323,7 @@ def test_the_glossary_covers_the_new_terms_and_every_forecast_stocks_sector(db):
     ],
 )
 def test_prompt_v3_carries_every_rule(rule):
-    assert chat_prompt.PROMPT_VERSION == "prompt-v3.1"
+    assert chat_prompt.PROMPT_VERSION == "prompt-v3.2"
     assert rule in chat_prompt.system_prompt("{}", "en")
 
 
@@ -364,7 +375,7 @@ def test_an_urdu_context_carries_only_the_glossary_entries_it_can_use(client, db
     assert {"Portfolio", "Backtest", "Stocks"} <= set(sent)
     assert "Aggressive" not in sent and "Conservative" not in sent
     # Exactly the glossary sectors this portfolio holds
-    held = {h["sector"] for h in ctx.data["portfolio"]["holdings"]}
+    held = {h["sector"] for h in ctx.data["portfolio"]["recommended_stocks"]}
     all_sectors = {
         chat_context._lookup(chat_context._locale("en"), key)
         for key in chat_context.GLOSSARY_KEYS
@@ -381,3 +392,21 @@ def test_glossary_for_matches_field_names_not_only_words():
     sent = chat_context.glossary_for(text)
     assert "Total cost" in sent and "Aggressive" in sent
     assert "Sharpe ratio" not in sent and "Moderate" not in sent
+
+
+@pytest.mark.parametrize(
+    "language, name",
+    [
+        ("en", "your InvestIQ recommended portfolio"),
+        ("ur", "آپ کا InvestIQ تجویز کردہ پورٹ فولیو"),
+        ("ur-latn", "aap ka InvestIQ recommended portfolio"),
+    ],
+)
+def test_the_context_names_the_portfolio_as_a_recommendation(
+    client, db, portfolio_user, language, name
+):
+    ctx = _context(db, portfolio_user, lang=language)
+    assert ctx.data["portfolio_name"] == name
+    # Its stocks are "recommended_stocks", never "holdings", and nothing says "bought"
+    assert "recommended_stocks" in ctx.data["portfolio"]
+    assert '"holdings"' not in ctx.json and "bought" not in ctx.data["portfolio"]["totals"]

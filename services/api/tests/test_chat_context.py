@@ -184,16 +184,16 @@ def test_active_portfolio_figures_equal_the_stored_worked_example(client, db, po
     portfolio = ctx.data["portfolio"]
 
     assert portfolio["totals"] == {
-        "bought_value": "Rs. 99,706.41",
+        "value_of_shares": "Rs. 99,706.41",
         "buying_charges": "Rs. 180.80",
         "total_cost": "Rs. 99,887.21",
-        "cash_left": "Rs. 112.79",
+        "left_uninvested": "Rs. 112.79",
     }
     assert portfolio["capital"] == "Rs. 100,000.00"
     assert portfolio["prices_as_of"] == "2026-10-07"
     assert portfolio["rates_version"] == "psx-costs-2026-10-11.2"
-    assert [h["ticker"] for h in portfolio["holdings"]] == WORKED_TICKERS
-    for holding in portfolio["holdings"]:
+    assert [h["ticker"] for h in portfolio["recommended_stocks"]] == WORKED_TICKERS
+    for holding in portfolio["recommended_stocks"]:
         shares, price, gross, commission, sales_tax, _fees, charges, cost = WORKED_EXAMPLE[
             holding["ticker"]
         ]
@@ -212,7 +212,7 @@ def test_active_portfolio_figures_equal_the_stored_worked_example(client, db, po
 def test_ffc_projection_and_dividends_come_through_unchanged(client, db, portfolio_user):
     ffc = next(
         h
-        for h in _context(db, portfolio_user).data["portfolio"]["holdings"]
+        for h in _context(db, portfolio_user).data["portfolio"]["recommended_stocks"]
         if h["ticker"] == "FFC"
     )
 
@@ -410,7 +410,7 @@ def test_budget_drops_headlines_then_charge_lines_and_their_figures(client, db, 
     fitted = fit_to_budget(ctx, history_chars=(chat_context.MAX_INPUT_TOKENS - size + 50) * 3)
 
     assert fitted.trimmed == ["headlines", "charge_lines"]
-    hbl = next(h for h in fitted.data["portfolio"]["holdings"] if h["ticker"] == "HBL")
+    hbl = next(h for h in fitted.data["portfolio"]["recommended_stocks"] if h["ticker"] == "HBL")
     assert list(hbl["charges"]) == ["total"]
     assert fitted.data["portfolio"]["totals"]["total_cost"] == "Rs. 99,887.21"
     # The figure check may only accept what is still in the context

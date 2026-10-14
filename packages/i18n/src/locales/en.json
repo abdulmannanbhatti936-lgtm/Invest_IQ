@@ -624,6 +624,8 @@
       "powerGeneration": "Power Generation & Distribution",
       "refinery": "Refinery",
       "technologyCommunication": "Technology & Communication"
-    }
+    },
+    "recommendedPortfolio": "your InvestIQ recommended portfolio",
+    "recommendedPortfolioRomanUrdu": "aap ka InvestIQ recommended portfolio"
   }
 }

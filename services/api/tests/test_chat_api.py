@@ -86,12 +86,12 @@ def test_a_grounded_reply_is_stored_with_its_context_and_sources(client, db, own
     system = provider.calls[0]["system"]
     assert "Rs. 99,887.21" in system and "Reply in English" in system
     row = db.query(ChatMessage).filter(ChatMessage.id == reply["id"]).one()
-    assert row.context_version == "ctx-v2" and len(row.context_hash) == 64
+    assert row.context_version == "ctx-v3" and len(row.context_hash) == 64
     assert row.context_refs["portfolio_id"]
     assert (row.provider, row.model, row.prompt_version) == (
         "scripted",
         "scripted-1",
-        "prompt-v3.1",
+        "prompt-v3.2",
     )
     assert (row.input_tokens, row.output_tokens) == (1000, 50)
     assert row.latency_ms is not None
@@ -274,7 +274,9 @@ def test_the_mock_provider_answers_from_the_context(client, owner, monkeypatch, 
 
     reply = send(client, owner).json()["reply"]
 
-    assert reply["content"].startswith("MOCK reply: your portfolio cost Rs. 99,887.21")
+    assert reply["content"].startswith(
+        "MOCK reply: your InvestIQ recommended portfolio would cost Rs. 99,887.21"
+    )
     assert reply["figure_check"] == "passed"
 
 
