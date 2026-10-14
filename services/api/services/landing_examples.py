@@ -38,8 +38,9 @@ def _pct(part: Decimal) -> str:
 
 
 def _history_start(db: Session):
-    """The first PSX trading date of any served price we store."""
-    return db.query(func.min(PSX_TRADING_DATE)).filter(SERVED).scalar()
+    """The first PSX trading date of any served price we store (None when there are none)."""
+    first = db.query(func.min(PSX_TRADING_DATE)).filter(SERVED).scalar()
+    return first.isoformat() if first else None
 
 
 def build(db: Session) -> dict:
@@ -56,7 +57,7 @@ def build(db: Session) -> dict:
         meta = {
             # Facts the landing page quotes, each from our own data
             "forecast_companies": len(covered_tickers()),
-            "history_start": _history_start(db).isoformat(),
+            "history_start": _history_start(db),
             "capital": str(CAPITAL),
             "filer_status": "filer",
             "prices_as_of": plan.universe.prices_as_of.isoformat(),

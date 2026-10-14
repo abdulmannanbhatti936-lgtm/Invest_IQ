@@ -306,7 +306,8 @@ def test_landing_example_is_the_engines_own_allocation(client, db, investor, wor
         h["allocation_pct"] for h in body["holdings"]
     ]
     assert example["prices_as_of"] == body["prices_as_of"]
-    assert example["forecast_companies"] > 0 and example["history_start"]
+    assert example["forecast_companies"] > 0
+    assert example["history_start"] is None  # the fixture stores no price bars
     assert set(example["profiles"]) == {"conservative", "moderate", "aggressive"}
 
 
