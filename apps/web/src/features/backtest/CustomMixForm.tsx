@@ -81,7 +81,7 @@ export const CustomMixForm = ({
 
   return (
     <form className="space-y-6" onSubmit={handleSubmit(submit)} noValidate>
-      <div className="space-y-3">
+      <div className="space-y-4">
         {fields.map((field, index) => (
           <div key={field.id} className="flex items-end gap-2">
             <div className="min-w-0 flex-1">
@@ -112,7 +112,7 @@ export const CustomMixForm = ({
               type="button"
               onClick={() => remove(index)}
               disabled={fields.length === 1}
-              className="mb-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+              className="mb-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-control text-muted hover:bg-sunken disabled:opacity-30"
               aria-label={t('backtest.mix.remove')}
             >
               <X className="h-4 w-4" />
@@ -128,12 +128,12 @@ export const CustomMixForm = ({
             <Plus className="me-2 h-4 w-4" />
             {t('backtest.mix.addRow')}
           </Button>
-          <p className="text-sm font-medium tabular-nums text-gray-700">
+          <p className="text-sm font-medium tabular-nums text-ink">
             {t('backtest.mix.totalLabel', { total: formatPctString(mixTotal(rows)) })}
           </p>
         </div>
         {problems.length > 0 && (
-          <ul role="alert" className="space-y-1 text-xs text-red-600">
+          <ul role="alert" className="space-y-2 text-xs text-danger">
             {problems.map((key) => (
               <li key={key}>{t(key)}</li>
             ))}
@@ -160,20 +160,18 @@ export const CustomMixForm = ({
         </Select>
       </div>
       {chosen.length > 0 && maxYears != null && (
-        <p className="text-xs text-gray-500">{t('backtest.mix.maxYears', { years: maxYears })}</p>
+        <p className="text-xs text-muted">{t('backtest.mix.maxYears', { years: maxYears })}</p>
       )}
 
       <fieldset className="space-y-2">
-        <legend className="text-sm font-medium text-gray-700">
-          {t('portfolio.form.filerStatus')}
-        </legend>
+        <legend className="text-sm font-medium text-ink">{t('portfolio.form.filerStatus')}</legend>
         {(['filer', 'non_filer'] as const).map((status) => (
-          <label key={status} className="flex items-center gap-2 text-sm text-gray-800">
+          <label key={status} className="flex items-center gap-2 text-sm text-ink">
             <input type="radio" value={status} {...register('filer_status')} />
             {t(status === 'filer' ? 'portfolio.form.filer' : 'portfolio.form.nonFiler')}
           </label>
         ))}
-        <p className="text-xs text-gray-500">{t('portfolio.form.filerHelp')}</p>
+        <p className="text-xs text-muted">{t('portfolio.form.filerHelp')}</p>
       </fieldset>
 
       {universe.left_out.length > 0 && (

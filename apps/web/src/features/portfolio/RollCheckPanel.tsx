@@ -27,7 +27,7 @@ export const RollCheckPanel = ({ portfolioId }: { portfolioId: string }) => {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-2xl">
           <CardTitle>{t('portfolio.roll.title')}</CardTitle>
-          <p className="mt-1 text-sm text-gray-600">{t('portfolio.roll.intro')}</p>
+          <p className="mt-2 text-sm text-muted">{t('portfolio.roll.intro')}</p>
         </div>
         <Button variant="secondary" isLoading={check.isPending} onClick={() => check.mutate()}>
           <RefreshCw className="me-2 h-4 w-4" />
@@ -40,8 +40,8 @@ export const RollCheckPanel = ({ portfolioId }: { portfolioId: string }) => {
       )}
 
       {result && (
-        <div className="space-y-3">
-          <p className="text-xs text-gray-500">
+        <div className="space-y-4">
+          <p className="text-xs text-muted">
             {t('portfolio.roll.benchmark', {
               count: result.benchmark.stock_count,
               date: formatDate(result.benchmark.since, i18n.language),
@@ -49,13 +49,13 @@ export const RollCheckPanel = ({ portfolioId }: { portfolioId: string }) => {
             })}{' '}
             {t('portfolio.roll.checkedAt', { date: formatDate(result.checked_at, i18n.language) })}
           </p>
-          <ul className="divide-y divide-gray-100">
+          <ul className="divide-y divide-line">
             {result.holdings.map((holding) => (
-              <li key={holding.ticker} className="flex flex-wrap items-baseline gap-3 py-2 text-sm">
+              <li key={holding.ticker} className="flex flex-wrap items-baseline gap-4 py-2 text-sm">
                 <Badge variant={STATUS_VARIANT[holding.status]}>
                   <bdi dir="ltr">{holding.ticker}</bdi>
                 </Badge>
-                <span className="text-gray-700">
+                <span className="text-ink">
                   {t(`portfolio.roll.status.${holding.status}`, {
                     days: holding.trading_days,
                     required: result.required_trading_days,

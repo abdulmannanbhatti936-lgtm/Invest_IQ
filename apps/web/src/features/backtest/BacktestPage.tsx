@@ -59,7 +59,7 @@ const PortfolioRun = ({
   const [years, setYears] = useState(minYears);
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-700">
+      <p className="text-sm text-ink">
         {t('backtest.landing.portfolioSummary', {
           category: t(`risk.${portfolio.risk_category}`),
           companies: portfolio.holdings.length,
@@ -118,8 +118,8 @@ export const BacktestPage = () => {
   return (
     <div className="mx-auto max-w-4xl space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">{t('backtest.title')}</h1>
-        <p className="mt-1 text-sm text-gray-500">{t('backtest.subtitle')}</p>
+        <h1 className="text-2xl font-semibold text-ink">{t('backtest.title')}</h1>
+        <p className="mt-2 text-sm text-muted">{t('backtest.subtitle')}</p>
       </div>
 
       {(universe.isPending || current.isPending) && (
@@ -156,14 +156,14 @@ export const BacktestPage = () => {
               />
             )}
             {noPortfolio && (
-              <div className="flex flex-col items-start gap-3">
-                <div className="flex items-center gap-3 text-sm text-gray-600">
-                  <Briefcase className="h-5 w-5 shrink-0 text-gray-400" />
+              <div className="flex flex-col items-start gap-4">
+                <div className="flex items-center gap-4 text-sm text-muted">
+                  <Briefcase className="h-5 w-5 shrink-0 text-muted" />
                   {t('backtest.landing.noPortfolio')}
                 </div>
                 <Link
                   to="/portfolio"
-                  className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                  className="text-sm font-medium text-primary hover:text-primary"
                 >
                   {t('backtest.landing.buildPortfolio')}
                 </Link>
@@ -180,7 +180,7 @@ export const BacktestPage = () => {
           <Card className="space-y-4">
             <div>
               <CardTitle>{t('backtest.landing.mixTitle')}</CardTitle>
-              <p className="mt-1 text-sm text-gray-600">{t('backtest.landing.mixBody')}</p>
+              <p className="mt-2 text-sm text-muted">{t('backtest.landing.mixBody')}</p>
             </div>
             <CustomMixForm
               universe={data}

@@ -47,7 +47,7 @@ const SourceTags = ({ sources }: { sources: ChatSourceTag[] }) => {
         return (
           <li
             key={`${tag.kind}:${tag.ticker ?? ''}`}
-            className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 text-xs text-gray-600"
+            className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-2 text-xs text-muted"
           >
             <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
             {t(key, { ...params, date })}
@@ -74,10 +74,10 @@ export const MessageBubble = ({ message }: { message: ChatMessage }) => {
         <div
           dir={messageDir(message.language)}
           lang={messageLang(message.language)}
-          className={`whitespace-pre-line rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+          className={`whitespace-pre-line rounded-2xl px-4 py-4 text-sm leading-relaxed ${
             mine
-              ? 'rounded-ee-sm bg-blue-600 text-white'
-              : 'rounded-es-sm border border-gray-100 bg-gray-50 text-gray-900'
+              ? 'rounded-ee-sm bg-primary text-inverse'
+              : 'rounded-es-sm border border-line bg-sunken text-ink'
           }`}
         >
           <MessageText text={message.content} />
@@ -87,7 +87,7 @@ export const MessageBubble = ({ message }: { message: ChatMessage }) => {
           <p
             dir={messageDir(message.language)}
             lang={messageLang(message.language)}
-            className="mt-2 text-sm text-gray-500"
+            className="mt-2 text-sm text-muted"
           >
             {t(disclaimer.key, disclaimer.lng ? { lng: disclaimer.lng } : undefined)}
           </p>

@@ -25,15 +25,15 @@ export const KeyStats = ({ quote }: { quote: StockQuote }) => {
     <Card>
       <div className="mb-4 flex items-baseline justify-between">
         <CardTitle>{t('stockDetail.statsTitle')}</CardTitle>
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-muted">
           {t('stockDetail.asOf', { date: formatDate(quote.timestamp, i18n.language) })}
         </span>
       </div>
       <dl className="grid grid-cols-2 gap-x-6 gap-y-4 md:grid-cols-4">
         {stats.map(([key, value]) => (
           <div key={key}>
-            <dt className="text-xs text-gray-500">{t(`stockDetail.stats.${key}`)}</dt>
-            <dd className="mt-1 text-base font-medium">
+            <dt className="text-xs text-muted">{t(`stockDetail.stats.${key}`)}</dt>
+            <dd className="mt-2 text-base font-medium">
               <Figure>{value}</Figure>
             </dd>
           </div>

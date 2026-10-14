@@ -13,7 +13,8 @@ import {
   Notice,
   Skeleton,
 } from '../../components/ui/Feedback';
-import { formatDate, formatPrice, formatSignedPct } from '../../lib/format';
+import { Delta } from '../../components/ui/Delta';
+import { formatDate, formatPrice, formatSigned } from '../../lib/format';
 import { KeyStats } from './KeyStats';
 import { PredictionPanel } from './PredictionPanel';
 import { PriceChart } from './PriceChart';
@@ -56,7 +57,7 @@ export const StockDetailPage = () => {
   const back = (
     <Link
       to="/stocks"
-      className="inline-flex items-center gap-1 text-sm text-gray-500 transition-colors hover:text-gray-900"
+      className="inline-flex items-center gap-2 text-sm text-muted transition-colors hover:text-ink"
     >
       <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
       {t('stockDetail.backToSearch')}
@@ -105,33 +106,29 @@ export const StockDetailPage = () => {
       ) : (
         <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900" dir="ltr">
+            <h1 className="text-3xl font-bold text-ink" dir="ltr">
               {quote.data.ticker}
             </h1>
-            <p className="text-lg text-gray-600">{quote.data.name}</p>
-            {quote.data.sector && <p className="mt-1 text-sm text-gray-400">{quote.data.sector}</p>}
+            <p className="text-lg text-muted" dir="ltr">
+              {quote.data.name}
+            </p>
+            {quote.data.sector && <p className="mt-2 text-sm text-muted">{quote.data.sector}</p>}
           </div>
           <div className="md:text-end">
-            <p className="text-3xl font-bold">
+            <p className="text-3xl font-bold text-ink">
               <Figure>{formatPrice(quote.data.price)}</Figure>
             </p>
-            <p
-              className={`text-base font-medium ${
-                (quote.data.change ?? 0) > 0
-                  ? 'text-green-700'
-                  : (quote.data.change ?? 0) < 0
-                    ? 'text-red-700'
-                    : 'text-gray-500'
-              }`}
-            >
-              {t('stockDetail.dayChange')}{' '}
-              <Figure>
-                {quote.data.change != null
-                  ? `${quote.data.change > 0 ? '+' : ''}${quote.data.change.toFixed(2)} (${formatSignedPct(quote.data.change_percent)})`
-                  : '—'}
-              </Figure>
+            <p className="flex flex-wrap items-baseline gap-2 text-base md:justify-end">
+              <span className="text-muted">{t('stockDetail.dayChange')}</span>
+              {quote.data.change != null && quote.data.change_percent != null ? (
+                <Delta value={quote.data.change}>
+                  {`${formatSigned(quote.data.change)} (${formatSigned(quote.data.change_percent)}%)`}
+                </Delta>
+              ) : (
+                <span className="text-muted">—</span>
+              )}
             </p>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-2 text-xs text-muted">
               {t('stockDetail.closeAsOf', {
                 date: formatDate(quote.data.timestamp, i18n.language),
               })}
@@ -142,20 +139,20 @@ export const StockDetailPage = () => {
 
       {/* Chart (Design.md §7.2: chart → key stats → prediction) */}
       <Card>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <div>
             <CardTitle>{t('stockDetail.chartTitle')}</CardTitle>
-            {summary && <p className="mt-1 text-sm font-medium text-gray-600">{summary}</p>}
+            {summary && <p className="mt-2 text-sm font-medium text-muted">{summary}</p>}
           </div>
-          <div className="flex gap-1" role="group" aria-label={t('stockDetail.chartTitle')}>
+          <div className="flex gap-2" role="group" aria-label={t('stockDetail.chartTitle')}>
             {PERIODS.map((p) => (
               <button
                 key={p}
                 type="button"
                 onClick={() => setPeriod(p)}
                 aria-pressed={period === p}
-                className={`rounded-md px-3 py-1 text-sm font-medium ${
-                  period === p ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+                className={`rounded-control px-4 py-2 text-sm font-medium ${
+                  period === p ? 'bg-primary text-inverse' : 'text-muted hover:bg-sunken'
                 }`}
               >
                 {t(`stockDetail.periodShort.${p}`)}
@@ -180,7 +177,7 @@ export const StockDetailPage = () => {
         ) : (
           <>
             <PriceChart history={history.data} prediction={prediction.data} />
-            <p className="mt-3 text-xs text-gray-500">
+            <p className="mt-4 text-xs text-muted">
               {t('stockDetail.chartAsOf', {
                 date: formatDate(history.data[history.data.length - 1].timestamp, i18n.language),
               })}

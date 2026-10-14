@@ -28,13 +28,13 @@ const TypingIndicator = () => {
     <li className="flex justify-start" role="status">
       <span className="sr-only">{t('chat.typing')}</span>
       <div
-        className="flex gap-1 rounded-2xl rounded-es-sm border border-gray-100 bg-gray-50 px-4 py-4"
+        className="flex gap-2 rounded-2xl rounded-es-sm border border-line bg-sunken px-4 py-4"
         aria-hidden="true"
       >
         {[0, 150, 300].map((delay) => (
           <span
             key={delay}
-            className="h-2 w-2 animate-pulse rounded-full bg-gray-400 motion-reduce:animate-none"
+            className="h-2 w-2 animate-pulse rounded-full bg-muted motion-reduce:animate-none"
             style={{ animationDelay: `${delay}ms` }}
           />
         ))}
@@ -95,7 +95,7 @@ const SendError = ({
   if (waits && problem.seconds != null) {
     if (waitUntil == null)
       return (
-        <p role="status" className="text-sm text-gray-600">
+        <p role="status" className="text-sm text-muted">
           {t('chat.error.ready')}
         </p>
       );
@@ -129,7 +129,7 @@ const ClearHistory = ({ onConfirm, clearing }: { onConfirm: () => void; clearing
     );
   return (
     <div role="group" aria-label={t('chat.clear')} className="flex flex-wrap items-center gap-2">
-      <span className="text-sm text-gray-700">{t('chat.clearConfirm')}</span>
+      <span className="text-sm text-ink">{t('chat.clearConfirm')}</span>
       <Button variant="destructive" isLoading={clearing} onClick={onConfirm}>
         {t('chat.clearYes')}
       </Button>
@@ -215,11 +215,11 @@ export const ChatPage = () => {
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">{t('chat.title')}</h1>
-          <p className="mt-1 text-sm text-gray-500">{t('chat.subtitle')}</p>
+          <h1 className="text-2xl font-semibold text-ink">{t('chat.title')}</h1>
+          <p className="mt-2 text-sm text-muted">{t('chat.subtitle')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <LanguageToggle className="border border-gray-200" />
+          <LanguageToggle className="border border-line" />
           {messages.length > 0 && (
             <ClearHistory onConfirm={() => clear.mutate()} clearing={clear.isPending} />
           )}
@@ -231,7 +231,7 @@ export const ChatPage = () => {
       {!available && (
         <Notice tone="warning">
           <p className="font-medium">{t('chat.unavailable.title')}</p>
-          <p className="mt-1">{t('chat.unavailable.body')}</p>
+          <p className="mt-2">{t('chat.unavailable.body')}</p>
         </Notice>
       )}
 
@@ -250,10 +250,10 @@ export const ChatPage = () => {
 
         {history.isSuccess && messages.length === 0 && !send.isPending && (
           <div className="flex flex-col items-center gap-4 py-8 text-center">
-            <MessageSquare className="h-8 w-8 text-gray-400" aria-hidden="true" />
+            <MessageSquare className="h-8 w-8 text-muted" aria-hidden="true" />
             <div>
-              <p className="font-medium text-gray-900">{t('chat.empty.title')}</p>
-              <p className="mt-1 text-sm text-gray-600">{t('chat.empty.body')}</p>
+              <p className="font-medium text-ink">{t('chat.empty.title')}</p>
+              <p className="mt-2 text-sm text-muted">{t('chat.empty.body')}</p>
             </div>
             <ul className="flex w-full flex-col gap-2 sm:max-w-md">
               {STARTERS.map((key) => (
@@ -262,7 +262,7 @@ export const ChatPage = () => {
                     type="button"
                     disabled={!available}
                     onClick={() => submit(t(`chat.starters.${key}`))}
-                    className="w-full rounded-lg border border-gray-200 px-4 py-3 text-start text-sm text-gray-800 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                    className="w-full rounded-control border border-line px-4 py-4 text-start text-sm text-ink transition-colors hover:bg-sunken disabled:opacity-50"
                   >
                     {t(`chat.starters.${key}`)}
                   </button>
@@ -298,7 +298,7 @@ export const ChatPage = () => {
               <>
                 <li className="flex justify-end">
                   <div
-                    className="max-w-[85%] whitespace-pre-line rounded-2xl rounded-ee-sm bg-blue-600 px-4 py-3 text-sm text-white opacity-80 sm:max-w-[75%]"
+                    className="max-w-[85%] whitespace-pre-line rounded-2xl rounded-ee-sm bg-primary px-4 py-4 text-sm text-inverse opacity-80 sm:max-w-[75%]"
                     dir="auto"
                   >
                     <span className="sr-only">{t('chat.you')}</span>
@@ -321,7 +321,7 @@ export const ChatPage = () => {
           />
         )}
 
-        <p className="text-xs text-gray-500">{t('chat.privacy')}</p>
+        <p className="text-xs text-muted">{t('chat.privacy')}</p>
         <ChatComposer
           value={draft}
           onChange={setDraft}

@@ -6,9 +6,9 @@ import { Figure, Notice } from '../../components/ui/Feedback';
 import { formatDate, formatMoney } from '../../lib/format';
 
 const Tile = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-lg bg-gray-50 p-4">
-    <p className="text-xs text-gray-500">{label}</p>
-    <Figure className="mt-1 block whitespace-nowrap text-lg font-semibold text-gray-900 sm:text-xl">
+  <div className="rounded-control bg-sunken p-4">
+    <p className="text-xs text-muted">{label}</p>
+    <Figure className="mt-2 block whitespace-nowrap text-lg font-semibold text-ink sm:text-xl">
       {value}
     </Figure>
   </div>
@@ -24,7 +24,7 @@ export const PortfolioSummary = ({ portfolio }: { portfolio: Portfolio }) => {
   return (
     <Card className="space-y-6">
       <div className="space-y-2">
-        <p className="text-base leading-relaxed text-gray-900">
+        <p className="text-base leading-relaxed text-ink">
           {t('portfolio.summary', {
             category: t(`risk.${portfolio.risk_category}`),
             cost: formatMoney(totals.cost),
@@ -32,7 +32,7 @@ export const PortfolioSummary = ({ portfolio }: { portfolio: Portfolio }) => {
           })}{' '}
           {hasCash && t('portfolio.summaryCash', { cash: formatMoney(idle.amount) })}
         </p>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-muted">
           {t('portfolio.pricesAsOf', { date: formatDate(portfolio.prices_as_of, language) })}
           {' · '}
           {t('portfolio.ratesAsOf', { date: formatDate(portfolio.rates.checked_on, language) })}
@@ -41,7 +41,7 @@ export const PortfolioSummary = ({ portfolio }: { portfolio: Portfolio }) => {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4">
         <Tile label={t('portfolio.totals.gross')} value={formatMoney(totals.gross)} />
         <Tile label={t('portfolio.totals.charges')} value={formatMoney(totals.charges)} />
         <Tile label={t('portfolio.totals.cost')} value={formatMoney(totals.cost)} />
@@ -49,12 +49,12 @@ export const PortfolioSummary = ({ portfolio }: { portfolio: Portfolio }) => {
       </div>
 
       {idle.flagged ? (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="rounded-control border border-warning bg-warning-tint p-4 text-sm text-warning">
           <p className="flex items-center gap-2 font-semibold">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             {t('portfolio.idle.flaggedTitle', { amount: formatMoney(idle.amount) })}
           </p>
-          <ul className="mt-2 list-disc space-y-1 ps-5">
+          <ul className="mt-2 list-disc space-y-2 ps-6">
             {blocked.map(([ticker, reason]) => (
               <li key={ticker}>{t(`portfolio.idle.${reason}`, { ticker })}</li>
             ))}
@@ -68,17 +68,17 @@ export const PortfolioSummary = ({ portfolio }: { portfolio: Portfolio }) => {
       )}
 
       {portfolio.excluded_tickers.length > 0 && (
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-muted">
           {t('portfolio.excluded', { tickers: portfolio.excluded_tickers.join(', ') })}
         </p>
       )}
 
-      <details className="group text-sm text-gray-600">
-        <summary className="flex cursor-pointer list-none items-center gap-1 font-medium text-gray-800">
+      <details className="group text-sm text-muted">
+        <summary className="flex cursor-pointer list-none items-center gap-2 font-medium text-ink">
           {t('portfolio.notModelledTitle')}
           <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
         </summary>
-        <ul className="mt-2 list-disc space-y-1 ps-5">
+        <ul className="mt-2 list-disc space-y-2 ps-6">
           {portfolio.rates.not_modelled.map((key) => (
             <li key={key}>{t(`portfolio.notModelled.${key}`)}</li>
           ))}

@@ -57,7 +57,7 @@ export const LoginPage = () => {
     <AuthShell title={t('auth.login.title')} subtitle={t('auth.login.subtitle')}>
       <form className="space-y-6" onSubmit={handleSubmit(onSubmit)} noValidate>
         {sessionExpired && (
-          <div className="rounded-md bg-amber-50 p-3 text-sm text-amber-800">
+          <div className="rounded-control bg-warning-tint p-4 text-sm text-warning">
             {t('auth.sessionExpired')}
           </div>
         )}
@@ -83,7 +83,7 @@ export const LoginPage = () => {
         </div>
 
         {serverError && (
-          <div role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-600">
+          <div role="alert" className="rounded-control bg-danger-tint p-4 text-sm text-danger">
             {serverError}
           </div>
         )}
@@ -92,9 +92,9 @@ export const LoginPage = () => {
           {t('auth.login.submit')}
         </Button>
 
-        <p className="text-center text-sm text-gray-600">
+        <p className="text-center text-sm text-muted">
           {t('auth.login.noAccount')}{' '}
-          <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">
+          <Link to="/register" className="font-medium text-primary hover:text-primary">
             {t('auth.login.signUp')}
           </Link>
         </p>

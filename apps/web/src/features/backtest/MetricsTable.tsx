@@ -54,7 +54,7 @@ export const MetricsTable = ({ result }: { result: BacktestResult }) => {
       label: t('backtest.metrics.totalReturn'),
       help: t('backtest.metrics.totalReturnHelp'),
       cell: (m) => (
-        <Figure className={`font-semibold ${isLoss(m.total_return) ? 'text-red-700' : ''}`}>
+        <Figure className={`font-semibold ${isLoss(m.total_return) ? 'text-danger' : ''}`}>
           {pct(m.total_return)}
         </Figure>
       ),
@@ -76,7 +76,7 @@ export const MetricsTable = ({ result }: { result: BacktestResult }) => {
         <>
           <Figure className="block">{pct(m.max_drawdown, false)}</Figure>
           {m.drawdown_peak_date && (
-            <span className="block text-xs text-gray-500">
+            <span className="block text-xs text-muted">
               {t('backtest.metrics.drawdownDates', {
                 from: date(m.drawdown_peak_date),
                 to: date(m.drawdown_trough_date),
@@ -92,7 +92,7 @@ export const MetricsTable = ({ result }: { result: BacktestResult }) => {
       cell: (m) => (
         <>
           <Figure className="block">{pct(m.win_rate, false)}</Figure>
-          <span className="block text-xs text-gray-500">
+          <span className="block text-xs text-muted">
             {t('backtest.metrics.winRateValue', { won: m.months_won, total: m.months_total })}
           </span>
         </>
@@ -105,12 +105,12 @@ export const MetricsTable = ({ result }: { result: BacktestResult }) => {
       <table className="w-full min-w-[560px] text-sm">
         <caption className="sr-only">{t('backtest.metrics.caption')}</caption>
         <thead>
-          <tr className="border-b border-gray-200 text-start text-xs text-gray-500">
+          <tr className="border-b border-line text-start text-xs text-muted">
             <th scope="col" className="py-2 pe-4 text-start font-medium">
               {t('backtest.metrics.measure')}
             </th>
             {columns.map((c) => (
-              <th key={c.key} scope="col" className="px-3 py-2 text-end font-medium">
+              <th key={c.key} scope="col" className="px-4 py-2 text-end font-medium">
                 {c.label}
               </th>
             ))}
@@ -118,13 +118,13 @@ export const MetricsTable = ({ result }: { result: BacktestResult }) => {
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.label} className="border-b border-gray-100 align-top last:border-0">
-              <th scope="row" className="py-3 pe-4 text-start font-normal">
-                <span className="block font-medium text-gray-900">{row.label}</span>
-                <span className="block text-xs text-gray-500">{row.help}</span>
+            <tr key={row.label} className="border-b border-line align-top last:border-0">
+              <th scope="row" className="py-4 pe-4 text-start font-normal">
+                <span className="block font-medium text-ink">{row.label}</span>
+                <span className="block text-xs text-muted">{row.help}</span>
               </th>
               {columns.map((c) => (
-                <td key={c.key} className="px-3 py-3 text-end text-gray-900">
+                <td key={c.key} className="px-4 py-4 text-end text-ink">
                   {row.cell(c.metrics)}
                 </td>
               ))}
