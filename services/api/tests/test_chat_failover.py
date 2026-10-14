@@ -307,10 +307,12 @@ def test_the_glossary_covers_the_new_terms_and_every_forecast_stocks_sector(db):
         "mention at most 3 holdings unless the user asks for all of them",
         "refers to the same measure as your previous answer",
         "a tie counts as one place, so the second lowest is the next different value",
+        "When you refuse such a request, stay polite",
+        "then offer what you can do instead (explain their portfolio, a forecast, news sentiment",
     ],
 )
 def test_prompt_v3_carries_every_rule(rule):
-    assert chat_prompt.PROMPT_VERSION == "prompt-v3"
+    assert chat_prompt.PROMPT_VERSION == "prompt-v3.1"
     assert rule in chat_prompt.system_prompt("{}", "en")
 
 
