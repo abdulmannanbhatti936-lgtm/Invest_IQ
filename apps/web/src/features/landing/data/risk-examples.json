@@ -1,0 +1,144 @@
+{
+  "capital": "100000",
+  "filer_status": "filer",
+  "prices_as_of": "2026-10-09",
+  "model_version": "lstm-rf-20261009T233529Z",
+  "rates_version": "psx-costs-2026-10-11.2",
+  "profiles": {
+    "conservative": {
+      "holdings": [
+        {
+          "ticker": "MARI",
+          "sector": "Oil & Gas Exploration Companies",
+          "allocation_pct": "14.0883"
+        },
+        {
+          "ticker": "EFERT",
+          "sector": "Fertilizer",
+          "allocation_pct": "14.2353"
+        },
+        {
+          "ticker": "OGDC",
+          "sector": "Oil & Gas Exploration Companies",
+          "allocation_pct": "9.5069"
+        },
+        {
+          "ticker": "FFC",
+          "sector": "Fertilizer",
+          "allocation_pct": "10.7166"
+        },
+        {
+          "ticker": "HUBC",
+          "sector": "Power Generation & Distribution",
+          "allocation_pct": "9.6246"
+        },
+        {
+          "ticker": "PSO",
+          "sector": "Oil & Gas Marketing Companies",
+          "allocation_pct": "9.7555"
+        },
+        {
+          "ticker": "MEBL",
+          "sector": "Commercial Banks",
+          "allocation_pct": "9.3406"
+        },
+        {
+          "ticker": "HBL",
+          "sector": "Commercial Banks",
+          "allocation_pct": "8.2963"
+        },
+        {
+          "ticker": "SYS",
+          "sector": "Technology & Communication",
+          "allocation_pct": "8.0185"
+        },
+        {
+          "ticker": "PPL",
+          "sector": "Oil & Gas Exploration Companies",
+          "allocation_pct": "6.3608"
+        }
+      ],
+      "cash_pct": "0.0566"
+    },
+    "moderate": {
+      "holdings": [
+        {
+          "ticker": "MARI",
+          "sector": "Oil & Gas Exploration Companies",
+          "allocation_pct": "14.7287"
+        },
+        {
+          "ticker": "EFERT",
+          "sector": "Fertilizer",
+          "allocation_pct": "14.2353"
+        },
+        {
+          "ticker": "FFC",
+          "sector": "Fertilizer",
+          "allocation_pct": "12.8599"
+        },
+        {
+          "ticker": "OGDC",
+          "sector": "Oil & Gas Exploration Companies",
+          "allocation_pct": "12.5737"
+        },
+        {
+          "ticker": "HUBC",
+          "sector": "Power Generation & Distribution",
+          "allocation_pct": "11.8303"
+        },
+        {
+          "ticker": "PSO",
+          "sector": "Oil & Gas Marketing Companies",
+          "allocation_pct": "11.5621"
+        },
+        {
+          "ticker": "MEBL",
+          "sector": "Commercial Banks",
+          "allocation_pct": "11.5383"
+        },
+        {
+          "ticker": "HBL",
+          "sector": "Commercial Banks",
+          "allocation_pct": "10.6667"
+        }
+      ],
+      "cash_pct": "0.0051"
+    },
+    "aggressive": {
+      "holdings": [
+        {
+          "ticker": "DGKC",
+          "sector": "Cement",
+          "allocation_pct": "16.8090"
+        },
+        {
+          "ticker": "FFC",
+          "sector": "Fertilizer",
+          "allocation_pct": "16.6107"
+        },
+        {
+          "ticker": "UBL",
+          "sector": "Commercial Banks",
+          "allocation_pct": "16.7066"
+        },
+        {
+          "ticker": "PAEL",
+          "sector": "Cable & Electrical Goods",
+          "allocation_pct": "16.6366"
+        },
+        {
+          "ticker": "OGDC",
+          "sector": "Oil & Gas Exploration Companies",
+          "allocation_pct": "16.5605"
+        },
+        {
+          "ticker": "MARI",
+          "sector": "Oil & Gas Exploration Companies",
+          "allocation_pct": "16.6499"
+        }
+      ],
+      "cash_pct": "0.0267"
+    }
+  }
+}

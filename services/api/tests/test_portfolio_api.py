@@ -14,7 +14,7 @@ from models.prediction import Prediction
 from models.risk_profile import RiskCategory, RiskProfile
 from models.stock import Stock, StockDividend
 from models.user import User
-from services import portfolio_service
+from services import landing_examples, portfolio_service
 from services.portfolio_service import StockContext, Universe
 from tests.conftest import register_and_login
 from tests.test_allocation import INPUTS, _candidates
@@ -294,3 +294,29 @@ def test_another_users_portfolio_is_not_found(client, db, investor, worked_examp
     _with_profile(db, other, client)
     response = client.post(f"/portfolio/{portfolio['id']}/roll-check", headers=other)
     assert response.status_code == 404
+
+
+def test_landing_example_is_the_engines_own_allocation(client, db, investor, worked_example):
+    body = _generate(client, investor).json()  # the investor's profile is Moderate
+    example = landing_examples.build(db)
+
+    moderate = example["profiles"]["moderate"]["holdings"]
+    assert [h["ticker"] for h in moderate] == [h["ticker"] for h in body["holdings"]]
+    assert [h["allocation_pct"] for h in moderate] == [
+        h["allocation_pct"] for h in body["holdings"]
+    ]
+    assert example["prices_as_of"] == body["prices_as_of"]
+    assert set(example["profiles"]) == {"conservative", "moderate", "aggressive"}
+
+
+def test_landing_example_without_tickers_keeps_only_sectors(db, worked_example):
+    sectors = landing_examples.sectors_only(landing_examples.build(db))
+    holdings = [h for p in sectors["profiles"].values() for h in p["holdings"]]
+    assert holdings and all(set(h) == {"sector", "allocation_pct"} for h in holdings)
+
+
+def test_bloom_lists_every_snapshot_company_and_can_leave_out_tickers():
+    with_tickers, sectors = landing_examples.bloom(True), landing_examples.bloom(False)
+    assert with_tickers["snapshot"] == "2026-10-10"
+    assert len(with_tickers["companies"]) == len(sectors["companies"]) == 95
+    assert all(set(c) == {"sector"} for c in sectors["companies"])
