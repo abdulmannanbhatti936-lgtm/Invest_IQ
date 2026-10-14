@@ -348,3 +348,36 @@ def test_groq_keeps_the_last_exchange_in_a_real_context(client, db, portfolio_us
     _, turns = chat_service.prepare(ctx, history, "and the second?", "groq")
 
     assert [t.role for t in turns] == ["user", "assistant", "user"]
+
+
+def test_an_urdu_context_carries_only_the_glossary_entries_it_can_use(client, db, portfolio_user):
+    ctx = _context(db, portfolio_user, lang="ur")
+    sent = ctx.data["urdu_glossary"]
+    full = chat_context.urdu_glossary()
+
+    assert 0 < len(sent) < len(full)
+    assert all(full[term] == word for term, word in sent.items())
+    # This worked-example portfolio is Moderate, with break-even prices and forecasts
+    for term in ("Moderate", "Break-even price", "Total cost", "Forecast", "Low confidence"):
+        assert term in sent, term
+    # Screen names always; the other risk categories not
+    assert {"Portfolio", "Backtest", "Stocks"} <= set(sent)
+    assert "Aggressive" not in sent and "Conservative" not in sent
+    # Exactly the glossary sectors this portfolio holds
+    held = {h["sector"] for h in ctx.data["portfolio"]["holdings"]}
+    all_sectors = {
+        chat_context._lookup(chat_context._locale("en"), key)
+        for key in chat_context.GLOSSARY_KEYS
+        if key.startswith("terms.sector.")
+    }
+    assert {term for term in sent if term in all_sectors} == held & all_sectors
+
+
+def test_glossary_for_matches_field_names_not_only_words():
+    text = (
+        '{"portfolio":{"totals":{"total_cost":"Rs. 1.00"}},'
+        '"risk_profile":{"category":"aggressive"}}'
+    )
+    sent = chat_context.glossary_for(text)
+    assert "Total cost" in sent and "Aggressive" in sent
+    assert "Sharpe ratio" not in sent and "Moderate" not in sent

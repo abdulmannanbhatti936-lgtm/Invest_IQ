@@ -45,45 +45,49 @@ PKT = ZoneInfo("Asia/Karachi")
 # Urdu replies use the app's own Urdu words for these terms (packages/i18n), so the chat and the
 # screens say the same thing and the model invents no translations (decided 2026-10-13)
 I18N_DIR = API_ROOT.parent.parent / "packages" / "i18n" / "src" / "locales"
-GLOSSARY_KEYS = (
-    "risk.conservative",
-    "risk.moderate",
-    "risk.aggressive",
-    "prediction.signal.BUY",
-    "prediction.signal.SELL",
-    "prediction.signal.HOLD",
-    "prediction.confidence",
-    "prediction.lowConfidenceTitle",
-    "sentiment.title",
-    "sentiment.label.positive",
-    "sentiment.label.negative",
-    "sentiment.label.neutral",
-    "nav.portfolio",
-    "nav.stocks",
-    "nav.backtest",
-    "portfolio.totals.gross",
-    "portfolio.totals.charges",
-    "portfolio.totals.cost",
-    "portfolio.totals.cash",
-    "portfolio.holding.charges.commission",
-    "portfolio.holding.breakEven",
-    "portfolio.holding.cgt",
-    "portfolio.holding.dividendsNet",
-    "portfolio.form.nonFiler",
-    "backtest.costs.wht",
-    "backtest.columns.benchmark",
-    "backtest.metrics.totalReturn",
-    "backtest.metrics.annualised",
-    "backtest.metrics.sharpe",
-    "backtest.metrics.drawdown",
-    "backtest.metrics.winRate",
+# Each glossary entry is sent only when the context holds what it names (the marker: a field name
+# or value in the context JSON), so a message carries only the words it can use. ALWAYS: the
+# screen names, which the prompt may name in any reply. None: the English label itself (sectors).
+ALWAYS = ""
+GLOSSARY_MARKERS: dict[str, str | None] = {
+    "risk.conservative": "conservative",
+    "risk.moderate": "moderate",
+    "risk.aggressive": "aggressive",
+    "prediction.signal.BUY": '"buy"',
+    "prediction.signal.SELL": '"sell"',
+    "prediction.signal.HOLD": '"hold"',
+    "prediction.confidence": "confidence_pct",
+    "prediction.lowConfidenceTitle": "low_confidence",
+    "sentiment.title": '"sentiment"',
+    "sentiment.label.positive": '"positive"',
+    "sentiment.label.negative": '"negative"',
+    "sentiment.label.neutral": '"neutral"',
+    "nav.portfolio": ALWAYS,
+    "nav.stocks": ALWAYS,
+    "nav.backtest": ALWAYS,
+    "portfolio.totals.gross": "bought_value",
+    "portfolio.totals.charges": "buying_charges",
+    "portfolio.totals.cost": "total_cost",
+    "portfolio.totals.cash": "cash_left",
+    "portfolio.holding.charges.commission": "commission",
+    "portfolio.holding.breakEven": "break_even_price",
+    "portfolio.holding.cgt": '"cgt"',
+    "portfolio.holding.dividendsNet": "dividends_last_12_months",
+    "portfolio.form.nonFiler": "non_filer",
+    "backtest.costs.wht": '"wht',
+    "backtest.columns.benchmark": '"benchmark"',
+    "backtest.metrics.totalReturn": "total_return_after_all_charges",
+    "backtest.metrics.annualised": "return_per_year",
+    "backtest.metrics.sharpe": "sharpe_ratio",
+    "backtest.metrics.drawdown": "largest_fall",
+    "backtest.metrics.winRate": "months_up",
     # Added for the chat in Phase 8 (Urdu wording for team review, Memory.md §4)
-    "terms.forecast",
-    "terms.confidence",
-    "terms.lowConfidence",
-    "terms.baselineNotBeaten",
-    *(
-        f"terms.sector.{key}"
+    "terms.forecast": "forecast",
+    "terms.confidence": "confidence_pct",
+    "terms.lowConfidence": "low_confidence",
+    "terms.baselineNotBeaten": "beats_naive_baseline",
+    **{
+        f"terms.sector.{key}": None
         for key in (
             "automobileAssembler",
             "cableElectricalGoods",
@@ -96,8 +100,9 @@ GLOSSARY_KEYS = (
             "refinery",
             "technologyCommunication",
         )
-    ),
-)
+    },
+}
+GLOSSARY_KEYS = tuple(GLOSSARY_MARKERS)
 
 # Architecture.md §12 grounding budget (decided 2026-10-13): context plus history together
 MAX_INPUT_TOKENS = 12_000
@@ -564,9 +569,11 @@ def build_context(
         "backtest": backtest_data,
         "other_stocks": others,
         "forecast_stocks": sorted(covered),
-        "urdu_glossary": urdu_glossary() if reply_language == "ur" else {},
+        "urdu_glossary": {},
         "missing": [rec.text(m, "context") for m in missing],
     }
+    if reply_language == "ur":
+        data["urdu_glossary"] = glossary_for(json.dumps(data, ensure_ascii=False))
     return ChatContext(
         data=data,
         figures=rec.figures,
@@ -589,12 +596,28 @@ def _lookup(messages: dict, key: str) -> str:
 @lru_cache(maxsize=1)
 def urdu_glossary() -> dict[str, str]:
     """English term -> the app's Urdu word, from the locale files the web app uses."""
+    return {english: urdu for _marker, english, urdu in _glossary_entries()}
+
+
+@lru_cache(maxsize=1)
+def _glossary_entries() -> list[tuple[str, str, str]]:
+    """(marker, English, Urdu) for every glossary key; the marker defaults to the English."""
     try:
         en, ur = _locale("en"), _locale("ur")
     except FileNotFoundError:
         logger.warning("Urdu glossary unavailable: no locale files in %s", I18N_DIR)
-        return {}
-    return {_lookup(en, key): _lookup(ur, key) for key in GLOSSARY_KEYS}
+        return []
+    entries = []
+    for key, marker in GLOSSARY_MARKERS.items():
+        english, urdu = _lookup(en, key), _lookup(ur, key)
+        entries.append(((english if marker is None else marker).lower(), english, urdu))
+    return entries
+
+
+def glossary_for(context_text: str) -> dict[str, str]:
+    """The glossary entries whose term this context holds (screen names always)."""
+    text = context_text.lower()
+    return {english: urdu for marker, english, urdu in _glossary_entries() if marker in text}
 
 
 def estimate_tokens(text: str) -> int:
