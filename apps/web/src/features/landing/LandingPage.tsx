@@ -76,7 +76,7 @@ export const LandingPage = () => {
         </div>
         {/* Keeps the copy readable over the bloom (AA contrast): fades from the text side */}
         <div
-          className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-bg from-45% to-transparent to-85% sm:bg-gradient-to-r sm:from-bg sm:from-0% sm:to-transparent sm:to-60% rtl:sm:bg-gradient-to-l"
+          className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-bg from-50% via-bg/80 via-65% to-transparent to-90% sm:bg-gradient-to-r sm:from-bg sm:from-30% sm:via-bg/85 sm:via-45% sm:to-transparent sm:to-70% rtl:sm:bg-gradient-to-l"
           aria-hidden="true"
         />
         <header className="mx-auto flex max-w-[1200px] items-center justify-between px-4 py-4 sm:px-8 sm:py-6">

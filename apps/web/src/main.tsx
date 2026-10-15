@@ -16,8 +16,12 @@ configureApi({
 });
 initLanguage();
 
+// Two quick retries, so a failed section shows its error and retry button in about a second
+// instead of after React Query's default 1 s / 2 s / 4 s backoff (UI audit, Design.md §12.3)
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { refetchOnWindowFocus: false, staleTime: 60 * 1000 } },
+  defaultOptions: {
+    queries: { refetchOnWindowFocus: false, staleTime: 60 * 1000, retry: 2, retryDelay: 600 },
+  },
 });
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

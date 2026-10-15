@@ -548,7 +548,7 @@
         const lang = document.getElementById('lang');
         lang.innerHTML = LANG === 'en' ? '<span class="ur" lang="ur">اردو</span>' : 'English';
         document.getElementById('shot').src =
-          `assets/portfolio-${DIR}-${LANG}${innerWidth < 640 ? '-m390' : ''}.jpg`;
+          `assets/portfolio-${DIR}-${LANG}${innerWidth < 640 ? '-m390' : ''}.webp`;
       };
       document.getElementById('lang').onclick = () => {
         LANG = LANG === 'en' ? 'ur' : 'en';
