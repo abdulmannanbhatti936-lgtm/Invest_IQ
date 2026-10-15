@@ -14,6 +14,19 @@ const webglAvailable = () => {
   }
 };
 
+const afterFirstPaint = () =>
+  new Promise<void>((resolve) => {
+    const idle = () => {
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(() => resolve(), { timeout: 2000 });
+      } else {
+        setTimeout(resolve, 200);
+      }
+    };
+    if (document.readyState === 'complete') idle();
+    else window.addEventListener('load', idle, { once: true });
+  });
+
 const deviceHints = () => {
   const nav = navigator as Navigator & { connection?: { saveData?: boolean } };
   return {
@@ -54,7 +67,10 @@ export const Bloom = ({ companies }: { companies: BloomCompany[] }) => {
     if (!animated || !canvasRef.current) return;
     let disposed = false;
     const canvas = canvasRef.current;
-    import('./bloomScene')
+    // three.js (130 KB gzip) is fetched only once the page has painted and the browser is idle,
+    // so it never delays the headline (the LCP element)
+    afterFirstPaint()
+      .then(() => import('./bloomScene'))
       .then(({ createBloom }) => {
         if (disposed) return;
         sceneRef.current = createBloom(canvas, rays, palette, (index, x, y) =>

@@ -16,7 +16,11 @@ export const LanguageToggle = ({ className = '' }: { className?: string }) => {
       className={`${toggleClasses} ${className}`}
     >
       <Globe className="h-4 w-4" aria-hidden="true" />
-      <span lang={next}>{t('common.switchLanguage')}</span>
+      {/* On English pages this four-letter label is the only Urdu on screen: drawn in the system
+          font so it does not download the 156 KB Nastaleeq font (Design.md §3 deviation) */}
+      <span lang={next} className={next === 'ur' ? 'iq-system-font' : ''}>
+        {t('common.switchLanguage')}
+      </span>
     </button>
   );
 };

@@ -150,6 +150,10 @@
   text-align: right;
 }
 
+.iq-system-font {
+  font-family: system-ui, 'Segoe UI', Tahoma, sans-serif;
+}
+
 /* A screen fades in once when the route changes (Design.md §11: panels 200-300 ms, ease-out) */
 .iq-page {
   animation: iq-enter var(--iq-duration-panel) var(--iq-ease-enter) both;

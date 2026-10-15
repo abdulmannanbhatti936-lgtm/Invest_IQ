@@ -10,14 +10,16 @@ import {
   RequireRiskProfile,
 } from './features/auth/RouteGuards';
 import { AppLayout } from './components/layout/AppLayout';
+import { LandingPage } from './features/landing/LandingPage';
 import { Skeleton } from './components/ui/Feedback';
 
-// Every screen is its own chunk, so a visitor to the landing page or the login screen never
-// downloads the charts, the portfolio screens or three.js (UI round, 2026-10-15).
+// Every app screen is its own chunk, so a visitor to the landing page or the login screen never
+// downloads the charts or the portfolio screens (UI round, 2026-10-15). The landing page itself
+// (6 KB gzip) ships with the main bundle so its headline paints one round trip sooner; three.js
+// stays a separate chunk loaded after the first paint.
 const named = <K extends string>(load: () => Promise<Record<K, React.ComponentType>>, key: K) =>
   lazy(() => load().then((m) => ({ default: m[key] })));
 
-const LandingPage = named(() => import('./features/landing/LandingPage'), 'LandingPage');
 const LoginPage = named(() => import('./features/auth/LoginPage'), 'LoginPage');
 const RegisterPage = named(() => import('./features/auth/RegisterPage'), 'RegisterPage');
 const OnboardingPage = named(
