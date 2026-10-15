@@ -21,7 +21,7 @@ from models.portfolio import Portfolio, PortfolioHolding
 from models.risk_profile import RiskCategory, RiskProfile
 from models.stock import PricePoint, Stock, StockDividend
 from models.user import User
-from services import cost_engine, index_data
+from services import backtest_service, cost_engine, index_data
 from tests.conftest import register_and_login
 from tests.synthetic import make_ohlcv
 
@@ -163,6 +163,21 @@ def test_stored_portfolio_backtest_adds_up_and_is_stored(client, db, market):
     assert stored.portfolio_id == portfolio.id and stored.kind == "portfolio"
     assert stored.end_value_net == D(costs["end_value_net"])
     assert client.get(f"/backtest/{body['id']}", headers=headers).json() == body
+
+
+def test_latest_summary_is_the_newest_backtest_of_the_portfolio(client, db, market):
+    headers, user = _investor(client, db)
+    portfolio = _portfolio(db, user, WEIGHTS, market)
+    assert backtest_service.latest_summary(db, portfolio) is None
+    client.post("/backtest/run", json={"portfolio_id": str(portfolio.id)}, headers=headers)
+    newest = client.post(
+        "/backtest/run", json={"portfolio_id": str(portfolio.id), "years": 4}, headers=headers
+    ).json()
+
+    summary = backtest_service.latest_summary(db, portfolio)
+    assert str(summary["id"]) == newest["id"]
+    assert summary["years"] == 4
+    assert summary["total_return"] == newest["portfolio"]["metrics"]["total_return"]
 
 
 def test_longer_period_is_allowed_up_to_the_history_available(client, db, market):

@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import {
   adminRedirect,
   guestRedirect,
+  landingRedirect,
   onboardingRedirect,
   protectedRouteRedirect,
   safeReturnPath,
@@ -53,4 +54,11 @@ test('return paths are limited to this app', () => {
   assert.equal(safeReturnPath('/onboarding'), null);
   assert.equal(safeReturnPath('/loginhelp'), '/loginhelp');
   assert.equal(safeReturnPath(null), null);
+});
+
+test('landing page "/": shown when logged out, otherwise on to the app', () => {
+  assert.equal(landingRedirect(loggedOut), null);
+  assert.equal(landingRedirect(noProfile), '/onboarding');
+  assert.equal(landingRedirect(withProfile), '/dashboard');
+  assert.equal(landingRedirect(admin), '/dashboard');
 });

@@ -40,6 +40,13 @@ export const guestRedirect = (user: GuardUser, requestedPath?: string | null): s
   return safeReturnPath(requestedPath) ?? '/dashboard';
 };
 
+/**
+ * The public landing page at "/": logged-out visitors see it; a logged-in user goes on to the
+ * app (onboarding first if the profile is incomplete).
+ */
+export const landingRedirect = (user: GuardUser): string | null =>
+  user ? guestRedirect(user) : null;
+
 /** Only same-app paths; never back to auth/onboarding screens or another site ("//evil.com"). */
 export const safeReturnPath = (path?: string | null): string | null => {
   if (!path || !path.startsWith('/') || path.startsWith('//')) return null;

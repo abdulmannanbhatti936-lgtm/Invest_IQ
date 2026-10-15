@@ -1,0 +1,122 @@
+{
+  "forecast_companies": 18,
+  "history_start": "2021-10-08",
+  "capital": "100000",
+  "filer_status": "filer",
+  "prices_as_of": "2026-10-09",
+  "model_version": "lstm-rf-20261009T233529Z",
+  "rates_version": "psx-costs-2026-10-11.2",
+  "profiles": {
+    "conservative": {
+      "holdings": [
+        {
+          "sector": "Oil & Gas Exploration Companies",
+          "allocation_pct": "14.0883"
+        },
+        {
+          "sector": "Fertilizer",
+          "allocation_pct": "14.2353"
+        },
+        {
+          "sector": "Oil & Gas Exploration Companies",
+          "allocation_pct": "9.5069"
+        },
+        {
+          "sector": "Fertilizer",
+          "allocation_pct": "10.7166"
+        },
+        {
+          "sector": "Power Generation & Distribution",
+          "allocation_pct": "9.6246"
+        },
+        {
+          "sector": "Oil & Gas Marketing Companies",
+          "allocation_pct": "9.7555"
+        },
+        {
+          "sector": "Commercial Banks",
+          "allocation_pct": "9.3406"
+        },
+        {
+          "sector": "Commercial Banks",
+          "allocation_pct": "8.2963"
+        },
+        {
+          "sector": "Technology & Communication",
+          "allocation_pct": "8.0185"
+        },
+        {
+          "sector": "Oil & Gas Exploration Companies",
+          "allocation_pct": "6.3608"
+        }
+      ],
+      "cash_pct": "0.0566"
+    },
+    "moderate": {
+      "holdings": [
+        {
+          "sector": "Oil & Gas Exploration Companies",
+          "allocation_pct": "14.7287"
+        },
+        {
+          "sector": "Fertilizer",
+          "allocation_pct": "14.2353"
+        },
+        {
+          "sector": "Fertilizer",
+          "allocation_pct": "12.8599"
+        },
+        {
+          "sector": "Oil & Gas Exploration Companies",
+          "allocation_pct": "12.5737"
+        },
+        {
+          "sector": "Power Generation & Distribution",
+          "allocation_pct": "11.8303"
+        },
+        {
+          "sector": "Oil & Gas Marketing Companies",
+          "allocation_pct": "11.5621"
+        },
+        {
+          "sector": "Commercial Banks",
+          "allocation_pct": "11.5383"
+        },
+        {
+          "sector": "Commercial Banks",
+          "allocation_pct": "10.6667"
+        }
+      ],
+      "cash_pct": "0.0051"
+    },
+    "aggressive": {
+      "holdings": [
+        {
+          "sector": "Cement",
+          "allocation_pct": "16.8090"
+        },
+        {
+          "sector": "Fertilizer",
+          "allocation_pct": "16.6107"
+        },
+        {
+          "sector": "Commercial Banks",
+          "allocation_pct": "16.7066"
+        },
+        {
+          "sector": "Cable & Electrical Goods",
+          "allocation_pct": "16.6366"
+        },
+        {
+          "sector": "Oil & Gas Exploration Companies",
+          "allocation_pct": "16.5605"
+        },
+        {
+          "sector": "Oil & Gas Exploration Companies",
+          "allocation_pct": "16.6499"
+        }
+      ],
+      "cash_pct": "0.0267"
+    }
+  }
+}

@@ -131,7 +131,7 @@ export const RegisterPage = () => {
         </div>
 
         {serverError && (
-          <div role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-600">
+          <div role="alert" className="rounded-control bg-danger-tint p-4 text-sm text-danger">
             {serverError}
           </div>
         )}
@@ -140,9 +140,9 @@ export const RegisterPage = () => {
           {t('auth.register.submit')}
         </Button>
 
-        <p className="text-center text-sm text-gray-600">
+        <p className="text-center text-sm text-muted">
           {t('auth.register.haveAccount')}{' '}
-          <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
+          <Link to="/login" className="font-medium text-primary hover:text-primary">
             {t('auth.register.logIn')}
           </Link>
         </p>

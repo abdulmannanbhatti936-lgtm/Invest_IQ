@@ -1,36 +1,45 @@
 import type { ButtonHTMLAttributes } from 'react';
 import { Loader2 } from 'lucide-react';
 
+type Variant = 'primary' | 'secondary' | 'ghost' | 'destructive';
+
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'destructive';
+  variant?: Variant;
+  size?: 'md' | 'lg';
   isLoading?: boolean;
 }
 
-export const Button: React.FC<ButtonProps> = ({
+/** Shared by <Button> and links styled as buttons, so both look identical (Design.md §6.1). */
+export const buttonClasses = (variant: Variant = 'primary', size: 'md' | 'lg' = 'md') =>
+  [
+    'inline-flex items-center justify-center gap-2 rounded-control font-semibold whitespace-nowrap',
+    'transition-[background-color,border-color,color,transform] duration-150 ease-enter',
+    'disabled:cursor-not-allowed disabled:border-line disabled:bg-sunken disabled:text-muted disabled:shadow-none',
+    size === 'lg' ? 'min-h-12 px-6 text-base' : 'min-h-10 px-4 text-sm',
+    {
+      primary: 'bg-primary text-inverse shadow-e1 hover:bg-primary-hover active:translate-y-px',
+      secondary: 'border border-line-strong bg-transparent text-ink hover:bg-sunken',
+      ghost: 'bg-transparent text-ink hover:bg-sunken',
+      destructive: 'border border-danger bg-transparent text-danger hover:bg-danger-tint',
+    }[variant],
+  ].join(' ');
+
+export const Button = ({
   children,
   variant = 'primary',
+  size = 'md',
   isLoading = false,
   className = '',
   disabled,
   ...props
-}) => {
-  const baseStyles =
-    'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none h-10 py-2 px-4';
-
-  const variants = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500', // placeholder colors
-    secondary: 'border border-gray-300 bg-transparent hover:bg-gray-50 text-gray-700',
-    destructive: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
-  };
-
-  return (
-    <button
-      className={`${baseStyles} ${variants[variant]} ${className}`}
-      disabled={isLoading || disabled}
-      {...props}
-    >
-      {isLoading && <Loader2 className="me-2 h-4 w-4 animate-spin" aria-hidden="true" />}
-      {children}
-    </button>
-  );
-};
+}: ButtonProps) => (
+  <button
+    className={`${buttonClasses(variant, size)} ${className}`}
+    disabled={isLoading || disabled}
+    aria-busy={isLoading || undefined}
+    {...props}
+  >
+    {isLoading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+    {children}
+  </button>
+);

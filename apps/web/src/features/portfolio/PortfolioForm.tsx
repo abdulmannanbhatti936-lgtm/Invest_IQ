@@ -80,8 +80,8 @@ export const PortfolioForm = ({
   return (
     <form className="space-y-6" onSubmit={handleSubmit(submit)} noValidate>
       <div>
-        {title && <h2 className="text-lg font-semibold text-gray-900">{title}</h2>}
-        <p className="mt-1 text-sm text-gray-600">
+        {title && <h2 className="text-lg font-semibold text-ink">{title}</h2>}
+        <p className="mt-2 text-sm text-muted">
           {t('portfolio.form.intro', { category: t(`risk.${category}`) })}
         </p>
       </div>
@@ -97,27 +97,25 @@ export const PortfolioForm = ({
       />
 
       <fieldset className="space-y-2">
-        <legend className="text-sm font-medium text-gray-700">
-          {t('portfolio.form.filerStatus')}
-        </legend>
+        <legend className="text-sm font-medium text-ink">{t('portfolio.form.filerStatus')}</legend>
         {(['filer', 'non_filer'] as const).map((status) => (
-          <label key={status} className="flex items-center gap-2 text-sm text-gray-800">
+          <label key={status} className="flex items-center gap-2 text-sm text-ink">
             <input type="radio" value={status} {...register('filer_status')} />
             {t(status === 'filer' ? 'portfolio.form.filer' : 'portfolio.form.nonFiler')}
           </label>
         ))}
-        <p className="text-xs text-gray-500">{t('portfolio.form.filerHelp')}</p>
+        <p className="text-xs text-muted">{t('portfolio.form.filerHelp')}</p>
       </fieldset>
 
-      <div className="space-y-1">
-        <label className="flex items-center gap-2 text-sm text-gray-800">
+      <div className="space-y-2">
+        <label className="flex items-center gap-2 text-sm text-ink">
           <input type="checkbox" {...register('shariah_only')} />
           {t('portfolio.form.shariah')}
         </label>
-        <p className="text-xs text-gray-500">{t('portfolio.form.shariahHelp')}</p>
+        <p className="text-xs text-muted">{t('portfolio.form.shariahHelp')}</p>
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-2">
         <Input
           label={t('portfolio.form.commission')}
           inputMode="decimal"
@@ -126,7 +124,7 @@ export const PortfolioForm = ({
           error={errors.commission_pct?.message ? t(errors.commission_pct.message) : undefined}
           {...register('commission_pct')}
         />
-        <p className="text-xs text-gray-500">{t('portfolio.form.commissionHelp')}</p>
+        <p className="text-xs text-muted">{t('portfolio.form.commissionHelp')}</p>
       </div>
 
       {excluded.length > 0 && (
@@ -136,7 +134,7 @@ export const PortfolioForm = ({
               key={ticker}
               type="button"
               onClick={() => onIncludeAgain(ticker)}
-              className="inline-flex items-center gap-1 rounded-full border border-gray-300 px-3 py-1 text-xs text-gray-700 hover:bg-gray-50"
+              className="inline-flex items-center gap-2 rounded-full border border-line-strong px-4 py-2 text-xs text-ink hover:bg-sunken"
               aria-label={t('portfolio.form.include', { ticker })}
             >
               <bdi dir="ltr">{ticker}</bdi>

@@ -363,10 +363,16 @@ class CapitalBelowMinimum(Exception):
         self.prices_as_of = as_of
 
 
-def generate_portfolio(
-    db: Session, user: User, profile: RiskProfile, inputs: PortfolioInputs
-) -> Portfolio:
-    category = profile.category.value
+@dataclass(frozen=True)
+class Plan:
+    universe: Universe
+    allocation: Allocation
+    rates: Rates
+    commission_rate: Decimal
+
+
+def plan_allocation(db: Session, category: str, inputs: PortfolioInputs) -> Plan:
+    """The engine's allocation for a risk category and inputs, without storing anything."""
     rules = RISK_RULES[category]
     rates = cost_engine.load_rates()
     commission_rate = cost_engine.check_commission_rate(
@@ -379,6 +385,20 @@ def generate_portfolio(
     except CapitalTooLow as exc:
         minimum = minimum_capital(candidates, inputs.capital, rules, rates, commission_rate)
         raise CapitalBelowMinimum(inputs.capital, minimum, category, universe.prices_as_of) from exc
+    return Plan(universe, allocation, rates, commission_rate)
+
+
+def generate_portfolio(
+    db: Session, user: User, profile: RiskProfile, inputs: PortfolioInputs
+) -> Portfolio:
+    category = profile.category.value
+    plan = plan_allocation(db, category, inputs)
+    universe, allocation, rates, commission_rate = (
+        plan.universe,
+        plan.allocation,
+        plan.rates,
+        plan.commission_rate,
+    )
 
     for old in db.query(Portfolio).filter(
         Portfolio.user_id == user.id, Portfolio.status == "active"

@@ -106,6 +106,14 @@ def generate_prediction(db: Session, stock: Stock, bundle: ModelBundle | None = 
     return prediction
 
 
+def covered_tickers() -> list[str]:
+    """The current model's stocks; the configured list while no model is saved."""
+    try:
+        return load_bundle(settings.MODEL_DIR).metadata["tickers"]
+    except ModelNotFoundError:
+        return settings.tracked_tickers
+
+
 def latest_prediction(db: Session, stock: Stock, model_version: str) -> Prediction | None:
     """The newest forecast from the current model; older models' rows are history only."""
     return (

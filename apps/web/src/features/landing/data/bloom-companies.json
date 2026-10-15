@@ -1,0 +1,385 @@
+{
+  "snapshot": "2026-10-10",
+  "companies": [
+    {
+      "ticker": "ABL",
+      "sector": "Commercial Banks"
+    },
+    {
+      "ticker": "ABOT",
+      "sector": "Pharmaceuticals"
+    },
+    {
+      "ticker": "AGP",
+      "sector": "Pharmaceuticals"
+    },
+    {
+      "ticker": "AHCL",
+      "sector": "Fertilizer"
+    },
+    {
+      "ticker": "AICL",
+      "sector": "Insurance"
+    },
+    {
+      "ticker": "AIRLINK",
+      "sector": "Technology & Communication"
+    },
+    {
+      "ticker": "AKBL",
+      "sector": "Commercial Banks"
+    },
+    {
+      "ticker": "APL",
+      "sector": "Oil & Gas Marketing Companies"
+    },
+    {
+      "ticker": "ATLH",
+      "sector": "Automobile Assembler"
+    },
+    {
+      "ticker": "ATRL",
+      "sector": "Refinery"
+    },
+    {
+      "ticker": "BAFL",
+      "sector": "Commercial Banks"
+    },
+    {
+      "ticker": "BAHL",
+      "sector": "Commercial Banks"
+    },
+    {
+      "ticker": "BNWM",
+      "sector": "Woollen"
+    },
+    {
+      "ticker": "BOP",
+      "sector": "Commercial Banks"
+    },
+    {
+      "ticker": "BWCL",
+      "sector": "Cement"
+    },
+    {
+      "ticker": "CHCC",
+      "sector": "Cement"
+    },
+    {
+      "ticker": "CNERGY",
+      "sector": "Refinery"
+    },
+    {
+      "ticker": "COLG",
+      "sector": "Food & Personal Care Products"
+    },
+    {
+      "ticker": "CPHL",
+      "sector": "Pharmaceuticals"
+    },
+    {
+      "ticker": "DCR",
+      "sector": "Real Estate Investment Trust"
+    },
+    {
+      "ticker": "DGKC",
+      "sector": "Cement"
+    },
+    {
+      "ticker": "EFERT",
+      "sector": "Fertilizer"
+    },
+    {
+      "ticker": "FABL",
+      "sector": "Commercial Banks"
+    },
+    {
+      "ticker": "FATIMA",
+      "sector": "Fertilizer"
+    },
+    {
+      "ticker": "FCCL",
+      "sector": "Cement"
+    },
+    {
+      "ticker": "FFC",
+      "sector": "Fertilizer"
+    },
+    {
+      "ticker": "FFL",
+      "sector": "Food & Personal Care Products"
+    },
+    {
+      "ticker": "FHAM",
+      "sector": "Modarabas"
+    },
+    {
+      "ticker": "GADT",
+      "sector": "Textile Spinning"
+    },
+    {
+      "ticker": "GHGL",
+      "sector": "Glass & Ceramics"
+    },
+    {
+      "ticker": "GHNI",
+      "sector": "Automobile Assembler"
+    },
+    {
+      "ticker": "GLAXO",
+      "sector": "Pharmaceuticals"
+    },
+    {
+      "ticker": "HALEON",
+      "sector": "Pharmaceuticals"
+    },
+    {
+      "ticker": "HBL",
+      "sector": "Commercial Banks"
+    },
+    {
+      "ticker": "HCAR",
+      "sector": "Automobile Assembler"
+    },
+    {
+      "ticker": "HINOON",
+      "sector": "Pharmaceuticals"
+    },
+    {
+      "ticker": "HMB",
+      "sector": "Commercial Banks"
+    },
+    {
+      "ticker": "HUBC",
+      "sector": "Power Generation & Distribution"
+    },
+    {
+      "ticker": "IBFL",
+      "sector": "Synthetic & Rayon"
+    },
+    {
+      "ticker": "ILP",
+      "sector": "Textile Composite"
+    },
+    {
+      "ticker": "IMAGE",
+      "sector": "Apparel"
+    },
+    {
+      "ticker": "INDU",
+      "sector": "Automobile Assembler"
+    },
+    {
+      "ticker": "INIL",
+      "sector": "Engineering"
+    },
+    {
+      "ticker": "ISL",
+      "sector": "Engineering"
+    },
+    {
+      "ticker": "JDWS",
+      "sector": "Sugar & Allied Industries"
+    },
+    {
+      "ticker": "JVDC",
+      "sector": "Property"
+    },
+    {
+      "ticker": "KAPCO",
+      "sector": "Power Generation & Distribution"
+    },
+    {
+      "ticker": "KEL",
+      "sector": "Power Generation & Distribution"
+    },
+    {
+      "ticker": "KOHC",
+      "sector": "Cement"
+    },
+    {
+      "ticker": "KTML",
+      "sector": "Textile Composite"
+    },
+    {
+      "ticker": "LCI",
+      "sector": "Chemical"
+    },
+    {
+      "ticker": "LOTCHEM",
+      "sector": "Chemical"
+    },
+    {
+      "ticker": "LUCK",
+      "sector": "Cement"
+    },
+    {
+      "ticker": "MARI",
+      "sector": "Oil & Gas Exploration Companies"
+    },
+    {
+      "ticker": "MCB",
+      "sector": "Commercial Banks"
+    },
+    {
+      "ticker": "MEBL",
+      "sector": "Commercial Banks"
+    },
+    {
+      "ticker": "MLCF",
+      "sector": "Cement"
+    },
+    {
+      "ticker": "MTL",
+      "sector": "Automobile Assembler"
+    },
+    {
+      "ticker": "MUREB",
+      "sector": "Food & Personal Care Products"
+    },
+    {
+      "ticker": "NATF",
+      "sector": "Food & Personal Care Products"
+    },
+    {
+      "ticker": "NBP",
+      "sector": "Commercial Banks"
+    },
+    {
+      "ticker": "NCPL",
+      "sector": "Power Generation & Distribution"
+    },
+    {
+      "ticker": "NESTLE",
+      "sector": "Food & Personal Care Products"
+    },
+    {
+      "ticker": "NML",
+      "sector": "Textile Composite"
+    },
+    {
+      "ticker": "NPL",
+      "sector": "Power Generation & Distribution"
+    },
+    {
+      "ticker": "OGDC",
+      "sector": "Oil & Gas Exploration Companies"
+    },
+    {
+      "ticker": "PAEL",
+      "sector": "Cable & Electrical Goods"
+    },
+    {
+      "ticker": "PAKT",
+      "sector": "Tobacco"
+    },
+    {
+      "ticker": "PGLC",
+      "sector": "Leasing Companies"
+    },
+    {
+      "ticker": "PIBTL",
+      "sector": "Transport"
+    },
+    {
+      "ticker": "PIOC",
+      "sector": "Cement"
+    },
+    {
+      "ticker": "PKGS",
+      "sector": "Paper, Board & Packaging"
+    },
+    {
+      "ticker": "POL",
+      "sector": "Oil & Gas Exploration Companies"
+    },
+    {
+      "ticker": "POWER",
+      "sector": "Cement"
+    },
+    {
+      "ticker": "PPL",
+      "sector": "Oil & Gas Exploration Companies"
+    },
+    {
+      "ticker": "PSEL",
+      "sector": "Miscellaneous"
+    },
+    {
+      "ticker": "PSO",
+      "sector": "Oil & Gas Marketing Companies"
+    },
+    {
+      "ticker": "PSX",
+      "sector": "Inv. Banks / Inv. Cos. / Securities Cos."
+    },
+    {
+      "ticker": "PTC",
+      "sector": "Technology & Communication"
+    },
+    {
+      "ticker": "SAZEW",
+      "sector": "Automobile Assembler"
+    },
+    {
+      "ticker": "SCBPL",
+      "sector": "Commercial Banks"
+    },
+    {
+      "ticker": "SEARL",
+      "sector": "Pharmaceuticals"
+    },
+    {
+      "ticker": "SHFA",
+      "sector": "Miscellaneous"
+    },
+    {
+      "ticker": "SNGP",
+      "sector": "Oil & Gas Marketing Companies"
+    },
+    {
+      "ticker": "SRVI",
+      "sector": "Leather & Tanneries"
+    },
+    {
+      "ticker": "SSGC",
+      "sector": "Oil & Gas Marketing Companies"
+    },
+    {
+      "ticker": "SSOM",
+      "sector": "Vanaspati & Allied Industries"
+    },
+    {
+      "ticker": "SYS",
+      "sector": "Technology & Communication"
+    },
+    {
+      "ticker": "TGL",
+      "sector": "Glass & Ceramics"
+    },
+    {
+      "ticker": "THALL",
+      "sector": "Automobile Parts & Accessories"
+    },
+    {
+      "ticker": "THCCL",
+      "sector": "Cement"
+    },
+    {
+      "ticker": "TRG",
+      "sector": "Technology & Communication"
+    },
+    {
+      "ticker": "UBL",
+      "sector": "Commercial Banks"
+    },
+    {
+      "ticker": "UPFL",
+      "sector": "Food & Personal Care Products"
+    },
+    {
+      "ticker": "YOUW",
+      "sector": "Textile Weaving"
+    }
+  ]
+}

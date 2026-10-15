@@ -14,7 +14,7 @@ from schemas.portfolio import (
     PortfolioResponse,
     RollCheckResponse,
 )
-from services import cost_engine, portfolio_service
+from services import backtest_service, cost_engine, portfolio_service
 from services.allocation import TooFewEligibleStocks
 from services.portfolio_service import (
     CapitalBelowMinimum,
@@ -110,7 +110,10 @@ def current(
     portfolio = portfolio_service.active_portfolio(db, user)
     if portfolio is None:
         raise _error(404, "no_active_portfolio", "No portfolio has been generated yet.")
-    return portfolio_service.portfolio_payload(portfolio)
+    return {
+        **portfolio_service.portfolio_payload(portfolio),
+        "latest_backtest": backtest_service.latest_summary(db, portfolio),
+    }
 
 
 def _owned(db: Session, user: User, portfolio_id: uuid.UUID):

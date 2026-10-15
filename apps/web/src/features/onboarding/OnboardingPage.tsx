@@ -9,7 +9,9 @@ import { useAuth } from '../auth/AuthContext';
 import { onboardingRedirect, RETAKE_PARAM } from '../auth/guardRules';
 import { Button } from '../../components/ui/Button';
 import { DisclaimerBanner, ErrorState, Notice, Skeleton } from '../../components/ui/Feedback';
-import { LanguageToggle } from '../../components/LanguageToggle';
+import { LanguageToggle, toggleClasses } from '../../components/LanguageToggle';
+import { ThemeToggle } from '../../components/ThemeToggle';
+import { Wordmark } from '../../components/Wordmark';
 import { RiskBadge } from './RiskBadge';
 import { createLatestOnlySender } from '../../lib/latestOnlySender';
 
@@ -115,14 +117,12 @@ export const OnboardingPage = () => {
   if (result) {
     return (
       <Shell>
-        <div className="space-y-6 rounded-xl border border-gray-100 bg-white p-8 text-center shadow-sm">
+        <div className="mx-auto max-w-lg space-y-6 rounded-card border border-line bg-surface p-8 text-center shadow-e1">
           <RiskBadge category={result.category} size="lg" />
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-ink">
             {t('onboarding.result.title', { category: t(`risk.${result.category}`) })}
           </h1>
-          <p className="leading-relaxed text-gray-600">
-            {t(`risk.description.${result.category}`)}
-          </p>
+          <p className="text-muted">{t(`risk.description.${result.category}`)}</p>
           {result.caps_applied.length > 0 && (
             // Explain in plain language why the profile is lower than the score alone suggests
             <div className="space-y-2 text-start">
@@ -159,7 +159,7 @@ export const OnboardingPage = () => {
         <Skeleton className="mb-6 h-2 w-full" />
         <Skeleton className="mb-8 h-8 w-3/4" />
         {[0, 1, 2].map((i) => (
-          <Skeleton key={i} className="mb-3 h-16 w-full" />
+          <Skeleton key={i} className="mb-4 h-16 w-full" />
         ))}
       </Shell>
     );
@@ -172,18 +172,18 @@ export const OnboardingPage = () => {
     <Shell>
       <div className="mb-8">
         <div
-          className="h-2 w-full overflow-hidden rounded-full bg-gray-200"
+          className="h-2 w-full overflow-hidden rounded-full bg-line"
           role="progressbar"
           aria-valuemin={1}
           aria-valuemax={total}
           aria-valuenow={step + 1}
         >
           <div
-            className="h-full bg-blue-600 transition-all duration-300 ease-out"
+            className="h-full bg-primary transition-[width] duration-300 ease-enter"
             style={{ width: `${progressPct}%` }}
           />
         </div>
-        <p className="mt-2 text-end text-xs font-medium tracking-wider text-gray-500 uppercase">
+        <p className="mt-2 text-end text-xs font-medium text-muted">
           {t('onboarding.stepOf', { current: step + 1, total })}
         </p>
       </div>
@@ -201,9 +201,12 @@ export const OnboardingPage = () => {
         </div>
       )}
 
-      <h1 className="text-2xl leading-tight font-bold text-gray-900">{t(`${prefix}.title`)}</h1>
+      <h1 className="text-2xl leading-tight font-bold text-ink sm:text-3xl">
+        {t(`${prefix}.title`)}
+      </h1>
 
-      <div className="mt-8 space-y-3">
+      {/* Large tappable choice cards, not radio rows (Design.md §13) */}
+      <div className="mt-8 grid gap-4 sm:grid-cols-3">
         {question.options.map((option) => {
           const selected = answers[question.id] === option;
           return (
@@ -213,20 +216,20 @@ export const OnboardingPage = () => {
               onClick={() => choose(option)}
               disabled={saveProfile.isPending}
               aria-pressed={selected}
-              className={`group flex w-full items-center rounded-xl border-2 bg-white p-4 text-start transition-colors duration-200 hover:border-blue-500 hover:bg-blue-50 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:opacity-50 ${
-                selected ? 'border-blue-500 bg-blue-50' : 'border-gray-100'
+              className={`group flex min-h-24 w-full flex-col items-start gap-4 rounded-card border-2 p-4 text-start transition-[border-color,background-color,transform] duration-150 ease-enter hover:-translate-y-0.5 hover:border-primary disabled:cursor-not-allowed sm:min-h-40 sm:p-6 ${
+                selected ? 'border-primary bg-primary-tint' : 'border-line bg-surface'
               }`}
             >
               <span
-                className={`me-4 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
                   selected
-                    ? 'border-blue-600 bg-blue-600'
-                    : 'border-gray-300 group-hover:border-blue-500'
+                    ? 'border-primary bg-primary'
+                    : 'border-line-strong group-hover:border-primary'
                 }`}
               >
-                {selected && <Check className="h-4 w-4 text-white" />}
+                {selected && <Check className="h-4 w-4 text-inverse" aria-hidden="true" />}
               </span>
-              <span className="font-medium text-gray-700 group-hover:text-gray-900">
+              <span className="text-base font-semibold text-ink">
                 {t(`${prefix}.options.${option}`)}
               </span>
             </button>
@@ -248,22 +251,22 @@ export const OnboardingPage = () => {
           <button
             type="button"
             onClick={goBack}
-            className="flex items-center gap-1 text-sm font-medium text-gray-500 transition-colors hover:text-gray-900"
+            className="flex items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-ink"
           >
-            <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
+            <ArrowLeft className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
             {t('common.back')}
           </button>
         ) : (
           <span />
         )}
         {saveProfile.isPending ? (
-          <span className="animate-pulse text-sm text-gray-500">{t('onboarding.saving')}</span>
+          <span className="animate-pulse text-sm text-muted">{t('onboarding.saving')}</span>
         ) : (
           isRetake && (
             // A retake must never trap the user: they keep their current profile if they leave
             <Link
               to="/dashboard"
-              className="text-sm font-medium text-gray-500 transition-colors hover:text-gray-900"
+              className="text-sm font-medium text-muted transition-colors hover:text-ink"
             >
               {t('onboarding.cancelRetake')}
             </Link>
@@ -284,25 +287,22 @@ const Shell = ({ children }: { children: React.ReactNode }) => {
     navigate('/login', { replace: true });
   };
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
-      <header className="flex items-center justify-between px-6 py-4">
-        <span className="text-xl font-bold tracking-tight text-blue-700">
-          {t('common.appName')}
+    <div className="flex min-h-screen flex-col bg-bg">
+      <header className="flex items-center justify-between border-b border-line bg-surface px-4 py-2 sm:px-8">
+        <span className="text-xl">
+          <Wordmark />
         </span>
         <div className="flex items-center gap-2">
           <LanguageToggle />
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
-          >
-            <LogOut className="h-4 w-4 rtl:rotate-180" />
-            {t('common.logout')}
+          <ThemeToggle />
+          <button type="button" onClick={handleLogout} className={toggleClasses}>
+            <LogOut className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+            <span className="hidden sm:inline">{t('common.logout')}</span>
           </button>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-lg flex-1 px-4 pt-8 pb-12">
-        <p className="mb-6 text-sm font-semibold text-blue-700">{t('onboarding.title')}</p>
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 pt-8 pb-12">
+        <p className="mb-6 text-sm font-semibold text-primary">{t('onboarding.title')}</p>
         {children}
         <div className="mt-10">
           <DisclaimerBanner />

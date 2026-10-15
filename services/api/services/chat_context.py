@@ -39,7 +39,7 @@ from services.stock_service import PriceDataUnavailable, StockService
 
 logger = logging.getLogger(__name__)
 
-CONTEXT_VERSION = "ctx-v3"
+CONTEXT_VERSION = "ctx-v4"
 PKT = ZoneInfo("Asia/Karachi")
 
 # Urdu replies use the app's own Urdu words for these terms (packages/i18n), so the chat and the
@@ -87,6 +87,8 @@ GLOSSARY_MARKERS: dict[str, str | None] = {
     "terms.confidence": "confidence_pct",
     "terms.lowConfidence": "low_confidence",
     "terms.baselineNotBeaten": "beats_naive_baseline",
+    # UI round (2026-10-15): one Urdu term for the risk level, always the app's own
+    "terms.riskProfile": "risk_profile",
     **{
         f"terms.sector.{key}": None
         for key in (
@@ -104,6 +106,26 @@ GLOSSARY_MARKERS: dict[str, str | None] = {
     },
 }
 GLOSSARY_KEYS = tuple(GLOSSARY_MARKERS)
+
+# Roman Urdu replies take their finance words from these i18n strings (UI round, 2026-10-15,
+# for team review), sent like the Urdu glossary: only the entries the context can use.
+ROMAN_URDU_MARKERS: dict[str, str] = {
+    "riskProfile": "risk_profile",
+    "conservative": "conservative",
+    "moderate": "moderate",
+    "aggressive": "aggressive",
+    "forecast": "forecast",
+    "confidence": "confidence_pct",
+    "lowConfidence": "low_confidence",
+    "breakEvenPrice": "break_even_price",
+    "totalCost": "total_cost",
+    "charges": "buying_charges",
+    "leftAsCash": "left_uninvested",
+    "dividend": "dividends_last_12_months",
+    "newsSentiment": '"sentiment"',
+    "totalReturn": "total_return_after_all_charges",
+    "benchmark": '"benchmark"',
+}
 
 # Architecture.md §12 grounding budget (decided 2026-10-13): context plus history together
 MAX_INPUT_TOKENS = 12_000
@@ -567,6 +589,7 @@ def build_context(
         "reply_language": reply_language,
         # InvestIQ never buys anything: the portfolio is always named as a recommendation
         "portfolio_name": portfolio_name(reply_language),
+        "portfolio_short_name": portfolio_name(reply_language, short=True),
         "risk_profile": _risk_profile(rec, user),
         "portfolio": portfolio_data,
         "forecasts": forecasts,
@@ -575,10 +598,13 @@ def build_context(
         "other_stocks": others,
         "forecast_stocks": sorted(covered),
         "urdu_glossary": {},
+        "roman_urdu_glossary": {},
         "missing": [rec.text(m, "context") for m in missing],
     }
     if reply_language == "ur":
         data["urdu_glossary"] = glossary_for(json.dumps(data, ensure_ascii=False))
+    if reply_language == "ur-latn":
+        data["roman_urdu_glossary"] = roman_glossary_for(json.dumps(data, ensure_ascii=False))
     return ChatContext(
         data=data,
         figures=rec.figures,
@@ -619,18 +645,43 @@ def _glossary_entries() -> list[tuple[str, str, str]]:
     return entries
 
 
-@lru_cache(maxsize=3)
-def portfolio_name(language: str) -> str:
-    """ "Your InvestIQ recommended portfolio" in the reply's language, from packages/i18n."""
-    key = (
-        "terms.recommendedPortfolioRomanUrdu"
-        if language == "ur-latn"
-        else "terms.recommendedPortfolio"
-    )
+@lru_cache(maxsize=6)
+def portfolio_name(language: str, short: bool = False) -> str:
+    """
+    "Your InvestIQ recommended portfolio" in the reply's language, from packages/i18n; `short`
+    is the name used after the first mention ("this portfolio"), so a reply does not repeat
+    the full phrase (UI round, 2026-10-15).
+    """
+    key = "terms.recommendedPortfolioShort" if short else "terms.recommendedPortfolio"
+    if language == "ur-latn":
+        key += "RomanUrdu"
     try:
         return _lookup(_locale("ur" if language == "ur" else "en"), key)
     except FileNotFoundError:
-        return "your InvestIQ recommended portfolio"
+        return "this portfolio" if short else "your InvestIQ recommended portfolio"
+
+
+@lru_cache(maxsize=1)
+def _roman_entries() -> list[tuple[str, str, str]]:
+    """(marker, English, Roman Urdu) for every Roman Urdu glossary key."""
+    try:
+        en = _locale("en")
+    except FileNotFoundError:
+        return []
+    return [
+        (
+            marker.lower(),
+            _lookup(en, f"terms.romanUrdu.{key}.en"),
+            _lookup(en, f"terms.romanUrdu.{key}.roman"),
+        )
+        for key, marker in ROMAN_URDU_MARKERS.items()
+    ]
+
+
+def roman_glossary_for(context_text: str) -> dict[str, str]:
+    """English term -> Roman Urdu word, for the entries this context holds."""
+    text = context_text.lower()
+    return {english: roman for marker, english, roman in _roman_entries() if marker in text}
 
 
 def glossary_for(context_text: str) -> dict[str, str]:

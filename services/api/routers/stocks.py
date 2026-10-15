@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from core.database import get_db
 from core.deps import get_current_user
 from schemas.stock import PricePointResponse, StockQuote, StockSearchResponse
+from services.prediction_service import covered_tickers
 from services.stock_service import PriceDataUnavailable, StockNotFound, StockService
 
 router = APIRouter(prefix="/stocks", tags=["stocks"], dependencies=[Depends(get_current_user)])
@@ -27,8 +28,14 @@ def search_stocks(
     q: str = Query("", max_length=60, description="Ticker, company name or sector"),
     db: Session = Depends(get_db),
 ):
-    """Search/browse KSE-100 companies. An empty query lists the whole universe."""
-    return {"results": StockService.search(db, q)}
+    """
+    Search/browse KSE-100 companies. An empty query lists the whole universe. Each result has
+    its latest close and whether the current model forecasts it (the forecast itself is at
+    /stocks/{ticker}/prediction).
+    """
+    covered = set(covered_tickers())
+    results = StockService.search(db, q)
+    return {"results": [{**r, "forecast_covered": r["ticker"] in covered} for r in results]}
 
 
 @router.get("/{ticker}", response_model=StockQuote, responses=ERROR_RESPONSES)

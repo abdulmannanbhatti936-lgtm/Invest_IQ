@@ -11,11 +11,21 @@ import {
 } from '@investiq/api-client';
 import { useTranslation } from '@investiq/i18n';
 import type { GeneratePortfolioRequest, Portfolio } from '@investiq/shared-types';
-import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
-import { DisclaimerBanner, ErrorState, Notice, Skeleton } from '../../components/ui/Feedback';
+import { Button, buttonClasses } from '../../components/ui/Button';
+import { Card, CardTitle } from '../../components/ui/Card';
+import { donutColors } from '../../components/ui/Donut';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { useThemeColors } from '../../lib/theme';
+import {
+  DisclaimerBanner,
+  EmptyState,
+  ErrorState,
+  Notice,
+  Skeleton,
+} from '../../components/ui/Feedback';
 import { formatDate, formatMoney, formatPctString } from '../../lib/format';
-import { HoldingCard } from './HoldingCard';
+import { AllocationChart } from './AllocationChart';
+import { HoldingRow } from './HoldingRow';
 import { PortfolioForm, type PortfolioFormInitial } from './PortfolioForm';
 import { PortfolioSummary } from './PortfolioSummary';
 import { RollCheckPanel } from './RollCheckPanel';
@@ -52,7 +62,7 @@ const GenerateError = ({
     return (
       <Notice tone="warning">
         <p className="font-semibold">{t('portfolio.lowCapital.title', { category })}</p>
-        <p className="mt-1">
+        <p className="mt-2">
           {lowCapital.minimumCapital
             ? t('portfolio.lowCapital.body', {
                 capital,
@@ -67,7 +77,7 @@ const GenerateError = ({
         {lowCapital.minimumCapital && (
           <Button
             variant="secondary"
-            className="mt-3"
+            className="mt-4"
             onClick={() => onRetry({ ...lastRequest, capital: lowCapital.minimumCapital! })}
           >
             {t('portfolio.lowCapital.useMinimum', {
@@ -91,16 +101,28 @@ const GenerateError = ({
 
 const PageSkeleton = () => (
   <div className="space-y-6" aria-busy="true">
-    <Skeleton className="h-40 w-full" />
-    <div className="grid gap-6 lg:grid-cols-2">
-      <Skeleton className="h-96 w-full" />
-      <Skeleton className="h-96 w-full" />
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+      <Skeleton className="h-64 w-full" />
+      <div className="flex items-center gap-6 rounded-card border border-line p-6">
+        <Skeleton className="h-44 w-44 shrink-0 rounded-full" />
+        <div className="w-full space-y-2">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-4 w-full" />
+          ))}
+        </div>
+      </div>
+    </div>
+    <div className="space-y-2 rounded-card border border-line p-4">
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <Skeleton key={i} className="h-12 w-full" />
+      ))}
     </div>
   </div>
 );
 
 export const PortfolioPage = () => {
   const { t } = useTranslation();
+  const theme = useThemeColors();
   const queryClient = useQueryClient();
   const [lastRequest, setLastRequest] = useState<GeneratePortfolioRequest | null>(null);
   const [excluded, setExcluded] = useState<string[] | null>(null);
@@ -128,6 +150,7 @@ export const PortfolioPage = () => {
   };
 
   const portfolio = current.data;
+  const colors = donutColors(portfolio?.holdings.length ?? 0, theme);
   const category = profile.data?.category;
   const excludedNow = excluded ?? portfolio?.excluded_tickers ?? [];
   const noPortfolio = current.isError && getErrorStatus(current.error) === 404;
@@ -152,11 +175,8 @@ export const PortfolioPage = () => {
     );
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">{t('portfolio.title')}</h1>
-        <p className="mt-1 text-sm text-gray-500">{t('portfolio.subtitle')}</p>
-      </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader title={t('portfolio.title')} subtitle={t('portfolio.subtitle')} />
 
       {(current.isPending || profile.isPending) && <PageSkeleton />}
 
@@ -165,49 +185,75 @@ export const PortfolioPage = () => {
       )}
 
       {noPortfolio && (
-        <Card className="space-y-8">
-          <div className="flex flex-col items-center text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-50">
-              <Briefcase className="h-8 w-8 text-blue-600" />
-            </div>
-            <h2 className="text-lg font-semibold text-gray-900">{t('portfolio.empty.title')}</h2>
-            <p className="mt-2 max-w-md text-sm leading-relaxed text-gray-500">
-              {t('portfolio.empty.body')}
-            </p>
-          </div>
+        <Card className="space-y-6">
+          <EmptyState icon={Briefcase} title={t('portfolio.empty.title')}>
+            {t('portfolio.empty.body')}
+          </EmptyState>
           <div className="mx-auto max-w-lg">{form(t('portfolio.form.title'))}</div>
         </Card>
       )}
 
       {portfolio && (
         <>
-          <PortfolioSummary portfolio={portfolio} />
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+            <PortfolioSummary portfolio={portfolio} />
+            <Card>
+              <CardTitle className="mb-4">{t('portfolio.allocationTitle')}</CardTitle>
+              <AllocationChart
+                holdings={portfolio.holdings}
+                center={
+                  <>
+                    <span className="text-2xl font-bold text-ink tabular-nums">
+                      {portfolio.holdings.length}
+                    </span>
+                    <span className="text-xs text-muted">{t('landing.risk.companies')}</span>
+                  </>
+                }
+              />
+            </Card>
+          </div>
           {exclude.isError && (
             <Notice tone="warning">{t(errorMessageKey(getErrorCode(exclude.error)))}</Notice>
           )}
-          <div className="grid gap-6 lg:grid-cols-2">
-            {portfolio.holdings.map((holding) => (
-              <HoldingCard
-                key={holding.ticker}
-                holding={holding}
-                rates={portfolio.rates}
-                filerStatus={portfolio.filer_status}
-                excluding={exclude.isPending && exclude.variables?.ticker === holding.ticker}
-                onExclude={(ticker) => exclude.mutate({ id: portfolio.id, ticker })}
-              />
-            ))}
-          </div>
+          <Card padding="none">
+            <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line px-4 py-4 sm:px-6">
+              <CardTitle>
+                {t('portfolio.holdingsTitle', { count: portfolio.holdings.length })}
+              </CardTitle>
+              <p className="text-xs text-muted">{t('portfolio.holdingsHint')}</p>
+            </div>
+            <div
+              className="hidden grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))_20px] gap-x-4 border-b border-line px-6 py-2 text-xs text-muted lg:grid"
+              aria-hidden="true"
+            >
+              <span className="ps-6">{t('portfolio.columns.company')}</span>
+              <span>{t('portfolio.columns.allocation')}</span>
+              <span className="text-end">{t('portfolio.holding.totalCost')}</span>
+              <span className="text-end">{t('portfolio.holding.breakEven')}</span>
+              <span className="text-end">{t('portfolio.columns.exit')}</span>
+            </div>
+            <ul className="divide-y divide-line">
+              {portfolio.holdings.map((holding, i) => (
+                <HoldingRow
+                  key={holding.ticker}
+                  holding={holding}
+                  color={colors[i]}
+                  rates={portfolio.rates}
+                  filerStatus={portfolio.filer_status}
+                  excluding={exclude.isPending && exclude.variables?.ticker === holding.ticker}
+                  onExclude={(ticker) => exclude.mutate({ id: portfolio.id, ticker })}
+                />
+              ))}
+            </ul>
+          </Card>
           <RollCheckPanel key={portfolio.id} portfolioId={portfolio.id} />
-          <Link
-            to="/backtest"
-            className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700"
-          >
-            <History className="h-4 w-4" />
+          <Link to="/backtest" className={`${buttonClasses('secondary')} self-start`}>
+            <History className="h-4 w-4" aria-hidden="true" />
             {t('portfolio.backtestLink')}
           </Link>
           <Card>
             <details>
-              <summary className="cursor-pointer text-base font-semibold text-gray-900">
+              <summary className="cursor-pointer text-base font-semibold text-ink">
                 {t('portfolio.form.rebuildTitle')}
               </summary>
               <div className="mt-6 max-w-lg">{form()}</div>

@@ -1,4 +1,5 @@
 import { forwardRef, useId, type ReactNode, type SelectHTMLAttributes } from 'react';
+import { fieldClasses } from './Input';
 
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label: string;
@@ -16,10 +17,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     const errorId = `${selectId}-error`;
 
     return (
-      <div className="flex w-full flex-col space-y-1.5">
+      <div className="flex w-full flex-col gap-2">
         <label
           htmlFor={selectId}
-          className={hideLabel ? 'sr-only' : 'text-sm font-medium text-gray-700'}
+          className={hideLabel ? 'sr-only' : 'text-sm font-medium text-ink'}
         >
           {label}
         </label>
@@ -28,15 +29,13 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           ref={ref}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
-          className={`flex h-10 w-full rounded-md border bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
-            error ? 'border-red-500 focus:ring-red-500' : 'border-gray-300'
-          } ${className}`}
+          className={`h-10 ${fieldClasses(Boolean(error))} ${className}`}
           {...props}
         >
           {children}
         </select>
         {error && (
-          <span id={errorId} className="mt-1 text-xs text-red-600">
+          <span id={errorId} className="text-xs text-danger">
             {error}
           </span>
         )}

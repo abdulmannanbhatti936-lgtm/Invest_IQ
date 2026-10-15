@@ -13,7 +13,17 @@
     "errorGeneric": "Something went wrong. Please try again.",
     "comingSoonTitle": "{{section}} is on the way",
     "comingSoonBody": "This part of InvestIQ is built in Phase {{phase}} of the roadmap.",
-    "adminBadge": "Admin"
+    "adminBadge": "Admin",
+    "theme": {
+      "switchTo": {
+        "light": "Switch to the light theme",
+        "dark": "Switch to the dark theme"
+      },
+      "name": {
+        "light": "Light",
+        "dark": "Dark"
+      }
+    }
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -22,13 +32,14 @@
     "backtest": "Backtest",
     "chat": "Chat",
     "notifications": "Notifications",
-    "admin": "Admin"
+    "admin": "Admin",
+    "label": "Main"
   },
   "disclaimer": "Advisory only. Not a licensed financial advisor. Predictions are probabilistic. Execute trades only through a licensed PSX broker.",
   "auth": {
     "login": {
-      "title": "Welcome back",
-      "subtitle": "Log in to see your PSX insights",
+      "title": "Log in to InvestIQ",
+      "subtitle": "Your portfolio, forecasts and backtests are where you left them.",
       "submit": "Log in",
       "noAccount": "Don't have an account?",
       "signUp": "Sign up",
@@ -150,25 +161,61 @@
     }
   },
   "dashboard": {
-    "welcome": "Welcome back, {{name}}",
-    "subtitle": "Here is your investing snapshot.",
+    "welcome": "{{name}}'s overview",
+    "subtitle": "Your risk profile, your recommended portfolio and how it did on past prices, in one place.",
     "riskTitle": "Your risk profile",
     "updated": "Last updated {{date}}",
     "retake": "Retake questionnaire",
     "portfolioEmptyTitle": "No portfolio yet",
     "portfolioEmptyBody": "Tell us how much you want to invest. InvestIQ will suggest a spread across PSX companies, with every charge and tax shown.",
     "buildPortfolio": "Build a portfolio",
-    "portfolioReadyBody": "{{count}} companies, total cost {{cost}}, built on {{date}}.",
-    "viewPortfolio": "View portfolio"
+    "viewPortfolio": "View portfolio",
+    "portfolioTitle": "Your recommended portfolio",
+    "holdings": "Companies",
+    "builtOn": "Built on {{date}} from the {{asOf}} close.",
+    "backtestTitle": "Latest backtest",
+    "backtestPeriod": "{{start}} to {{end}}, {{years}} years",
+    "hindsightShort": "Chosen with today's information, so on past prices it looks better than an investor could have done at the time.",
+    "openReport": "Open the report",
+    "backtestNone": "This portfolio has not been tested on past prices yet.",
+    "highlightsTitle": "Forecasts and news for your companies",
+    "highlightsNote": "The forecasts and news your portfolio was built on (the {{date}} close), largest forecast moves first. Open a company for its latest forecast.",
+    "noNews": "No recent news",
+    "quickTitle": "Go to",
+    "quick": {
+      "portfolio": {
+        "title": "Portfolio",
+        "body": "Every holding with its charges, tax and break-even price."
+      },
+      "backtest": {
+        "title": "Backtest",
+        "body": "How your portfolio or your own mix would have done on past prices."
+      },
+      "chat": {
+        "title": "Chat",
+        "body": "Ask about your figures in English, Urdu or Roman Urdu."
+      }
+    }
   },
   "stocks": {
     "title": "PSX companies",
-    "subtitle": "Companies in the KSE-100 index. Search by ticker, company name or sector.",
+    "subtitle": "The KSE-100 companies InvestIQ tracks, with the last stored close and, for the companies the model covers, the next-day forecast and its confidence.",
     "searchLabel": "Search",
     "searchPlaceholder": "e.g. SYS, Meezan, Cement",
     "resultCount": "{{count}} companies",
     "noResults": "No PSX companies match “{{query}}”. Try a ticker (SYS), a name (Meezan) or a sector (Cement).",
-    "loadError": "We couldn't load the company list."
+    "loadError": "We couldn't load the company list.",
+    "sectorFilter": "Sector",
+    "allSectors": "All sectors",
+    "forecastOnly": "Only companies with a forecast",
+    "noForecast": "No forecast",
+    "noResultsTitle": "No matching companies",
+    "columns": {
+      "company": "Company",
+      "sector": "Sector",
+      "close": "Last close",
+      "forecast": "Forecast, next trading day"
+    }
   },
   "stockDetail": {
     "backToSearch": "Back to stocks",
@@ -213,7 +260,9 @@
     "delayNote": "Prices are end-of-day and can be a day or two behind PSX.",
     "chartAsOf": "Daily closing prices up to {{date}}",
     "volumeTitle": "Daily volume (shares)",
-    "splitAdjusted": "Prices adjusted for stock splits"
+    "splitAdjusted": "Prices adjusted for stock splits",
+    "forecastConfidence": "confidence {{pct}}",
+    "forecastConfidenceLow": "low confidence, {{pct}}"
   },
   "prediction": {
     "title": "AI forecast",
@@ -267,7 +316,8 @@
     "inputs": {
       "used": "This forecast includes news sentiment.",
       "none": "This forecast uses prices and technical indicators only. News sentiment is shown below for context."
-    }
+    },
+    "lowConfidenceShort": "Low confidence"
   },
   "sentiment": {
     "title": "News sentiment",
@@ -354,7 +404,6 @@
       "body": "Tell us how much you want to invest. InvestIQ will suggest how to spread it, with every charge and tax shown before you decide."
     },
     "holding": {
-      "allocation": "{{pct}} of your money",
       "breakEven": "Break-even price",
       "breakEvenHelp": "Selling at this price gives back everything you paid, charges included.",
       "breakEvenChange": "{{pct}} above today's price of {{price}}",
@@ -431,7 +480,16 @@
       "notInPortfolio": "That company is not in this portfolio.",
       "load": "Your portfolio could not be loaded."
     },
-    "backtestLink": "Test this portfolio on past prices"
+    "backtestLink": "Test this portfolio on past prices",
+    "allocationChart": "How your money is spread across {{count}} companies",
+    "allocationTitle": "How your money is spread",
+    "holdingsTitle": "{{count}} companies",
+    "holdingsHint": "Open a company for every charge, the forecast exit, dividends and why it is here.",
+    "columns": {
+      "company": "Company",
+      "allocation": "Share of money",
+      "exit": "If sold at the forecast"
+    }
   },
   "backtest": {
     "title": "Backtest",
@@ -473,11 +531,10 @@
       "headline": "Total return after charges and tax",
       "growth": "{{capital}} became {{end}}",
       "beforeSale": "Before selling: {{pct}} ({{value}}). Selling charges and capital gains tax take the difference.",
-      "benchmarkLine": "Benchmark (18 forecast companies in equal parts): {{pct}}",
       "kseAwaiting": "KSE-100: awaiting PSX permission",
       "kseNotCovering": "KSE-100: the index data loaded does not cover this period",
-      "kseLine": "KSE-100: {{pct}}",
-      "newTest": "New test"
+      "newTest": "New test",
+      "benchmarkName": "Benchmark (18 forecast companies in equal parts)"
     },
     "columns": {
       "portfolio": "Your portfolio",
@@ -510,7 +567,6 @@
     "benchmarkNote": "The benchmark is the 18 companies InvestIQ forecasts, in equal parts, bought and held with dividends and no costs. It is not the KSE-100. These companies were chosen in 2026, so the benchmark also benefits from hindsight.",
     "chart": {
       "title": "Value over time",
-      "axis": "Rs.",
       "summary": "After {{years}} years, before selling: your portfolio {{portfolio}}, benchmark {{benchmark}}."
     },
     "costs": {
@@ -626,6 +682,154 @@
       "technologyCommunication": "Technology & Communication"
     },
     "recommendedPortfolio": "your InvestIQ recommended portfolio",
-    "recommendedPortfolioRomanUrdu": "aap ka InvestIQ recommended portfolio"
+    "recommendedPortfolioRomanUrdu": "aap ka InvestIQ recommended portfolio",
+    "riskProfile": "Risk profile",
+    "recommendedPortfolioShort": "this portfolio",
+    "recommendedPortfolioShortRomanUrdu": "ye portfolio",
+    "romanUrdu": {
+      "riskProfile": {
+        "en": "Risk profile",
+        "roman": "risk profile"
+      },
+      "conservative": {
+        "en": "Conservative",
+        "roman": "mohtaat"
+      },
+      "moderate": {
+        "en": "Moderate",
+        "roman": "mutawazin"
+      },
+      "aggressive": {
+        "en": "Aggressive",
+        "roman": "jaarehana"
+      },
+      "forecast": {
+        "en": "Forecast",
+        "roman": "pesh goi"
+      },
+      "confidence": {
+        "en": "Confidence",
+        "roman": "aitmaad"
+      },
+      "lowConfidence": {
+        "en": "Low confidence",
+        "roman": "kam aitmaad"
+      },
+      "breakEvenPrice": {
+        "en": "Break-even price",
+        "roman": "break-even qeemat"
+      },
+      "totalCost": {
+        "en": "Total cost",
+        "roman": "kul laagat"
+      },
+      "charges": {
+        "en": "Buying charges",
+        "roman": "khareedari ke akhrajaat"
+      },
+      "leftAsCash": {
+        "en": "Left as cash",
+        "roman": "naqd bachat"
+      },
+      "dividend": {
+        "en": "Dividend",
+        "roman": "dividend"
+      },
+      "newsSentiment": {
+        "en": "News sentiment",
+        "roman": "khabron ka taassur"
+      },
+      "totalReturn": {
+        "en": "Total return",
+        "roman": "kul munafa"
+      },
+      "benchmark": {
+        "en": "Benchmark",
+        "roman": "muwazne ka miyaar"
+      }
+    }
+  },
+  "landing": {
+    "hero": {
+      "eyebrow": "For Pakistan Stock Exchange investors",
+      "title": "Invest in PSX with your eyes open.",
+      "lede": "Your risk profile, an AI forecast that says how unsure it is, and a portfolio with every rupee of charges and tax shown. In English or Urdu.",
+      "start": "Get started",
+      "login": "Log in",
+      "source": "Each ray is one of the {{count}} KSE-100 companies in our snapshot of {{date}}, grouped into {{sectors}} sectors. Tickers only, no prices.",
+      "sourceSectors": "Each ray is one of the {{count}} KSE-100 companies in our snapshot of {{date}}, coloured by its sector. Sectors only, no prices.",
+      "browse": "Browse the {{count}} companies",
+      "browseSectors": "Browse the sectors of the {{count}} companies"
+    },
+    "zoom": {
+      "titleStart": "Every rupee,",
+      "titleEnd": "accounted for.",
+      "caption": "The InvestIQ portfolio screen, from a test account built on {{date}}. An example, not advice.",
+      "alt": "The InvestIQ portfolio screen: an allocation donut, the total cost and each holding's charges"
+    },
+    "risk": {
+      "title": "See how your risk profile shapes a portfolio",
+      "lede": "Move the slider. Each donut is the allocation engine's real output for Rs 100,000, under the same rules your own portfolio will follow.",
+      "sliderLabel": "Risk profile",
+      "exampleLabel": "Example, prices as of {{date}}, not advice",
+      "donutLabel": "{{profile}} example: {{count}} companies",
+      "companies": "companies",
+      "cash": "Left as cash",
+      "rules": {
+        "conservative": "7 to 10 companies, with more in the steadier ones. No company above 15% and no sector above 30%. Forecasts and news shift the weights only slightly.",
+        "moderate": "5 to 8 companies, leaning towards the steadier ones. No company above 20% and no sector above 35%. Forecasts and news shift the weights a little more.",
+        "aggressive": "4 to 6 companies in equal parts. No company above 25% and no sector above 40%. Forecasts and news shift the weights the most, still within those limits."
+      }
+    },
+    "costs": {
+      "title": "What it really costs",
+      "lede": "Rs 100,000 spread over eight companies. Every charge comes from the published PSX, CDC, NCCPL and SECP rates, rounded to the paisa like a broker's contract note.",
+      "start": "You put in",
+      "chargesTotal": "Charges and tax",
+      "shares": "Bought in shares",
+      "cash": "Left as cash",
+      "magnified": "Charges are {{pct}} of the money. The bar draws them ten times larger so you can see them.",
+      "point": "Selling costs about the same again, and capital gains tax is taken from any gain. InvestIQ shows all of it before you decide.",
+      "label": "Worked example: Moderate, filer, prices of the {{date}} close, rates {{version}}. CDC and NCCPL rates are not yet confirmed from an official source."
+    },
+    "how": {
+      "title": "How it works",
+      "steps": {
+        "profile": {
+          "title": "Answer 7 questions",
+          "body": "A short risk profile decides how widely your money is spread."
+        },
+        "forecast": {
+          "title": "Read the forecast and the news",
+          "body": "An AI forecast for the next trading day with how confident it is, and the tone of recent headlines."
+        },
+        "portfolio": {
+          "title": "Get a costed portfolio",
+          "body": "Whole shares, every charge and tax, and the price at which you get your money back."
+        },
+        "test": {
+          "title": "Test it and ask",
+          "body": "See how it would have done over past years, then ask questions in English, Urdu or Roman Urdu."
+        }
+      }
+    },
+    "honesty": {
+      "title": "What InvestIQ is, and is not",
+      "forecasts": {
+        "title": "Forecasts are probabilities",
+        "body": "Each one shows how confident the model is, and is marked low-confidence when the model does no better than a simple baseline."
+      },
+      "advisory": {
+        "title": "Advisory only",
+        "body": "InvestIQ is not a licensed financial advisor. It explains the data; the decision is yours."
+      },
+      "trades": {
+        "title": "No trades",
+        "body": "InvestIQ never places orders. Buy and sell only through a licensed PSX broker."
+      },
+      "facts": "From our own data: {{companies}} KSE-100 companies (snapshot of {{snapshot}}), AI forecasts for {{forecast}} of them, and daily prices stored since {{since}}.",
+      "languages": "English, Urdu and Roman Urdu"
+    },
+    "footer": "A final year project, Department of Computer Science, NUML Islamabad, 2025-2026."
   }
 }

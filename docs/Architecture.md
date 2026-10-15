@@ -65,6 +65,9 @@ One backend, multiple clients. The web app and mobile app are both thin clients 
 | Version Control          | Git / GitHub, monorepo                                                                                                                                                                                                                                                                                                     | See Section 5                                                                                                                                                                                                                                                              |
 | Web libraries (as built) | TanStack Query, React Router, axios (in `packages/api-client`), react-hook-form + zod (`@hookform/resolvers`), lucide-react (icons), recharts (charts), i18next + react-i18next (`packages/i18n`)                                                                                                                          | Forms validate client-side with zod; the server re-validates everything with Pydantic                                                                                                                                                                                      |
 | Urdu font                | Nastaleeq (decided 2026-10-13): Jameel Noori Nastaleeq if installed locally (not shipped), else Noto Nastaliq Urdu from `@fontsource/noto-nastaliq-urdu` 5.3.0 (SIL OFL 1.1, weights 400 and 700, self-hosted by the build); Noto Naskh Arabic (`apps/web/public/fonts/`, OFL) as fallback and for the text inside selects | Design §3; self-hosted so the demo works offline; Urdu line height 2.0                                                                                                                                                                                                     |
+| Design tokens            | `packages/design-tokens` (Indus Night, decided 2026-10-15): colours for a dark default and a light theme, spacing, type scale, elevation, motion; inlined as `--iq-*` CSS variables by `apps/web/vite.config.ts` and mapped to Tailwind classes in `apps/web/src/index.css` (Tailwind's stock palette is off)              | Design.md §2, §20; AA contrast tested in `colors.test.ts`; theme toggle in the web header                                                                                                                                                                                  |
+| 3D (landing page only)   | `three` 0.186.1 (MIT), with `@types/three` 0.186.0 (dev); plain three.js, no react-three-fiber (decided 2026-10-15)                                                                                                                                                                                                        | Lazy chunk (132.7 KB gzip) fetched after the landing page's first paint; never on app screens                                                                                                                                                                              |
+| Display font (landing)   | Bricolage Grotesque from `@fontsource-variable/bricolage-grotesque` 5.3.0 (SIL OFL 1.1), Latin only, 40 KB woff2                                                                                                                                                                                                           | Landing page and auth panel headings only; Urdu falls through to Nastaleeq                                                                                                                                                                                                 |
 
 ## 4. Why React Native over Flutter (decision rationale)
 
@@ -322,14 +325,14 @@ PATCH  /users/me/risk-profile           # create or retake (FR5); returns catego
 GET    /users/me/onboarding-progress    # partial answers + step, for resume (FR6)
 PUT    /users/me/onboarding-progress
 
-GET    /stocks/search?q=
+GET    /stocks/search?q=                # + optional last_close, last_close_date, forecast_covered (UI round)
 GET    /stocks/{ticker}
 GET    /stocks/{ticker}/history
 GET    /stocks/{ticker}/prediction
 GET    /stocks/{ticker}/sentiment
 
 POST   /portfolio/generate              # 201; archives the previous portfolio; 422 capital_below_minimum with minimum_capital
-GET    /portfolio/current               # 404 no_active_portfolio before the first one
+GET    /portfolio/current               # 404 no_active_portfolio before the first one; + optional latest_backtest (UI round)
 POST   /portfolio/{id}/roll-check       # changes nothing; benchmark = forecast stocks' equal-weight average
 PATCH  /portfolio/{id}/exclude-stock    # returns the regenerated portfolio without that stock
                                         # every /portfolio endpoint: 409 risk_profile_required without a profile

@@ -1,9 +1,8 @@
 import type { UseQueryResult } from '@tanstack/react-query';
-import { AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, Info } from 'lucide-react';
+import { AlertTriangle, Info } from 'lucide-react';
 import { getErrorCode, getErrorDetail, getErrorStatus } from '@investiq/api-client';
 import { useTranslation } from '@investiq/i18n';
-import type { Prediction, Signal } from '@investiq/shared-types';
-import { Badge } from '../../components/ui/Badge';
+import type { Prediction } from '@investiq/shared-types';
 import { Card } from '../../components/ui/Card';
 import { ErrorState, Figure, Notice, Skeleton } from '../../components/ui/Feedback';
 import { formatDate, formatPct, formatPrice, formatSignedPct } from '../../lib/format';
@@ -13,20 +12,13 @@ import {
   unavailableMessageKey,
   type ConfidenceLevel,
 } from './predictionView';
+import { SignalBadge } from './badges';
 
-const SIGNAL_BADGE: Record<
-  Signal,
-  { variant: 'success' | 'danger' | 'neutral'; icon: typeof ArrowUpRight }
-> = {
-  BUY: { variant: 'success', icon: ArrowUpRight },
-  SELL: { variant: 'danger', icon: ArrowDownRight },
-  HOLD: { variant: 'neutral', icon: ArrowRight },
-};
-
+// The meter never uses the gain colour: confidence is not a result (Design.md §6.4)
 const LEVEL_COLOR: Record<ConfidenceLevel, string> = {
-  low: 'bg-amber-500',
-  medium: 'bg-sky-500',
-  high: 'bg-green-600',
+  low: 'bg-warning',
+  medium: 'bg-primary',
+  high: 'bg-primary',
 };
 
 const LEVEL_SEGMENTS: Record<ConfidenceLevel, number> = { low: 1, medium: 2, high: 3 };
@@ -38,22 +30,19 @@ const ConfidenceMeter = ({ value, threshold }: { value: number; threshold: numbe
   return (
     <div>
       <div className="flex items-center justify-between gap-4 text-sm">
-        <span
-          className="flex items-center gap-1 text-gray-600"
-          title={t('prediction.confidenceHelp')}
-        >
+        <span className="flex items-center gap-2 text-muted" title={t('prediction.confidenceHelp')}>
           {t('prediction.confidence')}
-          <Info className="h-3.5 w-3.5 text-gray-400" aria-label={t('prediction.confidenceHelp')} />
+          <Info className="h-3.5 w-3.5 text-muted" aria-label={t('prediction.confidenceHelp')} />
         </span>
         <span className="font-semibold">
           {t(`prediction.level.${level}`)} · <Figure>{formatPct(value)}</Figure>
         </span>
       </div>
-      <div className="mt-2 grid grid-cols-3 gap-1" aria-hidden="true">
+      <div className="mt-2 grid grid-cols-3 gap-2" aria-hidden="true">
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className={`h-2 rounded-full ${i <= LEVEL_SEGMENTS[level] ? LEVEL_COLOR[level] : 'bg-gray-200'}`}
+            className={`h-2 rounded-full ${i <= LEVEL_SEGMENTS[level] ? LEVEL_COLOR[level] : 'bg-line'}`}
           />
         ))}
       </div>
@@ -64,13 +53,13 @@ const ConfidenceMeter = ({ value, threshold }: { value: number; threshold: numbe
 const LowConfidenceNote = ({ prediction }: { prediction: Prediction }) => {
   const { t } = useTranslation();
   return (
-    <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+    <div className="rounded-control border border-warning bg-warning-tint p-4 text-sm text-warning">
       <p className="flex items-center gap-2 font-semibold">
         <AlertTriangle className="h-4 w-4 shrink-0" />
         {t('prediction.lowConfidenceTitle')}
       </p>
       <p className="mt-2">{t('prediction.lowConfidenceIntro')}</p>
-      <ul className="mt-1 list-disc space-y-1 ps-5">
+      <ul className="mt-2 list-disc space-y-2 ps-6">
         {prediction.low_confidence_reasons.map((reason) => (
           <li key={reason}>
             {t(`prediction.reason.${reason}`, {
@@ -86,20 +75,16 @@ const LowConfidenceNote = ({ prediction }: { prediction: Prediction }) => {
 
 const SignalRow = ({ prediction }: { prediction: Prediction }) => {
   const { t } = useTranslation();
-  const { variant, icon: SignalIcon } = SIGNAL_BADGE[prediction.signal];
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-4 text-sm">
-      <span className="flex items-center gap-1 text-gray-600" title={t('prediction.signalHelp')}>
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4 text-sm">
+      <span className="flex items-center gap-2 text-muted" title={t('prediction.signalHelp')}>
         {t('prediction.signalTitle')}
-        <Info className="h-3.5 w-3.5 text-gray-400" aria-label={t('prediction.signalHelp')} />
+        <Info className="h-3.5 w-3.5 text-muted" aria-label={t('prediction.signalHelp')} />
       </span>
       <span className="flex items-center gap-2">
-        <Badge variant={variant} className="gap-1 text-sm">
-          <SignalIcon className="h-3.5 w-3.5 rtl:-scale-x-100" />
-          {t(`prediction.signal.${prediction.signal}`)}
-        </Badge>
+        <SignalBadge signal={prediction.signal} large />
         {prediction.signal_probability != null && (
-          <span className="text-gray-500">
+          <span className="text-muted">
             {t('prediction.signalProbability', {
               pct: formatPct(prediction.signal_probability),
             })}
@@ -116,8 +101,8 @@ const EvaluationDetails = ({ prediction }: { prediction: Prediction }) => {
   if (!ev) return null;
   const pct = (value: number | null) => (value == null ? '—' : formatPct(value));
   return (
-    <details className="rounded-lg bg-gray-50 p-4 text-sm text-gray-700">
-      <summary className="cursor-pointer font-medium text-gray-900">
+    <details className="rounded-control bg-sunken p-4 text-sm text-ink">
+      <summary className="cursor-pointer font-medium text-ink">
         {t('prediction.evaluationTitle', { ticker: prediction.ticker })}
       </summary>
       <div className="mt-2 space-y-2 leading-relaxed">
@@ -144,7 +129,7 @@ const EvaluationDetails = ({ prediction }: { prediction: Prediction }) => {
             baseline: pct(ev.classifier_baseline_accuracy),
           })}
         </p>
-        <p className="text-xs text-gray-500">{t('prediction.evaluationNote')}</p>
+        <p className="text-xs text-muted">{t('prediction.evaluationNote')}</p>
       </div>
     </details>
   );
@@ -157,8 +142,8 @@ const Unavailable = ({ error, ticker }: { error: unknown; ticker: string }) => {
   if (key === 'prediction.notCovered') {
     return (
       <Notice>
-        <p className="font-medium text-gray-900">{t('prediction.notCoveredTitle')}</p>
-        <p className="mt-1">
+        <p className="font-medium text-ink">{t('prediction.notCoveredTitle')}</p>
+        <p className="mt-2">
           {t(key, { ticker, stocks: getErrorDetail(error)?.covered_stock_count })}
         </p>
       </Notice>
@@ -179,7 +164,7 @@ export const PredictionPanel = ({
   const body = () => {
     if (query.isPending) {
       return (
-        <div className="space-y-3">
+        <div className="space-y-4">
           <Skeleton className="h-4 w-56" />
           <Skeleton className="h-8 w-32" />
           <Skeleton className="h-6 w-64" />
@@ -199,9 +184,9 @@ export const PredictionPanel = ({
     const p = query.data;
     const direction = forecastDirection(p.expected_change_pct);
     return (
-      <div className="space-y-5">
+      <div className="space-y-6">
         {p.as_of_date && (
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-muted">
             {t('prediction.asOf', {
               date: formatDate(p.as_of_date, i18n.language),
               price: formatPrice(p.last_close),
@@ -209,22 +194,22 @@ export const PredictionPanel = ({
           </p>
         )}
         <div>
-          <p className="text-xs text-gray-500">{t('prediction.forecastLabel')}</p>
+          <p className="text-xs text-muted">{t('prediction.forecastLabel')}</p>
           <p className="text-3xl font-bold">
             <Figure>{formatPrice(p.forecast_price)}</Figure>{' '}
             <Figure
               className={`text-base font-medium ${
                 direction === 'up'
-                  ? 'text-green-700'
+                  ? 'text-success'
                   : direction === 'down'
-                    ? 'text-red-700'
-                    : 'text-gray-500'
+                    ? 'text-danger'
+                    : 'text-muted'
               }`}
             >
               {formatSignedPct(p.expected_change_pct)}
             </Figure>
           </p>
-          <p className="mt-1 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-muted">
             {t(`prediction.forecast.${direction}`, {
               pct: `${Math.abs(p.expected_change_pct).toFixed(2)}%`,
             })}
@@ -241,12 +226,12 @@ export const PredictionPanel = ({
 
         {/* 'unavailable' is already explained in the low-confidence note (PRD FR22) */}
         {p.sentiment_status !== 'unavailable' && (
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-muted">
             {t(p.sentiment_status === 'used' ? 'prediction.inputs.used' : 'prediction.inputs.none')}
           </p>
         )}
 
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-muted">
           {t('prediction.generated', {
             date: formatDate(p.generated_at, i18n.language),
             version: p.model_version,
@@ -260,8 +245,8 @@ export const PredictionPanel = ({
   return (
     // Low-confidence predictions get a visibly different card, not just a note (Design.md §6.4)
     <Card tone={flagged ? 'warning' : 'default'}>
-      <h2 className="text-lg font-semibold text-gray-900">{t('prediction.title')}</h2>
-      <p className="mt-1 mb-5 text-sm text-gray-500">{t('prediction.subtitle')}</p>
+      <h2 className="text-lg font-semibold text-ink">{t('prediction.title')}</h2>
+      <p className="mt-2 mb-6 text-sm text-muted">{t('prediction.subtitle')}</p>
       {body()}
     </Card>
   );

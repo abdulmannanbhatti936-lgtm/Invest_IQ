@@ -10,7 +10,7 @@ the reply's language, so it is always there and always worded the same.
 
 import re
 
-PROMPT_VERSION = "prompt-v3.2"
+PROMPT_VERSION = "prompt-v3.3"
 
 LANGUAGE_NAMES = {
     "en": "English",
@@ -63,8 +63,10 @@ InvestIQ's own outputs in CONTEXT say. You may explain why InvestIQ's portfolio 
 for a stock), say so and name the screen: Portfolio, Backtest or Stocks.
 
 THE PORTFOLIO IS A RECOMMENDATION
-- InvestIQ never buys anything. The portfolio in CONTEXT is a recommendation: always call it \
-by CONTEXT's "portfolio_name", exactly as written there. Its "recommended_stocks" are stocks \
+- InvestIQ never buys anything. The portfolio in CONTEXT is a recommendation. The first time \
+in a reply, always call it by CONTEXT's "portfolio_name", exactly as written there; after \
+that, call it by "portfolio_short_name", so the full name is never repeated in one reply. \
+Its "recommended_stocks" are stocks \
 InvestIQ recommends, not stocks the user owns. Never say the user holds, owns, has or bought \
 these stocks, unless the user says so. Call them recommended stocks, never "holdings" or "your \
 stocks". The money figures (total cost, left uninvested) describe what following the \
@@ -77,6 +79,9 @@ tilt; and say honestly that InvestIQ's forecasts cover only the next trading day
 nothing about the long term. Point them to the Portfolio and Backtest screens. Never tell them \
 to buy a stock and never promise a return. If CONTEXT has no portfolio yet, say so and point \
 them to the Portfolio screen.
+- Never use advice-like phrasing such as "you could look at", "you should consider", "a good \
+option is", "I suggest" or "I recommend", in any language. Say what InvestIQ's recommendation \
+contains instead, for example "InvestIQ's recommended portfolio puts its largest share in <stock>".
 
 HOW TO WRITE
 - Reply in {language}. Sound natural and friendly, like a knowledgeable friend, not a formal \
@@ -86,9 +91,13 @@ transliteration). Write company names only as CONTEXT writes them.
 - In Urdu, use the word from CONTEXT's "urdu_glossary" wherever the glossary has one (risk \
 categories, sectors, forecast, confidence, break-even price and so on), exactly as written \
 there. Keep any term the glossary does not have as CONTEXT writes it; never translate one \
-yourself. Do not add English words in brackets after Urdu words.
-- In Roman Urdu, write the Urdu in Latin letters and keep finance terms in English as \
-InvestIQ shows them (portfolio, break-even price, dividend, forecast); do not invent Roman Urdu \
+yourself. Do not add English words in brackets after Urdu words. Write the glossary word \
+alone, never followed by its English in brackets.
+- Name the user's risk level only with the glossary's words for "Risk profile" and for their \
+category, the same words every time; never another word for risk.
+- In Roman Urdu, write the Urdu in Latin letters and use the words in CONTEXT's \
+"roman_urdu_glossary" for the finance terms it lists, exactly as written there. Keep any other \
+finance term in English as InvestIQ shows it (portfolio, dividend); do not invent Roman Urdu \
 spellings for them and do not add translations in brackets.
 - The reader is a beginner. Use short sentences. Explain any finance term you use in one \
 simple sentence (for example, "break-even price: the price at which selling would cover what \
@@ -179,3 +188,29 @@ def plain_text(reply: str) -> str:
     text = _STAR_BULLET.sub(r"\1- ", text)
     text = _EMPHASIS.sub("", text)
     return re.sub(r"\n{3,}", "\n\n", text).strip()
+
+
+# Lowercase English in brackets after an Urdu word, e.g. "کم اعتماد (low confidence)". Tickers
+# (upper case) and anything with a digit are never matched, so no figure is touched.
+_ENGLISH_GLOSS = re.compile(r"\s*\((?=[^)]*[a-z])[a-z][a-z '\-]*\)")
+# A prefix that names the recommendation twice, e.g. "InvestIQ کی تجویز کردہ آپ کا InvestIQ ..."
+_DOUBLE_NAME = r"InvestIQ(?:'s| کی)?\s+(?:recommended|تجویز کردہ)\s+(?={name})"
+
+
+def tidy_wording(reply: str, language: str, name: str, short_name: str) -> str:
+    """
+    Wording rules the prompt states but models do not always keep (live check 2026-10-16,
+    prompt-v3.3): no English in brackets after Urdu words, and the portfolio named in full only
+    once, by the app's own words. Words only; figures and tickers are never changed.
+    """
+    text = reply
+    if language == "ur":
+        text = _ENGLISH_GLOSS.sub("", text)
+    if not name:
+        return text
+    text = re.sub(_DOUBLE_NAME.format(name=re.escape(name)), "", text)
+    first = text.find(name)
+    if first != -1:
+        end = first + len(name)
+        text = text[:end] + text[end:].replace(name, short_name)
+    return text

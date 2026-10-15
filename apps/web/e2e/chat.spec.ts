@@ -38,7 +38,10 @@ test('empty chat → starter question → grounded reply with its source → Rom
   await page.goto('/portfolio');
   await field(page, t('en', 'portfolio.form.capital')).fill('100000');
   await page.getByRole('button', { name: t('en', 'portfolio.form.submit'), exact: true }).click();
-  await expect(page.getByText('MOCKE2EA', { exact: true })).toBeVisible({ timeout: 30_000 });
+  // The ticker appears in the allocation legend and in its holding row (UI round)
+  await expect(page.getByText('MOCKE2EA', { exact: true }).first()).toBeVisible({
+    timeout: 30_000,
+  });
   await page.goto('/chat');
   const input = field(page, t('en', 'chat.inputLabel'));
   await input.fill('How much did my portfolio cost?');

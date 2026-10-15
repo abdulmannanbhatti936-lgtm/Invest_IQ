@@ -106,6 +106,37 @@ def test_search_exact_ticker_first(client):
     assert client.get("/stocks/search?q=SYS").json()["results"][0]["ticker"] == "SYS"
 
 
+def test_search_lists_latest_served_close_with_its_trading_date(client, db, fake_redis):
+    # The newer bar failed the split checks, so it is never served; the close is split-adjusted
+    stock = store(
+        db,
+        "SYS",
+        [bar(LATEST - datetime.timedelta(days=1), 240.0), bar(LATEST, 999.0)],
+    )
+    rows = db.query(PricePoint).filter(PricePoint.stock_id == stock.id).all()
+    for row in rows:
+        row.split_factor = 2
+        if row.close == 999.0:
+            row.quality_flag = "split_mismatch"
+    db.commit()
+
+    result = client.get("/stocks/search?q=SYS").json()["results"][0]
+    assert result["last_close"] == 120.0
+    assert result["last_close_date"] == str(LATEST - datetime.timedelta(days=1))
+
+
+def test_search_without_prices_has_no_close(client):
+    result = client.get("/stocks/search?q=SYS").json()["results"][0]
+    assert result["last_close"] is None and result["last_close_date"] is None
+
+
+def test_search_marks_stocks_the_current_model_forecasts(client, monkeypatch):
+    monkeypatch.setattr("routers.stocks.covered_tickers", lambda: ["SYS"])
+    results = {r["ticker"]: r for r in client.get("/stocks/search").json()["results"]}
+    assert results["SYS"]["forecast_covered"] is True
+    assert results["HBL"]["forecast_covered"] is False
+
+
 # ---- Quote and history are served from the database
 
 

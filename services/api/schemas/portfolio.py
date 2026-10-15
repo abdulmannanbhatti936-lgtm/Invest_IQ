@@ -135,6 +135,17 @@ class IdleCash(BaseModel):
     blocked_by: dict[str, Literal["stock_cap", "sector_cap"]]
 
 
+class LatestBacktest(BaseModel):
+    """The portfolio's newest backtest (optional, added for the dashboard in the UI round)."""
+
+    id: uuid.UUID
+    created_at: UTCDateTime
+    years: int
+    period_start: datetime.date
+    period_end: datetime.date
+    total_return: str
+
+
 class PortfolioResponse(BaseModel):
     id: uuid.UUID
     status: Literal["active", "archived"]
@@ -152,6 +163,8 @@ class PortfolioResponse(BaseModel):
     totals: Totals
     idle: IdleCash
     holdings: list[Holding]
+    # Only GET /portfolio/current fills this; other endpoints leave it out
+    latest_backtest: LatestBacktest | None = None
 
 
 class RollReplacement(BaseModel):

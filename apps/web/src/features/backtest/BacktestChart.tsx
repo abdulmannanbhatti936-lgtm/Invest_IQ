@@ -9,7 +9,10 @@ import {
 } from 'recharts';
 import { useTranslation } from '@investiq/i18n';
 import type { BacktestResult } from '@investiq/shared-types';
+import { ChartLegend } from '../../components/ui/ChartLegend';
+import { chartStyle, DRAW_IN_MS, useDrawInOnce } from '../../lib/chartTheme';
 import { formatCompact, formatDate, formatMoney, formatPrice } from '../../lib/format';
+import { useThemeColors } from '../../lib/theme';
 import { chartRows, type ChartRow } from './backtestView';
 
 interface LineStyle {
@@ -20,21 +23,6 @@ interface LineStyle {
   dash?: string;
 }
 
-/** A short sample of the line as drawn, so the legend matches it without colour alone. */
-const Swatch = ({ style }: { style: LineStyle }) => (
-  <svg width="28" height="10" aria-hidden="true" className="shrink-0">
-    <line
-      x1="0"
-      y1="5"
-      x2="28"
-      y2="5"
-      stroke={style.color}
-      strokeWidth={style.width}
-      strokeDasharray={style.dash}
-    />
-  </svg>
-);
-
 /**
  * Portfolio vs the stand-in benchmark (and the start-date rules and KSE-100 when present), in
  * rupees from the same capital. Every line differs in colour and dash pattern, and the legend
@@ -42,6 +30,9 @@ const Swatch = ({ style }: { style: LineStyle }) => (
  */
 export const BacktestChart = ({ result }: { result: BacktestResult }) => {
   const { t, i18n } = useTranslation();
+  const c = useThemeColors();
+  const style = chartStyle(c);
+  const animate = useDrawInOnce(true);
   const rows = chartRows(result.series);
   const hasRules = result.start_date_rules.status === 'available';
   const hasKse = result.kse100.status === 'available';
@@ -50,7 +41,7 @@ export const BacktestChart = ({ result }: { result: BacktestResult }) => {
     {
       key: 'portfolio',
       label: t(result.kind === 'custom' ? 'backtest.columns.custom' : 'backtest.columns.portfolio'),
-      color: '#2563eb',
+      color: c.chartPortfolio,
       width: 2.5,
     },
     ...(hasRules
@@ -58,7 +49,7 @@ export const BacktestChart = ({ result }: { result: BacktestResult }) => {
           {
             key: 'startDateRules' as const,
             label: t('backtest.columns.startDateRules'),
-            color: '#d97706',
+            color: c.chartRules,
             width: 1.5,
             dash: '2 3',
           },
@@ -67,7 +58,7 @@ export const BacktestChart = ({ result }: { result: BacktestResult }) => {
     {
       key: 'benchmark',
       label: t('backtest.columns.benchmark'),
-      color: '#6b7280',
+      color: c.chartBenchmark,
       width: 2,
       dash: '6 4',
     },
@@ -76,7 +67,7 @@ export const BacktestChart = ({ result }: { result: BacktestResult }) => {
           {
             key: 'kse100' as const,
             label: t('backtest.columns.kse100'),
-            color: '#111827',
+            color: c.textPrimary,
             width: 1.5,
           },
         ]
@@ -85,60 +76,59 @@ export const BacktestChart = ({ result }: { result: BacktestResult }) => {
   const last = result.series[result.series.length - 1];
 
   return (
-    <div className="space-y-3">
-      <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-700">
-        {lines.map((style) => (
-          <li key={style.key} className="flex items-center gap-2">
-            <Swatch style={style} />
-            {style.label}
-          </li>
-        ))}
-      </ul>
+    <div className="space-y-4">
+      <ChartLegend
+        items={lines.map((line) => ({
+          key: line.key,
+          label: line.label,
+          color: line.color,
+          kind: line.dash === '2 3' ? 'dotted' : line.dash ? 'dashed' : 'line',
+        }))}
+      />
       {/* Time always runs left-to-right, even in the Urdu layout */}
       <div dir="ltr">
-        <p className="mb-2 ps-16 text-xs text-gray-500">{t('backtest.chart.axis')}</p>
         <div className="h-[340px]">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={rows} margin={{ top: 5, right: 16, left: 8, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+            <LineChart data={rows} margin={{ top: 8, right: 16, left: 8, bottom: 4 }}>
+              <CartesianGrid {...style.grid} />
               <XAxis
                 dataKey="date"
                 tickFormatter={(v: string) => formatDate(v, i18n.language)}
-                tick={{ fontSize: 12 }}
-                tickMargin={10}
+                tickMargin={8}
                 minTickGap={48}
-                stroke="#9ca3af"
+                {...style.axis}
               />
               <YAxis
                 domain={['auto', 'auto']}
-                tick={{ fontSize: 12 }}
-                tickFormatter={(v: number) => formatCompact(v)}
-                stroke="#9ca3af"
-                width={56}
+                tickFormatter={(v: number) => `Rs. ${formatCompact(v)}`}
+                width={80}
+                {...style.axis}
               />
               <Tooltip
+                {...style.tooltip}
                 labelFormatter={(v) => formatDate(String(v), i18n.language)}
                 formatter={(value, name) => [formatPrice(Number(value)), name]}
               />
-              {lines.map((style) => (
+              {lines.map((line) => (
                 <Line
-                  key={style.key}
-                  name={style.label}
+                  key={line.key}
+                  name={line.label}
                   type="linear"
-                  dataKey={style.key}
-                  stroke={style.color}
-                  strokeWidth={style.width}
-                  strokeDasharray={style.dash}
+                  dataKey={line.key}
+                  stroke={line.color}
+                  strokeWidth={line.width}
+                  strokeDasharray={line.dash}
                   dot={false}
                   activeDot={{ r: 4 }}
-                  isAnimationActive={false}
+                  isAnimationActive={animate}
+                  animationDuration={DRAW_IN_MS}
                 />
               ))}
             </LineChart>
           </ResponsiveContainer>
         </div>
       </div>
-      <p className="text-sm text-gray-600">
+      <p className="text-sm text-muted">
         {t('backtest.chart.summary', {
           years: result.period.years,
           portfolio: formatMoney(last.portfolio),

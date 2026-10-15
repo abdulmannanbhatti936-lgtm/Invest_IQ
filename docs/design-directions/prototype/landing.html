@@ -1,0 +1,850 @@
+<!doctype html>
+<!--
+  Step 1 prototype only (not app code): the landing hero's "market bloom" and the scroll-driven
+  zoom section. Open through a local static server from docs/design-directions/:
+    landing.html?d=truck-art|indus-night|ink-lime&lang=en|ur[&still=1][&motion=reduce]
+  three.js 0.169.0 comes from jsDelivr here; the real build would bundle it into a lazy chunk.
+  Rays = the 95 included companies of the KSE-100 snapshot dated 2026-10-10 (tickers and sectors
+  only, no prices). Ray length and angle come from the sector and a hash of the ticker, not data.
+  Copy is concept copy for team review, not final i18n.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>InvestIQ landing prototype</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Noto+Nastaliq+Urdu:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.min.js"
+        }
+      }
+    </script>
+    <style>
+      :root {
+        --space-1: 8px;
+        --space-2: 16px;
+        --space-3: 24px;
+        --space-4: 32px;
+        --space-6: 48px;
+        --space-8: 64px;
+        --font-ui: Inter, ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
+        --font-display: 'Bricolage Grotesque', var(--font-ui);
+        --font-ur: 'Noto Nastaliq Urdu', 'Noto Naskh Arabic', serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+      }
+      body {
+        font-family: var(--font-ui);
+        background: var(--hero-bg);
+        color: var(--hero-text);
+      }
+      [lang='ur'] body,
+      [lang='ur'] .ur {
+        font-family: var(--font-ur);
+        line-height: 2;
+      }
+      .tabular {
+        font-variant-numeric: tabular-nums;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+
+      /* ---------- hero ---------- */
+      .hero {
+        position: relative;
+        min-height: 100svh;
+        overflow: hidden;
+        isolation: isolate;
+      }
+      .hero::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        background: linear-gradient(90deg, var(--hero-bg) 0%, transparent 55%);
+      }
+      [dir='rtl'] .hero::after {
+        background: linear-gradient(270deg, var(--hero-bg) 0%, transparent 55%);
+      }
+      @media (max-width: 640px) {
+        .hero::after {
+          background: linear-gradient(180deg, var(--hero-bg) 45%, transparent 85%);
+        }
+        [dir='rtl'] .hero::after {
+          background: linear-gradient(180deg, var(--hero-bg) 45%, transparent 85%);
+        }
+      }
+      .hero canvas,
+      .hero .fallback {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+      }
+      .fallback {
+        display: none;
+        background: var(--fallback);
+      }
+      .no-webgl .fallback,
+      .reduced .fallback {
+        display: block;
+      }
+      .nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: var(--space-3) var(--space-4);
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      .wordmark {
+        font-family: var(--font-display);
+        font-weight: 700;
+        font-size: 1.5rem;
+        letter-spacing: -0.02em;
+      }
+      .wordmark b {
+        background: linear-gradient(90deg, var(--g1), var(--g2) 60%, var(--g3));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .nav-actions {
+        display: flex;
+        gap: var(--space-2);
+        align-items: center;
+      }
+      .lang {
+        font: inherit;
+        font-size: 0.875rem;
+        color: var(--hero-text);
+        background: transparent;
+        border: 1px solid var(--hero-line);
+        border-radius: 999px;
+        padding: var(--space-1) var(--space-2);
+        cursor: pointer;
+      }
+      .lang .ur {
+        font-family: var(--font-ur);
+      }
+      .copy {
+        position: relative;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: var(--space-8) var(--space-4) var(--space-6);
+        pointer-events: none;
+      }
+      .copy > * {
+        pointer-events: auto;
+      }
+      .eyebrow {
+        display: inline-flex;
+        gap: var(--space-1);
+        align-items: center;
+        font-size: 0.875rem;
+        color: var(--hero-muted);
+        border: 1px solid var(--hero-line);
+        border-radius: 999px;
+        padding: 4px var(--space-2);
+      }
+      .eyebrow i {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--g2);
+        box-shadow: 0 0 12px var(--g2);
+      }
+      h1 {
+        font-family: var(--font-display);
+        font-weight: 700;
+        font-size: clamp(2.5rem, 6vw, 4.5rem);
+        line-height: 1.02;
+        letter-spacing: -0.035em;
+        margin: var(--space-3) 0 var(--space-2);
+        max-width: 11ch;
+      }
+      [lang='ur'] h1 {
+        font-family: var(--font-ur);
+        font-weight: 700;
+        font-size: clamp(2rem, 4.6vw, 3.5rem);
+        line-height: 1.9;
+        letter-spacing: 0;
+        max-width: 14ch;
+      }
+      .lede {
+        font-size: 1.125rem;
+        line-height: 1.6;
+        color: var(--hero-muted);
+        max-width: 34rem;
+        margin: 0 0 var(--space-4);
+      }
+      [lang='ur'] .lede {
+        line-height: 2.1;
+      }
+      .ctas {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+      }
+      .btn {
+        font: inherit;
+        font-weight: 600;
+        font-size: 1rem;
+        border-radius: var(--btn-radius);
+        padding: 12px var(--space-3);
+        cursor: pointer;
+        text-decoration: none;
+        transition:
+          transform 150ms ease-out,
+          box-shadow 150ms ease-out;
+      }
+      .btn:focus-visible,
+      .lang:focus-visible,
+      .node-list button:focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: 3px;
+      }
+      .btn-primary {
+        background: var(--cta-bg);
+        color: var(--cta-text);
+        border: 0;
+        box-shadow: var(--cta-glow);
+      }
+      .btn-primary:hover {
+        transform: translateY(-1px);
+      }
+      .btn-secondary {
+        background: transparent;
+        color: var(--hero-text);
+        border: 1px solid var(--hero-line);
+      }
+      .facts {
+        margin-top: var(--space-6);
+        font-size: 0.75rem;
+        color: var(--hero-muted);
+        max-width: 30rem;
+      }
+      .tip {
+        position: absolute;
+        z-index: 2;
+        pointer-events: none;
+        transform: translate(-50%, calc(-100% - 14px));
+        background: var(--tip-bg);
+        color: var(--tip-text);
+        border: 1px solid var(--hero-line);
+        border-radius: 10px;
+        padding: 6px 10px;
+        font-size: 0.875rem;
+        white-space: nowrap;
+        opacity: 0;
+        transition: opacity 150ms ease-out;
+        backdrop-filter: blur(6px);
+      }
+      .tip.on {
+        opacity: 1;
+      }
+      .tip strong {
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.02em;
+      }
+      .tip span {
+        color: var(--hero-muted);
+      }
+      .node-list {
+        position: absolute;
+        inset-inline-start: var(--space-4);
+        bottom: var(--space-3);
+      }
+      .node-list summary {
+        font-size: 0.75rem;
+        color: var(--hero-muted);
+        cursor: pointer;
+      }
+      .node-list ul {
+        list-style: none;
+        margin: var(--space-1) 0 0;
+        padding: var(--space-1);
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+        gap: 4px;
+        max-width: 520px;
+        max-height: 160px;
+        overflow: auto;
+        background: var(--tip-bg);
+        border-radius: 12px;
+      }
+      .node-list button {
+        font: inherit;
+        font-size: 0.75rem;
+        width: 100%;
+        color: var(--hero-text);
+        background: transparent;
+        border: 1px solid var(--hero-line);
+        border-radius: 8px;
+        padding: 4px;
+        cursor: pointer;
+      }
+
+      /* ---------- zoom section ---------- */
+      .zoom {
+        position: relative;
+        height: 320vh;
+        background: var(--zoom-bg);
+        color: var(--zoom-text);
+      }
+      .stage {
+        position: sticky;
+        top: 0;
+        height: 100svh;
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+      }
+      .zoom h2 {
+        position: absolute;
+        top: 12vh;
+        margin: 0;
+        text-align: center;
+        width: 100%;
+        padding: 0 var(--space-2);
+        font-family: var(--font-display);
+        font-weight: 700;
+        letter-spacing: -0.035em;
+        font-size: clamp(2.5rem, 7vw, 5.5rem);
+        line-height: 1;
+        transform-origin: 50% 0;
+        will-change: transform, opacity;
+        z-index: 2;
+      }
+      [lang='ur'] .zoom h2 {
+        font-family: var(--font-ur);
+        letter-spacing: 0;
+        line-height: 1.8;
+        font-size: clamp(2rem, 5vw, 4rem);
+      }
+      .zoom h2 em {
+        font-style: normal;
+        background: linear-gradient(90deg, var(--g1), var(--g2), var(--g3));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .device {
+        position: absolute;
+        top: 28vh;
+        width: min(58vw, 860px);
+        aspect-ratio: 16 / 10;
+      }
+      .bezel {
+        position: absolute;
+        inset: -14px -14px -14px -14px;
+        border-radius: 22px;
+        background: #0b0b0b;
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.08),
+          0 40px 80px -30px rgba(0, 0, 0, 0.6);
+        opacity: 0;
+      }
+      .base {
+        position: absolute;
+        left: -9%;
+        right: -9%;
+        bottom: -40px;
+        height: 26px;
+        border-radius: 0 0 22px 22px;
+        background: linear-gradient(#cfcfcf, #8d8d8d);
+        opacity: 0;
+      }
+      .screen {
+        position: absolute;
+        inset: 0;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #fff;
+        transform-origin: 50% 50%;
+        will-change: transform;
+      }
+      .screen img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: top;
+        display: block;
+      }
+      .caption {
+        position: absolute;
+        bottom: 3vh;
+        z-index: 2;
+        font-size: 0.75rem;
+        color: var(--zoom-muted);
+        text-align: center;
+        width: 100%;
+        padding: 0 var(--space-2);
+      }
+      .after {
+        min-height: 40vh;
+        background: var(--zoom-bg);
+      }
+
+      @media (max-width: 640px) {
+        .nav {
+          padding: var(--space-2);
+        }
+        .copy {
+          padding: var(--space-4) var(--space-2) var(--space-4);
+        }
+        .device {
+          width: 64vw;
+          aspect-ratio: 9 / 16;
+          top: 26vh;
+        }
+        .node-list {
+          inset-inline-start: var(--space-2);
+        }
+        .facts {
+          margin-top: var(--space-4);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <section class="hero" id="hero">
+      <canvas id="bloom" aria-hidden="true"></canvas>
+      <div class="fallback" aria-hidden="true"></div>
+      <div class="tip" id="tip" dir="ltr" role="status" aria-live="polite"></div>
+      <header class="nav">
+        <span class="wordmark">Invest<b>IQ</b></span>
+        <div class="nav-actions">
+          <button class="lang" id="lang" type="button"></button>
+        </div>
+      </header>
+      <div class="copy">
+        <span class="eyebrow"><i></i><span data-t="eyebrow"></span></span>
+        <h1 data-t="headline"></h1>
+        <p class="lede" data-t="lede"></p>
+        <div class="ctas">
+          <a class="btn btn-primary" data-t="start" href="#"></a>
+          <a class="btn btn-secondary" data-t="login" href="#"></a>
+        </div>
+        <p class="facts" data-t="facts"></p>
+      </div>
+      <details class="node-list">
+        <summary data-t="browse"></summary>
+        <ul id="nodes"></ul>
+      </details>
+    </section>
+
+    <section class="zoom" id="zoom">
+      <div class="stage">
+        <h2 id="zh" data-t-html="zoomHead"></h2>
+        <div class="device" id="device">
+          <div class="bezel" id="bezel"></div>
+          <div class="base" id="base"></div>
+          <div class="screen" id="screen"><img id="shot" alt="" /></div>
+        </div>
+        <p class="caption" data-t="zoomCaption"></p>
+      </div>
+    </section>
+    <div class="after"></div>
+
+    <script type="module">
+      const q = new URLSearchParams(location.search);
+      const DIR = q.get('d') || 'indus-night';
+      let LANG = q.get('lang') || 'en';
+      const STILL = q.get('still') === '1';
+      const REDUCED =
+        q.get('motion') === 'reduce' || matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      const [directions, data] = await Promise.all([
+        fetch('../directions.json').then((r) => r.json()),
+        fetch('kse100-tickers.json').then((r) => r.json()),
+      ]);
+      const D = directions[DIR];
+      const dark = D.dark,
+        light = D.light;
+      // The hero is always on the direction's dark set; the zoom section uses its app mode
+      const app = D[D.primary_mode];
+      const rootVars = {
+        '--hero-bg': dark.background,
+        '--hero-text': dark['text-primary'],
+        '--hero-muted': dark['text-secondary'],
+        '--hero-line': dark.border,
+        '--g1': dark['gradient-1'],
+        '--g2': dark['gradient-2'],
+        '--g3': dark['gradient-3'],
+        '--cta-bg': dark.primary,
+        '--cta-text': dark['text-inverse'],
+        '--focus': dark['focus-ring'],
+        '--cta-glow': `0 10px 30px -10px ${dark.primary}`,
+        '--tip-bg': dark.surface + 'E6',
+        '--tip-text': dark['text-primary'],
+        '--btn-radius': DIR === 'ink-lime' ? '999px' : '12px',
+        '--zoom-bg': app.background,
+        '--zoom-text': app['text-primary'],
+        '--zoom-muted': app['text-secondary'],
+        '--fallback': `radial-gradient(60% 70% at 72% 58%, ${dark['gradient-1']}55, transparent 60%), radial-gradient(40% 40% at 80% 40%, ${dark['gradient-2']}40, transparent 70%), ${dark.background}`,
+      };
+      Object.entries(rootVars).forEach(([k, v]) =>
+        document.documentElement.style.setProperty(k, v),
+      );
+
+      const tracked = data.stocks.length;
+      const sectors = [...new Set(data.stocks.map((s) => s.s))].sort();
+      const COPY = {
+        en: {
+          eyebrow: 'For Pakistan Stock Exchange investors',
+          headline: 'Invest in PSX with your eyes open.',
+          lede: 'Your risk profile, an AI forecast that says how unsure it is, and a portfolio with every rupee of charges and tax shown. In English or Urdu.',
+          start: 'Get started',
+          login: 'Log in',
+          toggle: 'اردو',
+          facts: `Each ray is one of the ${tracked} KSE-100 companies in our snapshot of 10 Oct 2026, grouped by its ${sectors.length} sectors. Tickers only, no prices.`,
+          browse: `Browse the ${tracked} companies`,
+          zoomHead: 'Every rupee, <em>accounted for.</em>',
+          zoomCaption:
+            'The InvestIQ portfolio screen. Figures from a test account built on 15 Oct 2026; an example, not advice.',
+        },
+        ur: {
+          eyebrow: 'پاکستان اسٹاک ایکسچینج کے سرمایہ کاروں کے لیے',
+          headline: 'پی ایس ایکس میں سرمایہ کاری، کھلی آنکھوں سے',
+          lede: 'آپ کا رسک پروفائل، ایسی AI پیش گوئی جو اپنی غیر یقینی بھی بتاتی ہے، اور ایسا پورٹ فولیو جس میں ہر روپے کے اخراجات اور ٹیکس دکھائے گئے ہیں۔ اردو یا انگریزی میں۔',
+          start: 'شروع کریں',
+          login: 'لاگ ان',
+          toggle: 'English',
+          facts: `ہر کرن <bdi>10</bdi> اکتوبر <bdi>2026</bdi> کی ہماری فہرست میں شامل <bdi>KSE-100</bdi> کی <bdi>${tracked}</bdi> کمپنیوں میں سے ایک ہے، <bdi>${sectors.length}</bdi> شعبوں میں۔ صرف ٹکر، قیمتیں نہیں۔`,
+          browse: `${tracked} کمپنیاں دیکھیں`,
+          zoomHead: 'ہر روپے کا <em>حساب</em>',
+          zoomCaption:
+            'InvestIQ کی پورٹ فولیو اسکرین۔ 15 اکتوبر 2026 کو ایک ٹیسٹ اکاؤنٹ کے اعداد؛ صرف مثال، مشورہ نہیں۔',
+        },
+      };
+      const render = () => {
+        document.documentElement.lang = LANG;
+        document.documentElement.dir = LANG === 'ur' ? 'rtl' : 'ltr';
+        const c = COPY[LANG];
+        document.querySelectorAll('[data-t]').forEach((el) => (el.innerHTML = c[el.dataset.t]));
+        document
+          .querySelectorAll('[data-t-html]')
+          .forEach((el) => (el.innerHTML = c[el.dataset.tHtml]));
+        const lang = document.getElementById('lang');
+        lang.innerHTML = LANG === 'en' ? '<span class="ur" lang="ur">اردو</span>' : 'English';
+        document.getElementById('shot').src =
+          `assets/portfolio-${DIR}-${LANG}${innerWidth < 640 ? '-m390' : ''}.webp`;
+      };
+      document.getElementById('lang').onclick = () => {
+        LANG = LANG === 'en' ? 'ur' : 'en';
+        render();
+      };
+      render();
+
+      // ---------------- bloom ----------------
+      const THREE = await import('three');
+      const canvas = document.getElementById('bloom');
+      const hero = document.getElementById('hero');
+      let renderer;
+      try {
+        renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+      } catch {
+        hero.classList.add('no-webgl');
+      }
+      if (REDUCED) hero.classList.add('reduced');
+
+      const hash = (s) => [...s].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
+      const stops = [dark['gradient-1'], dark['gradient-2'], dark['gradient-3']].map(
+        (c) => new THREE.Color(c),
+      );
+      const sectorColor = (i) => {
+        const t = sectors.length > 1 ? i / (sectors.length - 1) : 0;
+        return t < 0.5
+          ? stops[0].clone().lerp(stops[1], t * 2)
+          : stops[1].clone().lerp(stops[2], (t - 0.5) * 2);
+      };
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+      camera.position.set(0, 0, 11);
+      const group = new THREE.Group();
+      scene.add(group);
+
+      // Rays fan out from one point over a cone; each sector owns a slice of the fan
+      const N = data.stocks.length;
+      const ends = [],
+        colors = [];
+      data.stocks.forEach((s, i) => {
+        const si = sectors.indexOf(s.s);
+        const h = hash(s.t);
+        const theta =
+          -Math.PI * 0.95 +
+          (si + 0.15 + 0.7 * ((h % 997) / 997)) * ((Math.PI * 1.9) / sectors.length);
+        const phi = 0.35 + 0.75 * (((h >> 10) % 991) / 991);
+        const len = 3.0 + 2.6 * (((h >> 3) % 983) / 983);
+        ends.push(
+          new THREE.Vector3(
+            Math.cos(theta) * Math.sin(phi) * len,
+            Math.sin(theta) * Math.sin(phi) * len * 0.9,
+            Math.cos(phi) * len * 0.6,
+          ),
+        );
+        colors.push(sectorColor(si));
+      });
+
+      const rayGeo = new THREE.BufferGeometry();
+      const rayPos = new Float32Array(N * 6),
+        rayCol = new Float32Array(N * 6);
+      rayGeo.setAttribute('position', new THREE.BufferAttribute(rayPos, 3));
+      rayGeo.setAttribute('color', new THREE.BufferAttribute(rayCol, 3));
+      const rays = new THREE.LineSegments(
+        rayGeo,
+        new THREE.LineBasicMaterial({
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.75,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      );
+      group.add(rays);
+
+      const glow = (() => {
+        const c = document.createElement('canvas');
+        c.width = c.height = 64;
+        const g = c.getContext('2d');
+        const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+        r.addColorStop(0, 'rgba(255,255,255,1)');
+        r.addColorStop(0.25, 'rgba(255,255,255,.85)');
+        r.addColorStop(1, 'rgba(255,255,255,0)');
+        g.fillStyle = r;
+        g.fillRect(0, 0, 64, 64);
+        return new THREE.CanvasTexture(c);
+      })();
+      const nodeGeo = new THREE.BufferGeometry();
+      const nodePos = new Float32Array(N * 3),
+        nodeCol = new Float32Array(N * 3),
+        nodeSize = new Float32Array(N);
+      nodeGeo.setAttribute('position', new THREE.BufferAttribute(nodePos, 3));
+      nodeGeo.setAttribute('color', new THREE.BufferAttribute(nodeCol, 3));
+      nodeGeo.setAttribute('size', new THREE.BufferAttribute(nodeSize, 1));
+      const nodeMat = new THREE.ShaderMaterial({
+        uniforms: { map: { value: glow }, ratio: { value: 1 } },
+        vertexShader: `attribute float size; attribute vec3 color; varying vec3 vC;
+          void main(){ vC = color; vec4 mv = modelViewMatrix * vec4(position,1.0); gl_PointSize = size * (300.0 / -mv.z); gl_Position = projectionMatrix * mv; }`,
+        fragmentShader: `uniform sampler2D map; varying vec3 vC; void main(){ vec4 t = texture2D(map, gl_PointCoord); gl_FragColor = vec4(vC, t.a); }`,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+      const nodes = new THREE.Points(nodeGeo, nodeMat);
+      group.add(nodes);
+
+      // Sparks travel outward along each ray (the "burst")
+      const SPARKS = 5;
+      const sparkGeo = new THREE.BufferGeometry();
+      const sparkPos = new Float32Array(N * SPARKS * 3),
+        sparkCol = new Float32Array(N * SPARKS * 3),
+        sparkSize = new Float32Array(N * SPARKS);
+      sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPos, 3));
+      sparkGeo.setAttribute('color', new THREE.BufferAttribute(sparkCol, 3));
+      sparkGeo.setAttribute('size', new THREE.BufferAttribute(sparkSize, 1));
+      group.add(new THREE.Points(sparkGeo, nodeMat));
+
+      const core = new THREE.Points(
+        new THREE.BufferGeometry()
+          .setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, 0, 0]), 3))
+          .setAttribute('color', new THREE.BufferAttribute(new Float32Array([1, 1, 1]), 3))
+          .setAttribute('size', new THREE.BufferAttribute(new Float32Array([2.6]), 1)),
+        nodeMat,
+      );
+      group.add(core);
+
+      let active = -1,
+        pointer = new THREE.Vector2(0, 0),
+        target = new THREE.Vector2(0, 0);
+      const tip = document.getElementById('tip');
+      const list = document.getElementById('nodes');
+      data.stocks.forEach((s, i) => {
+        const li = document.createElement('li');
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = s.t;
+        b.dir = 'ltr';
+        b.setAttribute('aria-label', `${s.t}, ${s.s}`);
+        b.onfocus = b.onmouseenter = () => {
+          active = i;
+        };
+        b.onblur = b.onmouseleave = () => {
+          active = -1;
+        };
+        li.append(b);
+        list.append(li);
+      });
+
+      const layout = () => {
+        const w = hero.clientWidth,
+          h = hero.clientHeight;
+        const mobile = w < 640;
+        // Bloom sits beside the copy on desktop (mirrored in Urdu) and under it on phones
+        const side = LANG === 'ur' ? -1 : 1;
+        group.position.set(mobile ? 0 : 2.4 * side, mobile ? -3.2 : -0.4, 0);
+        group.scale.setScalar(mobile ? 0.62 : 1);
+        if (!renderer) return;
+        renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+        renderer.setSize(w, h, false);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+      };
+      addEventListener('resize', layout);
+      new MutationObserver(layout).observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['dir'],
+      });
+      layout();
+
+      const ray = new THREE.Raycaster();
+      ray.params.Points.threshold = 0.28;
+      hero.addEventListener('pointermove', (e) => {
+        const r = hero.getBoundingClientRect();
+        pointer.set(
+          ((e.clientX - r.left) / r.width) * 2 - 1,
+          -((e.clientY - r.top) / r.height) * 2 + 1,
+        );
+        target.copy(pointer);
+        ray.setFromCamera(pointer, camera);
+        const hit = ray.intersectObject(nodes)[0];
+        active = hit ? hit.index : document.activeElement?.closest?.('.node-list') ? active : -1;
+      });
+      hero.addEventListener('pointerleave', () => target.set(0, 0));
+
+      const v = new THREE.Vector3();
+      const frame = (ms) => {
+        const t = STILL ? 2.2 : ms / 1000;
+        const breathe = REDUCED ? 1 : 1 + 0.035 * Math.sin(t * 0.7);
+        if (!REDUCED) {
+          group.rotation.y +=
+            (target.x * 0.22 + Math.sin(t * 0.15) * 0.08 - group.rotation.y) * 0.04;
+          group.rotation.x += (-target.y * 0.14 - group.rotation.x) * 0.04;
+        }
+        for (let i = 0; i < N; i++) {
+          const e = ends[i],
+            c = colors[i];
+          const isOn = i === active,
+            dim = active >= 0 && !isOn ? 0.35 : 1;
+          const wobble = REDUCED ? 1 : breathe + 0.025 * Math.sin(t * 1.3 + i);
+          const x = e.x * wobble,
+            y = e.y * wobble,
+            z = e.z * wobble;
+          rayPos.set([0, 0, 0, x, y, z], i * 6);
+          rayCol.set(
+            [
+              c.r * 0.05,
+              c.g * 0.05,
+              c.b * 0.05,
+              c.r * dim * (isOn ? 1.6 : 1),
+              c.g * dim * (isOn ? 1.6 : 1),
+              c.b * dim * (isOn ? 1.6 : 1),
+            ],
+            i * 6,
+          );
+          nodePos.set([x, y, z], i * 3);
+          nodeCol.set(
+            [
+              Math.min(1, c.r * dim + (isOn ? 0.4 : 0)),
+              Math.min(1, c.g * dim + (isOn ? 0.4 : 0)),
+              Math.min(1, c.b * dim + (isOn ? 0.4 : 0)),
+            ],
+            i * 3,
+          );
+          nodeSize[i] = isOn ? 1.5 : 0.55 + 0.15 * Math.sin(t * 2 + i);
+          for (let k = 0; k < SPARKS; k++) {
+            const p = REDUCED ? (k + 0.5) / SPARKS : (t * 0.12 + k / SPARKS + (i % 7) * 0.031) % 1;
+            const j = i * SPARKS + k;
+            sparkPos.set([x * p, y * p, z * p], j * 3);
+            const a = Math.sin(Math.PI * p) * dim;
+            sparkCol.set([c.r * a, c.g * a, c.b * a], j * 3);
+            sparkSize[j] = 0.22;
+          }
+        }
+        rayGeo.attributes.position.needsUpdate = rayGeo.attributes.color.needsUpdate = true;
+        nodeGeo.attributes.position.needsUpdate =
+          nodeGeo.attributes.color.needsUpdate =
+          nodeGeo.attributes.size.needsUpdate =
+            true;
+        sparkGeo.attributes.position.needsUpdate =
+          sparkGeo.attributes.color.needsUpdate =
+          sparkGeo.attributes.size.needsUpdate =
+            true;
+        if (renderer) renderer.render(scene, camera);
+        if (active >= 0) {
+          v.set(nodePos[active * 3], nodePos[active * 3 + 1], nodePos[active * 3 + 2])
+            .applyMatrix4(group.matrixWorld)
+            .project(camera);
+          const r = hero.getBoundingClientRect();
+          tip.style.left = ((v.x + 1) / 2) * r.width + 'px';
+          tip.style.top = ((1 - v.y) / 2) * r.height + 'px';
+          const s = data.stocks[active];
+          tip.innerHTML = `<strong dir="ltr">${s.t}</strong> <span dir="ltr">· ${s.s}</span>`;
+          tip.classList.add('on');
+        } else tip.classList.remove('on');
+        if (!STILL && !REDUCED) requestAnimationFrame(frame);
+      };
+      requestAnimationFrame(frame);
+      if (REDUCED) addEventListener('pointermove', () => requestAnimationFrame(frame));
+      window.__bloom = {
+        setActive: (i) => {
+          active = i;
+          requestAnimationFrame(frame);
+        },
+        tickers: data.stocks.map((s) => s.t),
+      };
+
+      // ---------------- zoom ----------------
+      const zoom = document.getElementById('zoom'),
+        zh = document.getElementById('zh');
+      const screen = document.getElementById('screen'),
+        bezel = document.getElementById('bezel'),
+        base = document.getElementById('base');
+      const device = document.getElementById('device');
+      const ease = (x) => 1 - Math.pow(1 - x, 3);
+      const onScroll = () => {
+        const r = zoom.getBoundingClientRect();
+        const p = Math.min(1, Math.max(0, -r.top / (r.height - innerHeight)));
+        // Phase a: the big headline alone. Phase e: the screen rises full-bleed, then shrinks into
+        // the device while the headline returns smaller above it.
+        const a = REDUCED ? 1 : Math.min(1, p / 0.22);
+        const e = REDUCED ? 1 : ease(Math.min(1, Math.max(0, (p - 0.22) / 0.6)));
+        const d = device.getBoundingClientRect();
+        const cover = Math.max(innerWidth / d.width, innerHeight / d.height) * 1.02;
+        const dy = innerHeight / 2 - (d.top + d.height / 2);
+        screen.style.transform = `translateY(${dy * (1 - e) + (1 - a) * innerHeight}px) scale(${cover + (1 - cover) * e})`;
+        screen.style.borderRadius = `${10 * e}px`;
+        bezel.style.opacity = base.style.opacity = String(Math.max(0, (e - 0.6) / 0.4));
+        const fadeOut = Math.max(0, 1 - e / 0.15),
+          fadeIn = Math.max(0, (e - 0.65) / 0.35);
+        zh.style.transform = `translateY(${(1 - a) * 22}vh) scale(${e > 0.5 ? 0.7 : 1.15})`;
+        zh.style.opacity = String(REDUCED ? 1 : Math.max(fadeOut, fadeIn));
+        if (innerWidth < 640) base.style.display = 'none';
+      };
+      addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+      document.documentElement.dataset.ready = '1';
+    </script>
+  </body>
+</html>
