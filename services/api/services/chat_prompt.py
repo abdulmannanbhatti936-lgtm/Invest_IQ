@@ -188,3 +188,29 @@ def plain_text(reply: str) -> str:
     text = _STAR_BULLET.sub(r"\1- ", text)
     text = _EMPHASIS.sub("", text)
     return re.sub(r"\n{3,}", "\n\n", text).strip()
+
+
+# Lowercase English in brackets after an Urdu word, e.g. "کم اعتماد (low confidence)". Tickers
+# (upper case) and anything with a digit are never matched, so no figure is touched.
+_ENGLISH_GLOSS = re.compile(r"\s*\((?=[^)]*[a-z])[a-z][a-z '\-]*\)")
+# A prefix that names the recommendation twice, e.g. "InvestIQ کی تجویز کردہ آپ کا InvestIQ ..."
+_DOUBLE_NAME = r"InvestIQ(?:'s| کی)?\s+(?:recommended|تجویز کردہ)\s+(?={name})"
+
+
+def tidy_wording(reply: str, language: str, name: str, short_name: str) -> str:
+    """
+    Wording rules the prompt states but models do not always keep (live check 2026-10-16,
+    prompt-v3.3): no English in brackets after Urdu words, and the portfolio named in full only
+    once, by the app's own words. Words only; figures and tickers are never changed.
+    """
+    text = reply
+    if language == "ur":
+        text = _ENGLISH_GLOSS.sub("", text)
+    if not name:
+        return text
+    text = re.sub(_DOUBLE_NAME.format(name=re.escape(name)), "", text)
+    first = text.find(name)
+    if first != -1:
+        end = first + len(name)
+        text = text[:end] + text[end:].replace(name, short_name)
+    return text

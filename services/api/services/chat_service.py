@@ -196,7 +196,12 @@ def generate_reply(
             break
         tokens_in = _add(tokens_in, result.input_tokens)
         tokens_out = _add(tokens_out, result.output_tokens)
-        text = chat_prompt.plain_text(result.text)
+        text = chat_prompt.tidy_wording(
+            chat_prompt.plain_text(result.text),
+            language,
+            fitted.data.get("portfolio_name", ""),
+            fitted.data.get("portfolio_short_name", ""),
+        )
         check = chat_figure_check.check_reply(text, fitted, content)
         attempts.append(
             {

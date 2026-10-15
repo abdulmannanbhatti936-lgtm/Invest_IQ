@@ -454,3 +454,29 @@ def test_the_roman_glossary_comes_from_i18n_and_only_what_the_context_uses(
     assert sent["Forecast"] == "pesh goi"
     assert "Aggressive" not in sent
     assert all(v.strip() and "{{" not in v for v in sent.values())
+
+
+# Wording kept even when the model slips (live check 2026-10-16, docs/chat-eval)
+
+UR_NAME = "آپ کا InvestIQ تجویز کردہ پورٹ فولیو"
+
+
+def test_tidy_wording_drops_english_in_brackets_after_urdu_words():
+    reply = (
+        "یہ کم اعتماد (low confidence) کے ساتھ ہے؛ MARI (Mari Energies) کا حصہ 14.73% (Rs. 639.22)۔"
+    )
+    tidy = chat_prompt.tidy_wording(reply, "ur", UR_NAME, "یہ پورٹ فولیو")
+    assert tidy == "یہ کم اعتماد کے ساتھ ہے؛ MARI (Mari Energies) کا حصہ 14.73% (Rs. 639.22)۔"
+
+
+def test_tidy_wording_names_the_portfolio_once_then_by_its_short_name():
+    reply = f"InvestIQ کی تجویز کردہ {UR_NAME} میں 8 اسٹاک ہیں۔ {UR_NAME} آپ کے رسک پروفائل پر ہے۔"
+    tidy = chat_prompt.tidy_wording(reply, "ur", UR_NAME, "یہ پورٹ فولیو")
+    assert tidy == f"{UR_NAME} میں 8 اسٹاک ہیں۔ یہ پورٹ فولیو آپ کے رسک پروفائل پر ہے۔"
+
+
+def test_tidy_wording_leaves_english_and_roman_urdu_brackets_and_figures_alone():
+    reply = "Your InvestIQ recommended portfolio has MARI (14.73%) and a break-even (cost) price."
+    name = "your InvestIQ recommended portfolio"
+    assert chat_prompt.tidy_wording(reply, "en", name, "this portfolio") == reply
+    assert chat_prompt.tidy_wording("kam aitmaad (low)", "ur-latn", "", "") == "kam aitmaad (low)"
