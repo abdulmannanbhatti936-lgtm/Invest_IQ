@@ -21,7 +21,10 @@ test('generate a portfolio → 3-year backtest report → custom mix must total 
   await page.goto('/portfolio');
   await field(page, t('en', 'portfolio.form.capital')).fill('100000');
   await page.getByRole('button', { name: t('en', 'portfolio.form.submit'), exact: true }).click();
-  await expect(page.getByText('MOCKE2EA', { exact: true })).toBeVisible({ timeout: 30_000 });
+  // The ticker appears in the allocation legend and in its holding row (UI round)
+  await expect(page.getByText('MOCKE2EA', { exact: true }).first()).toBeVisible({
+    timeout: 30_000,
+  });
 
   // Run the stored portfolio over the default three years
   await page.getByRole('link', { name: t('en', 'portfolio.backtestLink') }).click();
