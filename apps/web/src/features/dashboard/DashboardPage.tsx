@@ -131,12 +131,12 @@ export const DashboardPage = () => {
             <ErrorState message={t('common.errorGeneric')} onRetry={() => portfolio.refetch()} />
           ) : (
             <div className="space-y-6">
-              <dl className="grid grid-cols-3 gap-4">
+              <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                 {[
                   { label: t('portfolio.totals.cost'), value: portfolio.data.totals.cost },
                   { label: t('portfolio.totals.cash'), value: portfolio.data.totals.idle_cash },
                 ].map(({ label, value }) => (
-                  <div key={label} className="space-y-1">
+                  <div key={label} className="space-y-2">
                     <dt className="text-xs text-muted">{label}</dt>
                     <dd className="text-lg font-semibold text-ink sm:text-xl">
                       <Figure>
@@ -149,7 +149,7 @@ export const DashboardPage = () => {
                     </dd>
                   </div>
                 ))}
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <dt className="text-xs text-muted">{t('dashboard.holdings')}</dt>
                   <dd className="text-lg font-semibold text-ink tabular-nums sm:text-xl">
                     {portfolio.data.holdings.length}
@@ -177,7 +177,7 @@ export const DashboardPage = () => {
             </CardTitle>
             {portfolio.data.latest_backtest ? (
               <>
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <Delta value={portfolio.data.latest_backtest.total_return} className="text-3xl">
                     {formatPctString(ratioToPct(portfolio.data.latest_backtest.total_return), true)}
                   </Delta>
@@ -192,7 +192,7 @@ export const DashboardPage = () => {
                 </div>
                 <p className="flex gap-2 rounded-control border border-warning bg-warning-tint p-2 text-xs text-ink">
                   <AlertTriangle
-                    className="mt-1 h-4 w-4 shrink-0 text-warning"
+                    className="mt-2 h-4 w-4 shrink-0 text-warning"
                     aria-hidden="true"
                   />
                   {t('dashboard.hindsightShort')}
@@ -217,7 +217,7 @@ export const DashboardPage = () => {
 
           {/* Forecast and news highlights */}
           <Card className="lg:col-span-2" padding="none">
-            <div className="space-y-1 p-4 sm:p-6 sm:pb-4">
+            <div className="space-y-2 p-4 sm:p-6 sm:pb-4">
               <CardTitle>{t('dashboard.highlightsTitle')}</CardTitle>
               <p className="text-xs text-muted">
                 {t('dashboard.highlightsNote', { date: date(portfolio.data.prices_as_of) })}
@@ -273,7 +273,7 @@ export const DashboardPage = () => {
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-tint text-primary">
               <Icon className="h-5 w-5" aria-hidden="true" />
             </span>
-            <span className="min-w-0 space-y-1">
+            <span className="min-w-0 space-y-2">
               <span className="block font-semibold text-ink">
                 {t(`dashboard.quick.${key}.title`)}
               </span>

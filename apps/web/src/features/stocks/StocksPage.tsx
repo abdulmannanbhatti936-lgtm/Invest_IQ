@@ -93,7 +93,7 @@ export const StocksPage = () => {
         <button
           type="button"
           onClick={() => setSort(nextSort(sort, k))}
-          className={`inline-flex min-h-8 items-center gap-1 rounded-control hover:text-ink ${
+          className={`inline-flex min-h-8 items-center gap-2 rounded-control hover:text-ink ${
             active ? 'text-ink' : ''
           }`}
         >

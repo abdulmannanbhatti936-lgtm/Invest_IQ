@@ -60,7 +60,7 @@ const Headline = ({ result }: { result: BacktestResult }) => {
         </p>
       </div>
       <dl className="space-y-4 rounded-control border border-line bg-sunken p-4 text-sm">
-        <div className="space-y-1">
+        <div className="space-y-2">
           <dt className="text-muted">{t('backtest.report.benchmarkName')}</dt>
           <dd>
             <Delta value={ratioToPct(result.benchmark.metrics.total_return)} className="text-xl">
@@ -68,7 +68,7 @@ const Headline = ({ result }: { result: BacktestResult }) => {
             </Delta>
           </dd>
         </div>
-        <div className="space-y-1 border-t border-line pt-4">
+        <div className="space-y-2 border-t border-line pt-4">
           <dt className="text-muted">{t('backtest.columns.kse100')}</dt>
           <dd className="text-ink">
             {kse.metrics ? (

@@ -43,7 +43,7 @@ export const AllocationChart = ({
         center={center}
       />
       <ul
-        className={`grid w-full gap-x-6 gap-y-1 text-sm ${compact ? 'grid-cols-2' : 'grid-cols-1'}`}
+        className={`grid w-full gap-x-6 gap-y-2 text-sm ${compact ? 'grid-cols-2' : 'grid-cols-1'}`}
       >
         {holdings.map((h, i) => (
           <li

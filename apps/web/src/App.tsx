@@ -10,6 +10,7 @@ import {
   RequireRiskProfile,
 } from './features/auth/RouteGuards';
 import { AppLayout } from './components/layout/AppLayout';
+import { Skeleton } from './components/ui/Feedback';
 
 // Every screen is its own chunk, so a visitor to the landing page or the login screen never
 // downloads the charts, the portfolio screens or three.js (UI round, 2026-10-15).
@@ -37,12 +38,22 @@ const ComingSoonPage = lazy(() =>
   import('./features/common/ComingSoonPage').then((m) => ({ default: m.ComingSoonPage })),
 );
 
+/** While a screen's code loads: the shape of a page, not a blank area (Design.md §12.1). */
+const ScreenSkeleton = () => (
+  <div className="space-y-6" aria-busy="true">
+    <Skeleton className="h-8 w-56" />
+    <Skeleton className="h-4 w-96 max-w-full" />
+    <Skeleton className="h-64 w-full" />
+    <Skeleton className="h-40 w-full" />
+  </div>
+);
+
 /** Logged in + completed risk profile + app chrome. */
 const AppPage = ({ children }: { children: ReactNode }) => (
   <RequireAuth>
     <RequireRiskProfile>
       <AppLayout>
-        <Suspense fallback={null}>{children}</Suspense>
+        <Suspense fallback={<ScreenSkeleton />}>{children}</Suspense>
       </AppLayout>
     </RequireRiskProfile>
   </RequireAuth>

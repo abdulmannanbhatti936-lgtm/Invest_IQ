@@ -38,8 +38,8 @@
   "disclaimer": "Advisory only. Not a licensed financial advisor. Predictions are probabilistic. Execute trades only through a licensed PSX broker.",
   "auth": {
     "login": {
-      "title": "Welcome back",
-      "subtitle": "Log in to see your PSX insights",
+      "title": "Log in to InvestIQ",
+      "subtitle": "Your portfolio, forecasts and backtests are where you left them.",
       "submit": "Log in",
       "noAccount": "Don't have an account?",
       "signUp": "Sign up",
@@ -169,7 +169,6 @@
     "portfolioEmptyTitle": "No portfolio yet",
     "portfolioEmptyBody": "Tell us how much you want to invest. InvestIQ will suggest a spread across PSX companies, with every charge and tax shown.",
     "buildPortfolio": "Build a portfolio",
-    "portfolioReadyBody": "{{count}} companies, total cost {{cost}}, built on {{date}}.",
     "viewPortfolio": "View portfolio",
     "portfolioTitle": "Your recommended portfolio",
     "holdings": "Companies",
@@ -405,7 +404,6 @@
       "body": "Tell us how much you want to invest. InvestIQ will suggest how to spread it, with every charge and tax shown before you decide."
     },
     "holding": {
-      "allocation": "{{pct}} of your money",
       "breakEven": "Break-even price",
       "breakEvenHelp": "Selling at this price gives back everything you paid, charges included.",
       "breakEvenChange": "{{pct}} above today's price of {{price}}",
@@ -533,10 +531,8 @@
       "headline": "Total return after charges and tax",
       "growth": "{{capital}} became {{end}}",
       "beforeSale": "Before selling: {{pct}} ({{value}}). Selling charges and capital gains tax take the difference.",
-      "benchmarkLine": "Benchmark (18 forecast companies in equal parts): {{pct}}",
       "kseAwaiting": "KSE-100: awaiting PSX permission",
       "kseNotCovering": "KSE-100: the index data loaded does not cover this period",
-      "kseLine": "KSE-100: {{pct}}",
       "newTest": "New test",
       "benchmarkName": "Benchmark (18 forecast companies in equal parts)"
     },
@@ -571,7 +567,6 @@
     "benchmarkNote": "The benchmark is the 18 companies InvestIQ forecasts, in equal parts, bought and held with dividends and no costs. It is not the KSE-100. These companies were chosen in 2026, so the benchmark also benefits from hindsight.",
     "chart": {
       "title": "Value over time",
-      "axis": "Rs.",
       "summary": "After {{years}} years, before selling: your portfolio {{portfolio}}, benchmark {{benchmark}}."
     },
     "costs": {

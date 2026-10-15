@@ -87,7 +87,6 @@ export const BacktestChart = ({ result }: { result: BacktestResult }) => {
       />
       {/* Time always runs left-to-right, even in the Urdu layout */}
       <div dir="ltr">
-        <p className="mb-2 ps-16 text-xs text-muted">{t('backtest.chart.axis')}</p>
         <div className="h-[340px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={rows} margin={{ top: 8, right: 16, left: 8, bottom: 4 }}>
