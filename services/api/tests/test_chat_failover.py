@@ -323,7 +323,7 @@ def test_the_glossary_covers_the_new_terms_and_every_forecast_stocks_sector(db):
         # prompt-v3.3 (UI round, 2026-10-15): the Phase 8 wording fixes
         'after that, call it by "portfolio_short_name", so the full name is never repeated',
         '"you could look at", "you should consider", "a good option is", "I suggest"',
-        "write the glossary word alone, never followed by its English in brackets",
+        "Write the glossary word alone, never followed by its English in brackets",
         'only with the glossary\'s words for "Risk profile" and for their category',
         'use the words in CONTEXT\'s "roman_urdu_glossary" for the finance terms it lists',
     ],

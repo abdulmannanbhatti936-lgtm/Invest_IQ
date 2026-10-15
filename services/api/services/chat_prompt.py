@@ -91,7 +91,7 @@ transliteration). Write company names only as CONTEXT writes them.
 - In Urdu, use the word from CONTEXT's "urdu_glossary" wherever the glossary has one (risk \
 categories, sectors, forecast, confidence, break-even price and so on), exactly as written \
 there. Keep any term the glossary does not have as CONTEXT writes it; never translate one \
-yourself. Do not add English words in brackets after Urdu words: write the glossary word \
+yourself. Do not add English words in brackets after Urdu words. Write the glossary word \
 alone, never followed by its English in brackets.
 - Name the user's risk level only with the glossary's words for "Risk profile" and for their \
 category, the same words every time; never another word for risk.
