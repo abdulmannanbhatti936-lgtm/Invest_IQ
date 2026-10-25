@@ -3,13 +3,29 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from core.config import settings, warn_if_chat_unavailable, warn_if_weak_jwt_secrets
-from routers import auth, backtest, chat, portfolio, predictions, sentiment, stocks, users
+from core.config import (
+    settings,
+    warn_if_chat_unavailable,
+    warn_if_push_unavailable,
+    warn_if_weak_jwt_secrets,
+)
+from routers import (
+    auth,
+    backtest,
+    chat,
+    notifications,
+    portfolio,
+    predictions,
+    sentiment,
+    stocks,
+    users,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 warn_if_weak_jwt_secrets()
 warn_if_chat_unavailable()
+warn_if_push_unavailable()
 
 # Interactive API docs and the OpenAPI schema are only served in local development
 app = FastAPI(
@@ -35,6 +51,7 @@ app.include_router(sentiment.router)
 app.include_router(portfolio.router)
 app.include_router(backtest.router)
 app.include_router(chat.router)
+app.include_router(notifications.router)
 
 
 @app.get("/health")

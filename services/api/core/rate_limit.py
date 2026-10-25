@@ -35,3 +35,23 @@ def auth_rate_limit(request: Request) -> None:
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many attempts. Please wait a minute and try again.",
         )
+
+
+def user_rate_limit(scope: str, user_id, limit: int, window: int) -> int | None:
+    """
+    Fixed-window limit per signed-in user and scope; returns the seconds to wait when the
+    limit is exceeded. Fails open like the auth limiter when Redis is unavailable.
+    """
+    key = f"ratelimit:user:{scope}:{user_id}"
+    try:
+        redis_client = get_redis_client()
+        count = redis_client.incr(key)
+        if count == 1:
+            redis_client.expire(key, window)
+        if count <= limit:
+            return None
+        ttl = redis_client.ttl(key)
+    except Exception as e:
+        logger.warning("Rate limit SKIPPED for %s (Redis unavailable: %s)", scope, type(e).__name__)
+        return None
+    return ttl if ttl and ttl > 0 else window
