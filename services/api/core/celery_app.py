@@ -45,6 +45,18 @@ celery_app.conf.beat_schedule = {
         # After the EOD price refresh
         "schedule": crontab(hour=18, minute=30, day_of_week="mon-fri"),
     },
+    "monitor-portfolios-fallback": {
+        "task": "worker.tasks.monitor_portfolios",
+        # The agent normally starts when run_predictions finishes; this catches a day when that
+        # hand-off failed. A second run that day adds nothing (dedupe keys)
+        "schedule": crontab(hour=19, minute=30, day_of_week="mon-fri"),
+        "kwargs": {"trigger": "schedule"},
+    },
+    "release-quiet-hour-pushes": {
+        "task": "worker.tasks.release_quiet_hour_pushes",
+        # Pushes held back by a user's quiet hours go out within 5 minutes of the window's end
+        "schedule": crontab(minute="*/5"),
+    },
     "retrain-models-weekly": {
         "task": "worker.tasks.train_models",
         # Weekly retrain (PRD.md FR15), Saturday night: trains a candidate only; the live

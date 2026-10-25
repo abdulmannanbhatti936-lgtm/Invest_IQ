@@ -1,5 +1,6 @@
 import datetime
 import logging
+import uuid
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.dialects.postgresql import insert
@@ -14,7 +15,7 @@ from ml.inference import ModelNotFoundError, load_bundle
 from ml.sentiment import SentimentModelUnavailable
 from ml.training import InsufficientDataError, train_and_save
 from models.stock import PricePoint, Stock, StockDividend, StockSplit
-from services import dividend_adjustment
+from services import dividend_adjustment, notification_agent, notification_dispatch
 from services.news_ingestion import LIVE_WINDOW_DAYS, collect_all
 from services.prediction_service import (
     FallbackModelMissing,
@@ -346,7 +347,7 @@ def run_predictions(tickers: list | None = None):
                     "skipped": skipped,
                     "error": str(e),
                 }
-        return {
+        result = {
             "status": "completed",
             "model_version": bundle.version,
             "predictions_made": made,
@@ -354,3 +355,55 @@ def run_predictions(tickers: list | None = None):
         }
     finally:
         db.close()
+    _start_agent()
+    return result
+
+
+def _start_agent() -> None:
+    """The agent runs as soon as the forecasts are in; the 19:30 schedule is the fallback."""
+    try:
+        monitor_portfolios.apply_async(kwargs={"trigger": "after_predictions"})
+    except Exception as e:
+        logger.error(f"Could not queue the monitoring agent: {type(e).__name__}: {e}")
+
+
+@celery_app.task(name="worker.tasks.monitor_portfolios")
+def monitor_portfolios(trigger: str = "schedule"):
+    """The monitoring agent (FR33): stores new suggestions and queues their pushes."""
+    db = SessionLocal()
+    try:
+        outcome = notification_agent.run(
+            db, trigger, lambda notification_id: send_notification.delay(str(notification_id))
+        )
+        return {
+            "run_id": str(outcome.run_id),
+            "status": outcome.status,
+            "skip_reason": outcome.skip_reason,
+            "created": len(outcome.created),
+            "not_stored": len(outcome.suppressed),
+        }
+    finally:
+        db.close()
+
+
+@celery_app.task(name="worker.tasks.send_notification")
+def send_notification(notification_id: str):
+    """Delivers one notification's push (FR34, FR35); the in-app note is already stored."""
+    db = SessionLocal()
+    try:
+        return {"push_status": notification_dispatch.dispatch(db, uuid.UUID(notification_id))}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="worker.tasks.release_quiet_hour_pushes")
+def release_quiet_hour_pushes():
+    """Sends the pushes that waited for a user's quiet hours to end."""
+    db = SessionLocal()
+    try:
+        released = notification_dispatch.release_quiet_hours(db)
+    finally:
+        db.close()
+    for notification_id in released:
+        send_notification.delay(str(notification_id))
+    return {"released": len(released)}
