@@ -26,7 +26,7 @@ def _respond(monkeypatch, status, payload=None, calls=None):
             calls.append((url, json, headers))
         return httpx.Response(status, json=payload or {}, request=httpx.Request("POST", url))
 
-    monkeypatch.setattr("integrations.push.fcm.httpx.post", post)
+    monkeypatch.setattr("integrations.push.fcm.send_request", post)
 
 
 def test_a_data_only_message_goes_to_the_v1_endpoint(channel, monkeypatch):
@@ -71,7 +71,7 @@ def test_a_network_failure_never_raises(channel, monkeypatch):
     def fail(*args, **kwargs):
         raise httpx.ConnectTimeout("slow")
 
-    monkeypatch.setattr("integrations.push.fcm.httpx.post", fail)
+    monkeypatch.setattr("integrations.push.fcm.send_request", fail)
     assert channel.send("token", MESSAGE).detail == "network:ConnectTimeout"
 
 

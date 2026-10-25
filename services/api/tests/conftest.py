@@ -111,7 +111,7 @@ def _no_push_network(monkeypatch):
     def blocked(url, *args, **kwargs):
         raise RuntimeError(f"Push network calls are disabled in tests; fake the channel ({url})")
 
-    monkeypatch.setattr("integrations.push.fcm.httpx.post", blocked)
+    monkeypatch.setattr("integrations.push.fcm.send_request", blocked)
 
 
 class QueuedTasks:

@@ -23,6 +23,8 @@ READ_TIMEOUT_S = 5.0
 # A push older than a day is no longer timely; FCM drops it instead of delivering it late
 TTL_SECONDS = 86_400
 TOKEN_GONE_CODES = {"UNREGISTERED"}
+# Its own reference, so tests can block FCM without touching the LLM adapters' httpx.post
+send_request = httpx.post
 
 
 class FcmWebChannel:
@@ -70,7 +72,7 @@ class FcmWebChannel:
             }
         }
         try:
-            response = httpx.post(
+            response = send_request(
                 SEND_URL.format(project=project),
                 json=body,
                 headers={"Authorization": f"Bearer {access_token}"},

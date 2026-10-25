@@ -69,6 +69,8 @@ def cleanup_e2e() -> tuple[int, int]:
         ids = "SELECT id FROM users WHERE email LIKE :pattern"
         params = {"pattern": E2E_EMAIL_LIKE}
         conn.execute(text(f"DELETE FROM risk_profiles WHERE user_id IN ({ids})"), params)
+        # The notifications test's agent runs (notifications and settings go with the user)
+        conn.execute(text(f"DELETE FROM agent_runs WHERE scope_user_id IN ({ids})"), params)
         # refresh_tokens rows go with the user (ON DELETE CASCADE)
         deleted = conn.execute(text("DELETE FROM users WHERE email LIKE :pattern"), params)
         left = conn.execute(text("SELECT count(*) FROM users")).scalar()

@@ -532,5 +532,5 @@ def test_run_now_uses_the_same_rules_for_one_user(db, investor, client, monkeypa
     out = capsys.readouterr().out
     assert "New notifications: 1" in out and "already_sent" in out
     assert len(_notes(db, investor["user"])) == 1
-    run = db.query(AgentRun).filter(AgentRun.trigger == "cli").first()
-    assert run.scope_user_id == investor["user"].id
+    runs = db.query(AgentRun).filter(AgentRun.scope_user_id == investor["user"].id).all()
+    assert [r.trigger for r in runs] == ["cli", "cli"]
