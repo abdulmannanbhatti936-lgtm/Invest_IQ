@@ -25,6 +25,9 @@ E2E_MODEL_VERSION = "MOCK-e2e-v1"
 TRADING_DAYS = 1150
 LAST_DAY = datetime.date(2026, 10, 9)
 PKT = ZoneInfo("Asia/Karachi")
+# The MOCK forecasts are dated like the evening job's (Architecture.md §9: 18:30 PKT) on the last
+# MOCK day, so the monitoring agent's "forecasts made today" check can run against this market
+FORECAST_TIME = datetime.datetime.combine(LAST_DAY, datetime.time(18, 30), PKT)
 
 
 def clear_market(db: Session) -> int:
@@ -77,6 +80,7 @@ def seed_market(db: Session) -> None:
                 signal="HOLD",
                 signal_probability=Decimal("0.4"),
                 as_of_date=days[-1].date(),
+                generated_at=FORECAST_TIME,
             )
         )
     db.commit()

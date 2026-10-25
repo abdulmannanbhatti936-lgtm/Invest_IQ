@@ -831,5 +831,129 @@
       "languages": "English, Urdu and Roman Urdu"
     },
     "footer": "A final year project, Department of Computer Science, NUML Islamabad, 2025-2026."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "subtitle": "Suggestions from InvestIQ's check of your portfolio after each evening's forecasts. They are suggestions, not advice, and InvestIQ never places a trade.",
+    "advisory": "A suggestion, not financial advice. InvestIQ never places, simulates or schedules a trade.",
+    "seeReason": "See the reason",
+    "markRead": "Mark as read",
+    "markAllRead": "Mark all as read",
+    "unread": "Unread",
+    "loadMore": "Show older",
+    "settingsLink": "Notification settings",
+    "error": "Notifications could not be loaded.",
+    "rateLimited": "Too many requests. Please wait a minute and try again.",
+    "dataAsOf": "Based on the close of {{date}}",
+    "view": {
+      "label": "Order",
+      "newest": "Newest first",
+      "byType": "By type"
+    },
+    "type": {
+      "roll": "Switch suggestions",
+      "sell": "Sell suggestions",
+      "buy": "Unused cash"
+    },
+    "strength": {
+      "strong": "Strong suggestion",
+      "watch": "Worth a look"
+    },
+    "watchHelp": "Treat it as a weak signal: the forecast behind it is low-confidence, or the news does not back it.",
+    "bell": {
+      "label": "Notifications",
+      "labelUnread": "Notifications, {{count}} unread",
+      "seeAll": "See all",
+      "empty": "Nothing new. InvestIQ checks your portfolio after each evening's forecasts.",
+      "optIn": {
+        "title": "Suggestions are off",
+        "body": "Turn them on to hear when your portfolio may need a switch, a sale or a home for unused cash. You choose the details in settings.",
+        "button": "Turn on suggestions",
+        "settings": "Detailed settings"
+      }
+    },
+    "empty": {
+      "title": "No suggestions yet",
+      "body": "InvestIQ checks your portfolio on PSX trading days after the evening forecasts, and writes here when the rules find something.",
+      "offTitle": "Suggestions are off",
+      "offBody": "Every kind of suggestion starts off. Turn them on to hear about switches, sales and unused cash in your portfolio."
+    },
+    "message": {
+      "sell_forecast": {
+        "title": "Consider selling {{ticker}}",
+        "summary": "The latest forecast for {{ticker}}, from the close of {{date}}, changed from {{from}} to Sell.",
+        "news": "News mood: {{label}}.",
+        "saleTitle": "If you sold all {{shares}} shares at {{price}}",
+        "saleLine": "Selling all {{shares}} shares at {{price}} would bring {{net}} after selling charges ({{charges}}) and capital gains tax ({{cgt}}).",
+        "push": {
+          "strong": "The forecast changed to Sell and the news is negative. Open InvestIQ for the reason and the charges.",
+          "watch": "The forecast changed to Sell. Treat it as a weak signal; open InvestIQ for the reason and the charges."
+        }
+      },
+      "roll_suggested": {
+        "title": "Consider switching {{ticker}} to {{to}}",
+        "summary": "{{ticker}} has trailed the benchmark by {{gap}} over {{days}} trading days, more than the {{threshold}} allowed for it, and its forecast is weak.",
+        "buyTitle": "Buying {{to}}",
+        "switchCost": "Cost of switching",
+        "expectedGain": "Expected gain (one-day forecast)",
+        "push": {
+          "strong": "A switch is expected to gain more than it costs. Open InvestIQ for the reason and the charges.",
+          "watch": "On low-confidence forecasts, a switch is expected to gain more than it costs. Open InvestIQ for the reason and the charges."
+        }
+      },
+      "idle_cash": {
+        "summary": "{{amount}} of your portfolio is not invested because a company or sector limit stopped another purchase.",
+        "pushTitle": "Unused cash in your portfolio",
+        "push": "Some of your money is not invested. Open InvestIQ to see why and what you can do."
+      }
+    },
+    "settings": {
+      "title": "Notification settings",
+      "subtitle": "Choose what InvestIQ tells you about. Every kind starts off. Times are Pakistan time.",
+      "typesTitle": "What to tell me about",
+      "types": {
+        "roll": {
+          "label": "Switch suggestions",
+          "help": "When a company you hold has fallen well behind and switching to another is expected to gain more than it costs."
+        },
+        "sell": {
+          "label": "Sell suggestions",
+          "help": "When the forecast for a company you hold changes to Sell."
+        },
+        "buy": {
+          "label": "Unused cash",
+          "help": "When part of your portfolio's money could not be invested because of a company or sector limit."
+        }
+      },
+      "sensitivityTitle": "Which suggestions",
+      "sensitivity": {
+        "all": "All, including low-confidence ones (marked)",
+        "strong_only": "Only strong suggestions"
+      },
+      "strongOnlyNote": "Today every forecast is low-confidence, because no model has beaten a simple guess yet. With \"Only strong suggestions\" you will get no sell or switch suggestions until that changes. Unused-cash notes do not depend on a forecast and still arrive.",
+      "capTitle": "Daily limit",
+      "capLabel": "At most this many a day",
+      "capHelp": "If more are found, switches come first, then sales, then unused cash; stronger before weaker.",
+      "quietTitle": "Quiet hours",
+      "quietToggle": "Hold browser notifications during quiet hours",
+      "quietStart": "From",
+      "quietEnd": "Until",
+      "quietHelp": "Notes still appear in the list; the browser notification waits until quiet hours end.",
+      "quietSame": "Start and end must be different times.",
+      "pushTitle": "Browser notifications",
+      "pushToggle": "Show notifications from this browser, even when InvestIQ is closed",
+      "pushUnavailable": "Browser notifications are not set up on this InvestIQ server yet. Notes still appear in the list here.",
+      "pushUnsupported": "This browser does not support notifications.",
+      "pushBlocked": "Notifications are blocked for this site in your browser settings. Allow them there, then try again.",
+      "pushError": "Browser notifications could not be turned on. Please try again.",
+      "save": "Save settings",
+      "saved": "Settings saved.",
+      "error": "Settings could not be saved. Please try again.",
+      "loadError": "Settings could not be loaded.",
+      "offTitle": "Stop all notifications",
+      "offBody": "Turns every kind off and stops browser notifications. Notes you already have stay in the list.",
+      "offButton": "Turn everything off",
+      "offDone": "All notifications are off."
+    }
   }
 }

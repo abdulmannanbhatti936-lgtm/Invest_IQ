@@ -503,12 +503,14 @@ def benchmark_return(db: Session, since: datetime.date) -> tuple[Decimal | None,
     return sum(returns, Decimal(0)) / len(returns), len(returns)
 
 
-def roll_check(db: Session, portfolio: Portfolio) -> dict:
+def roll_check(db: Session, portfolio: Portfolio, universe: Universe | None = None) -> dict:
+    """`universe`: the portfolio's universe when the caller has loaded it already (the agent)."""
     if portfolio.status != "active":
         raise PortfolioArchived(str(portfolio.id))
     rates = cost_engine.load_rates()
     benchmark, benchmark_stocks = benchmark_return(db, portfolio.prices_as_of)
-    universe = load_universe(db, portfolio.shariah_only, list(portfolio.excluded_tickers))
+    if universe is None:
+        universe = load_universe(db, portfolio.shariah_only, list(portfolio.excluded_tickers))
     snapshot = {row["ticker"]: row for row in portfolio.input_snapshot["candidates"]}
     held_tickers = {h.stock.ticker for h in portfolio.holdings}
     replacements = [
