@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Bell,
   Briefcase,
   History,
   LayoutDashboard,
@@ -12,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from '@investiq/i18n';
 import { useAuth } from '../../features/auth/AuthContext';
+import { NotificationBell } from '../../features/notifications/NotificationBell';
 import { LanguageToggle, toggleClasses } from '../LanguageToggle';
 import { ThemeToggle } from '../ThemeToggle';
 import { Wordmark } from '../Wordmark';
@@ -109,13 +109,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
             {/* The chat screen has its own toggle beside the conversation (Design.md §6.5) */}
             {location.pathname !== '/chat' && <LanguageToggle />}
             <ThemeToggle />
-            <NavLink
-              to="/notifications"
-              aria-label={t('nav.notifications')}
-              className={toggleClasses}
-            >
-              <Bell className="h-5 w-5" aria-hidden="true" />
-            </NavLink>
+            <NotificationBell />
             <button
               type="button"
               onClick={handleLogout}
