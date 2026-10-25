@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
+  Bell,
   Briefcase,
   History,
   LayoutDashboard,
@@ -11,10 +12,17 @@ import {
 } from 'lucide-react';
 import { useTranslation } from '@investiq/i18n';
 import { useAuth } from '../../features/auth/AuthContext';
-import { NotificationBell } from '../../features/notifications/NotificationBell';
 import { LanguageToggle, toggleClasses } from '../LanguageToggle';
 import { ThemeToggle } from '../ThemeToggle';
 import { Wordmark } from '../Wordmark';
+
+// The bell (with its queries and cards) is its own chunk, so the landing page and the login
+// screens, which share the main bundle, never download it
+const NotificationBell = lazy(() =>
+  import('../../features/notifications/NotificationBell').then((m) => ({
+    default: m.NotificationBell,
+  })),
+);
 
 const NAV = [
   { key: 'dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -109,7 +117,15 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
             {/* The chat screen has its own toggle beside the conversation (Design.md §6.5) */}
             {location.pathname !== '/chat' && <LanguageToggle />}
             <ThemeToggle />
-            <NotificationBell />
+            <Suspense
+              fallback={
+                <span className={toggleClasses} aria-hidden="true">
+                  <Bell className="h-5 w-5" />
+                </span>
+              }
+            >
+              <NotificationBell />
+            </Suspense>
             <button
               type="button"
               onClick={handleLogout}
