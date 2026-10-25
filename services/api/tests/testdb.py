@@ -5,6 +5,7 @@ The separate test database, shared by pytest (conftest.py) and the Playwright E2
     python -m tests.testdb serve --port 8001 --cors-origin http://localhost:5174 [--mock-market]
     python -m tests.testdb cleanup-e2e    # delete E2E accounts, print what is left
     python -m tests.testdb clear-e2e-market   # remove the MOCK market (tests/e2e_market.py)
+    python -m tests.testdb e2e-agent --email e2e_...@example.com   # MOCK sell change + agent run
 
 Importing this module points `settings.DATABASE_URL` at the test database, so it must be
 imported before core.database creates its engine. Anything not named *_test is refused, so
@@ -86,6 +87,77 @@ def clear_e2e_market() -> int:
         db.close()
 
 
+def e2e_agent(email: str) -> str:
+    """
+    The notifications E2E test's trigger, on the MOCK market only: a newer MOCK forecast turns the
+    account's first holding to SELL, then the real agent runs for that account at the MOCK
+    market's evening (its forecasts are dated that day). Only E2E accounts are accepted.
+    """
+    import datetime
+    import re
+    from decimal import Decimal
+
+    from core.database import SessionLocal
+    from crud.user import get_user_by_email
+    from models.portfolio import Portfolio
+    from models.prediction import Prediction
+    from services import notification_agent
+    from services.notification_dispatch import dispatch
+    from tests.e2e_market import (
+        E2E_MODEL_DIR,
+        E2E_MODEL_VERSION,
+        E2E_TICKERS,
+        FORECAST_TIME,
+        LAST_DAY,
+        PKT,
+    )
+
+    if not re.fullmatch(r"e2e_[\w.-]+@example\.com", email):
+        raise SystemExit("e2e-agent only runs for E2E accounts (e2e_...@example.com)")
+    settings.MODEL_DIR = str(E2E_MODEL_DIR)
+    settings.TRACKED_TICKERS = ",".join(E2E_TICKERS)
+    db = SessionLocal()
+    try:
+        user = get_user_by_email(db, email)
+        portfolio = (
+            db.query(Portfolio)
+            .filter(Portfolio.user_id == user.id, Portfolio.status == "active")
+            .one()
+        )
+        holding = portfolio.holdings[0]
+        if (
+            not db.query(Prediction)
+            .filter(Prediction.stock_id == holding.stock_id, Prediction.signal == "SELL")
+            .first()
+        ):
+            close = Decimal(holding.reference_price)
+            db.add(
+                Prediction(
+                    stock_id=holding.stock_id,
+                    model_version=E2E_MODEL_VERSION,
+                    forecast_price=close * Decimal("0.99"),
+                    last_close=close,
+                    confidence_score=Decimal("0.5"),
+                    signal="SELL",
+                    signal_probability=Decimal("0.55"),
+                    as_of_date=LAST_DAY,
+                    generated_at=FORECAST_TIME + datetime.timedelta(minutes=15),
+                )
+            )
+            db.commit()
+        evening = datetime.datetime.combine(LAST_DAY, datetime.time(19, 0), PKT)
+        outcome = notification_agent.run(
+            db,
+            "cli",
+            lambda notification_id: dispatch(db, notification_id),
+            scope_user_id=user.id,
+            now=evening,
+        )
+        return f"{outcome.status}: {len(outcome.created)} new, {len(outcome.suppressed)} not stored"
+    finally:
+        db.close()
+
+
 def serve(
     port: int, cors_origins: list[str], mock_market: bool = False, mock_llm: bool = False
 ) -> None:
@@ -130,6 +202,8 @@ if __name__ == "__main__":
     serve_parser.add_argument("--mock-llm", action="store_true")
     sub.add_parser("cleanup-e2e")
     sub.add_parser("clear-e2e-market")
+    agent_parser = sub.add_parser("e2e-agent")
+    agent_parser.add_argument("--email", required=True)
     args = parser.parse_args()
 
     print(f"Test database: {TEST_DB_URL.database}")
@@ -138,6 +212,8 @@ if __name__ == "__main__":
     elif args.command == "serve":
         create_and_migrate()
         serve(args.port, args.cors_origin, args.mock_market, args.mock_llm)
+    elif args.command == "e2e-agent":
+        print(f"E2E agent run: {e2e_agent(args.email)}")
     elif args.command == "clear-e2e-market":
         print(f"E2E market cleared: {clear_e2e_market()} MOCK stock(s) removed")
     else:
