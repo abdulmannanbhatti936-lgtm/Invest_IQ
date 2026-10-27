@@ -699,6 +699,52 @@ Architecture §3, §7 and §8, Memory §2/§3/§4/§9/§10/§15, Phases.md Phase
 
 ---
 
+## Phase 7: Autonomous Agent & Notifications (2026-10-25; web push waits for Firebase values)
+
+Branch `feat/phase-7-agent`. The proposals (what the agent checks, schedule, types, channels, tables, endpoints, screens, open decisions) were approved by the team on 2026-10-25 before any code was written; the decisions are in Memory.md §3. Implements FR33-FR36. Advisory only: the agent never places, simulates or schedules a trade. Web only this semester (mobile push in Phase 10).
+
+### What the agent checks (Step 7.3)
+
+| Type                    | Fires when                                                                                                                                                                                                  | Figures from                                                                               |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Roll (`roll_suggested`) | The Phase 5 roll check says `suggested` (20+ trading days, behind the benchmark by more than 1 sigma, weak forecast, expected gain beats every charge and tax); once per portfolio, holding and replacement | The roll check's sale, CGT, purchase and switch cost                                       |
+| Sell (`sell_forecast`)  | A holding's forecast **changes** to SELL after the portfolio was made; once per SELL streak                                                                                                                 | Phase 3 forecast and confidence, Phase 4 sentiment, `cost_engine.sell` at the stored close |
+| Buy (`idle_cash`)       | No Money Hold (FR24) flagged the portfolio's idle cash; once per portfolio                                                                                                                                  | The stored idle amount and the cap that blocked it                                         |
+
+- **Strength:** `strong` only when the forecasts involved have no low-confidence reason (and, for a sell, the news mood is negative); otherwise `watch`. Today every live forecast is low-confidence (no model beats its baseline, §10), so every forecast-based suggestion is `watch`; "Only strong suggestions" therefore means none until a better model is promoted, and the settings screen says so.
+- **Per user:** type off, then sensitivity, then already sent, then the daily cap (default 3, 1-10; roll > sell > buy, strong before watch). Everything found but not stored is listed in `agent_runs.suppressed` with its reason; cap overflows are also logged.
+- **Stale data:** the run is skipped, with the reason in `agent_runs`, unless the newest forecasts were made today (Pakistan time) from a close at most 2 trading days old (weekdays; PSX holidays are not known to the rule).
+- **Idempotent:** a unique `(user_id, dedupe_key)` plus `INSERT ... ON CONFLICT DO NOTHING`; a Postgres advisory lock allows one run at a time.
+- **Text:** fixed templates in `packages/i18n` (`notifications.*`, en + ur); the server renders the stored English `reasoning` and the push from the same files. No LLM text, so no figure check is needed.
+
+### Schedule and delivery (Steps 7.2, 7.4)
+
+- `run_predictions` queues `monitor_portfolios` when it finishes; fallback beat at 19:30 PKT Mon-Fri. `send_notification` pushes; `release_quiet_hour_pushes` (every 5 minutes) sends pushes held by quiet hours. Quiet hours hold only the push: the in-app note is still created.
+- **Channels:** one interface (`integrations/push`): FCM web push over the HTTP v1 API (`google-auth` 2.61.0 for the token, `httpx` for the call), data-only messages drawn by `apps/web/public/push-sw.js`; tokens FCM reports as unregistered are revoked. Expo (Phase 10) is one more entry in `CHANNELS`. The service account file is read only through `FIREBASE_SERVICE_ACCOUNT_FILE` and refused if it sits inside the repository; `.gitignore` blocks key file names.
+- **Latency (FR35):** stored per notification. In-app: 19-153 ms for six notes in one run (MOCK market, 2026-10-25). Push: recorded as `push_latency_ms`; the real browser check is pending the Firebase values.
+
+### Endpoints and screens (Steps 7.5, 7.7)
+
+- `GET /notifications`, `PATCH /notifications/{id}/read`, `POST /notifications/read-all`, `GET`/`PATCH /notifications/preferences`, `POST`/`DELETE /notifications/devices`: login and a risk profile required, every query filtered by the signed-in user (another user's id answers 404), 60 requests a minute per user.
+- Web: the header bell (unread count, newest five, opt-in prompt with one button and a settings link; polls every 60 s and on tab focus); `/notifications` (newest first or grouped by type, card with action, strength, confidence pill, sentiment, sale or switch figures, data date, advisory line, link, mark as read, show older); `/notifications/settings` (types, sensitivity, daily cap, quiet hours, browser push, turn everything off). Loading skeletons, empty and error states, both themes, Urdu right-to-left.
+- `python -m services.notification_agent run-now --user <email>`: the same rules for one user. Checked on the dev database with real PSX data (prices refreshed and forecasts made on 2026-10-25 from the 23 Oct close, HUBC and AHCL without new Yahoo data): a fresh Moderate Rs 100,000 portfolio gave 0 notifications twice (nothing changed since it was made, too early to roll, idle cash not flagged), which is the correct result; the temporary account was deleted.
+
+### Tests (Step 7.6)
+
+100 new backend tests (793 in total): rules 33 (fires and does not fire: no change of signal, low confidence never strong, stale forecasts, Pakistan-time boundaries, quiet windows, type off, strong only, already sent, cap order), templates 18, agent and tasks on the MOCK market 23 (figures equal `cost_engine.sell`, the portfolio is never changed, twice adds nothing, streaks, skip reasons, cap logging, quiet hours, push delivery and dead tokens, the lock, the Celery tasks twice, run-now), endpoints 18 (login, risk profile, isolation, paging, validation, rate limit, devices moving between accounts), FCM 8 (faked HTTP; key file outside the repo). Web: 5 unit tests (82 in total). Playwright: 2 tests (13 in total): the bell, opt-in, a real agent run twice, the list, grouping, mark as read, settings that persist, everything off; the Urdu list right-to-left.
+
+Existing tests changed: none. `tests/e2e_market.py` now dates the MOCK forecasts at the MOCK market's last day (18:30 PKT) instead of the time of seeding, so the agent's "made today" rule can run against it; `tests/testdb.py cleanup-e2e` also deletes the E2E accounts' agent runs.
+
+### Not fully landed
+
+- **Real web push:** waits for the Firebase values (`FIREBASE_SERVICE_ACCOUNT_FILE`, `VITE_FIREBASE_*`); then one end-to-end check, timed (Memory.md §4).
+- **Mobile push and screens:** Phase 10.
+- **Roll on real data:** covered by the Phase 5 roll tests and an agent test with the roll check stubbed; a real roll needs 20 trading days after a portfolio is made.
+
+Screenshots: `docs/screenshots/phase7/`.
+
+---
+
 ## Phase 8: LLM Chatbot (complete 2026-10-14)
 
 Branch `feat/phase-8-chatbot`. The proposals (grounding context, memory, provider, privacy, system prompt, figure check, data model and API, tests, UI) were reviewed by the team before any code was written; the decisions are in Memory.md §3/§4. Implements FR37-FR41. Web only this semester (mobile is Phase 10).
@@ -1026,7 +1072,7 @@ chat_messages      -- Phase 8; one row per message
 | API client             | `packages/api-client/src/*.test.ts`  | 6 (token refresh coordination)                                                                   |
 | i18n                   | `packages/i18n/scripts/*.test.mjs`   | 3 (parity checker)                                                                               |
 
-Backend total: **629** (2026-10-14, Phase 8). All run in CI on every push, and none calls a real LLM; Playwright E2E (5 tests: Phase 1 flow, Urdu RTL, Phase 6 backtest flow, Phase 8 chat flow and Urdu chat, against a MOCK model) runs locally.
+Backend total: **793** (2026-10-25, Phase 7; 693 after the UI round). All run in CI on every push; none calls a real LLM or Firebase. Playwright E2E (13 tests, including the Phase 8 chat flow against a MOCK model and the Phase 7 notifications flow on the MOCK market) runs locally.
 
 ```bash
 cd services/api && python -m pytest          # backend
@@ -1044,18 +1090,18 @@ The root [`README.md`](../README.md) "Local Setup" section is the maintained, st
 
 ## What Still Needs to Be Built / Re-audited
 
-| Phase    | Item                                                                     | Status                                                                                             |
-| -------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| Phase 2  | Stock data & market analysis                                             | ✅ Re-audited 2026-10-10 (mobile screens deferred to Phase 10)                                     |
-| Phase 3  | Prediction engine                                                        | ✅ Re-audited 2026-10-10 (models do not beat their baselines; documented)                          |
-| Phase 4  | FinBERT sentiment endpoint + "what's driving this" panel                 | Complete 2026-10-11 (news model not promoted; FinBERT 67.7% on PSX headlines)                      |
-| Phase 5  | Portfolio generation + cost engine                                       | Complete 2026-10-11 (CDC, NCCPL and non-filer CGT rates unverified; KSE-100 benchmark unavailable) |
-| Phase 6  | Backtesting vs KSE-100                                                   | Complete 2026-10-13 except the KSE-100 series (PSX permission pending; stand-in benchmark shown)   |
-| Phase 7  | Autonomous agent & notifications                                         | Not started                                                                                        |
-| Phase 8  | LLM chatbot (bilingual)                                                  | Complete 2026-10-14 (Groq free tier, about 25 messages a day; web only, mobile in Phase 10)        |
-| Phase 9  | Admin panel                                                              | Not started                                                                                        |
-| Phase 10 | Mobile app parity                                                        | Not started                                                                                        |
-| Phase 11 | Testing, polish, defense prep (incl. hardening backlog in Memory.md §11) | Not started                                                                                        |
+| Phase    | Item                                                                     | Status                                                                                                  |
+| -------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| Phase 2  | Stock data & market analysis                                             | ✅ Re-audited 2026-10-10 (mobile screens deferred to Phase 10)                                          |
+| Phase 3  | Prediction engine                                                        | ✅ Re-audited 2026-10-10 (models do not beat their baselines; documented)                               |
+| Phase 4  | FinBERT sentiment endpoint + "what's driving this" panel                 | Complete 2026-10-11 (news model not promoted; FinBERT 67.7% on PSX headlines)                           |
+| Phase 5  | Portfolio generation + cost engine                                       | Complete 2026-10-11 (CDC, NCCPL and non-filer CGT rates unverified; KSE-100 benchmark unavailable)      |
+| Phase 6  | Backtesting vs KSE-100                                                   | Complete 2026-10-13 except the KSE-100 series (PSX permission pending; stand-in benchmark shown)        |
+| Phase 7  | Autonomous agent & notifications                                         | Built 2026-10-25 (in-app list working; real web push waits for the Firebase values; mobile in Phase 10) |
+| Phase 8  | LLM chatbot (bilingual)                                                  | Complete 2026-10-14 (Groq free tier, about 25 messages a day; web only, mobile in Phase 10)             |
+| Phase 9  | Admin panel                                                              | Not started                                                                                             |
+| Phase 10 | Mobile app parity                                                        | Not started                                                                                             |
+| Phase 11 | Testing, polish, defense prep (incl. hardening backlog in Memory.md §11) | Not started                                                                                             |
 
 ---
 
@@ -1067,4 +1113,4 @@ The root [`README.md`](../README.md) "Local Setup" section is the maintained, st
 
 ---
 
-_Last updated: 2026-10-13_
+_Last updated: 2026-10-25_

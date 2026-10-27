@@ -5,6 +5,7 @@ from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 API_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = API_ROOT.parent.parent
 
 MIN_JWT_SECRET_LENGTH = 32
 LLM_PROVIDERS = ("gemini", "groq", "mistral", "claude")
@@ -77,6 +78,18 @@ class Settings(BaseSettings):
     CHAT_LIMIT_PER_WINDOW: int = 10  # messages per user per CHAT_LIMIT_WINDOW_SECONDS
     CHAT_LIMIT_WINDOW_SECONDS: int = 300
     CHAT_LIMIT_PER_DAY: int = 100
+
+    # Notifications (Phase 7). Requests per user per window on every /notifications endpoint;
+    # the bell polls once a minute and on tab focus
+    NOTIFICATIONS_RATE_LIMIT: int = 60
+    NOTIFICATIONS_RATE_LIMIT_WINDOW_SECONDS: int = 60
+    # The app's English and Urdu strings; the push text and the stored reasoning use the same
+    # templates as the web screens
+    I18N_LOCALES_DIR: str = str(REPO_ROOT / "packages" / "i18n" / "src" / "locales")
+    # Web push through Firebase Cloud Messaging: the path to the service account JSON file. The
+    # file must live outside the repository and is only ever read through this path; unset,
+    # push stays off and the in-app list works on its own
+    FIREBASE_SERVICE_ACCOUNT_FILE: str = ""
 
     # Fail-safe: unset means production (strict secret checks, no public /docs). Local .env
     # and CI set ENVIRONMENT=development explicitly.
@@ -165,6 +178,18 @@ class Settings(BaseSettings):
             self.LLM_BACKUP_PROVIDER, self.LLM_BACKUP_MODEL, "LLM_BACKUP_PROVIDER"
         )
 
+    def push_unavailable_reason(self) -> str | None:
+        """Why web push cannot run with this configuration, or None if it can (never the path)."""
+        value = self.FIREBASE_SERVICE_ACCOUNT_FILE.strip()
+        if not value or any(marker in value.lower() for marker in _PLACEHOLDER_MARKERS):
+            return "not_configured"
+        path = Path(value).expanduser().resolve()
+        if path == REPO_ROOT or REPO_ROOT in path.parents:
+            return "file_inside_repository"
+        if not path.is_file():
+            return "file_not_found"
+        return None
+
     def chat_context_tokens(self, provider: str) -> int:
         return self.CHAT_CONTEXT_TOKENS.get(provider, 12_000)
 
@@ -196,6 +221,13 @@ def warn_if_weak_jwt_secrets(config: Settings = settings) -> None:
             "Allowed only because ENVIRONMENT=development.",
             problem,
         )
+
+
+def warn_if_push_unavailable(config: Settings = settings) -> None:
+    """The API starts without Firebase; notifications then stay in the in-app list only."""
+    reason = config.push_unavailable_reason()
+    if reason:
+        logging.getLogger("core.config").warning("Web push disabled: %s.", reason)
 
 
 def warn_if_chat_unavailable(config: Settings = settings) -> None:

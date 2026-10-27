@@ -27,3 +27,9 @@ services/api/ml/candidates/
 # Personal notes / n8n experiments - kept locally, not part of the architecture
 Prompt.txt
 InvestIQ_Daily_Stock_Alert_n8n-Model.json
+
+# Firebase service account keys (Phase 7): they live outside the repo and are read through
+# FIREBASE_SERVICE_ACCOUNT_FILE; these patterns stop a copy from ever being committed
+*firebase-adminsdk*.json
+*firebase*service*account*.json
+*service-account*.json

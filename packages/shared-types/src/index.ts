@@ -554,3 +554,119 @@ export interface ChatHistory {
 
 export type ChatErrorCode =
   'risk_profile_required' | 'rate_limited' | 'chat_unavailable' | 'message_not_found';
+
+// Notifications (Phase 7, PRD.md FR33-FR36). Suggestions only: nothing is ever traded.
+export type NotificationType = 'buy' | 'sell' | 'roll';
+export type NotificationRule = 'roll_suggested' | 'sell_forecast' | 'idle_cash';
+export type NotificationStrength = 'strong' | 'watch';
+
+export interface SaleFigures {
+  gross: string;
+  charges_total: string;
+  cgt: string;
+  net_proceeds: string;
+  total_cost?: string;
+  net_return?: string;
+}
+
+export interface SellForecastParams {
+  ticker: string;
+  name: string | null;
+  as_of: string;
+  from_signal: Signal;
+  shares: number;
+  price: string;
+  confidence_score: string;
+  low_confidence_threshold: number;
+  low_confidence_reasons: LowConfidenceReason[];
+  signal_probability: string | null;
+  sentiment_label: SentimentLabel | null;
+  counted_headlines: number;
+  sale: SaleFigures;
+  filer_status: 'filer' | 'non_filer';
+}
+
+export interface RollSuggestedParams {
+  ticker: string;
+  name: string | null;
+  as_of: string;
+  trading_days: number;
+  holding_return_pct: string;
+  benchmark_return_pct: string;
+  relative_return_pct: string;
+  threshold_pct: string;
+  replacement: { ticker: string; name: string | null; price: string; expected_change_pct: string };
+  sale: SaleFigures;
+  purchase: { shares: number; gross: string; charges_total: string };
+  switch_cost: string;
+  expected_benefit: string;
+  low_confidence_reasons: LowConfidenceReason[] | null;
+  replacement_low_confidence_reasons: LowConfidenceReason[] | null;
+}
+
+export interface IdleCashParams {
+  amount: string;
+  blocked_by: Record<string, 'stock_cap' | 'sector_cap'>;
+  as_of: string;
+}
+
+interface NotificationBase {
+  id: string;
+  type: NotificationType;
+  strength: NotificationStrength | null;
+  ticker: string | null;
+  /** English reasoning; the app renders `params` with its own en/ur templates */
+  reasoning: string;
+  link: string;
+  data_as_of: string | null;
+  sent_at: string;
+  read: boolean;
+  read_at: string | null;
+}
+
+export type AppNotification =
+  | (NotificationBase & { rule: 'sell_forecast'; params: SellForecastParams })
+  | (NotificationBase & { rule: 'roll_suggested'; params: RollSuggestedParams })
+  | (NotificationBase & { rule: 'idle_cash'; params: IdleCashParams });
+
+export interface NotificationPage {
+  /** Newest first */
+  items: AppNotification[];
+  next_before: string | null;
+  unread_count: number;
+}
+
+export interface NotificationPreferences {
+  buy_enabled: boolean;
+  sell_enabled: boolean;
+  roll_enabled: boolean;
+  push_enabled: boolean;
+  sensitivity: 'all' | 'strong_only';
+  /** 1 to 10 a day */
+  daily_cap: number;
+  quiet_hours_enabled: boolean;
+  /** Pakistan time, "HH:MM:SS" */
+  quiet_start: string;
+  quiet_end: string;
+  language: 'en' | 'ur';
+  timezone: 'Asia/Karachi';
+  /** Whether this server can send web push (Firebase configured) */
+  push_available: boolean;
+}
+
+export type NotificationPreferencesUpdate = Partial<
+  Omit<NotificationPreferences, 'timezone' | 'push_available'>
+>;
+
+export interface PushDevice {
+  id: string;
+  platform: 'web' | 'expo';
+  created_at: string;
+}
+
+export type NotificationErrorCode =
+  | 'risk_profile_required'
+  | 'rate_limited'
+  | 'notification_not_found'
+  | 'device_not_found'
+  | 'quiet_hours_empty';

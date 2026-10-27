@@ -104,6 +104,44 @@ def _no_llm_network(monkeypatch):
     monkeypatch.setattr("integrations.llm.base.httpx.post", blocked)
 
 
+@pytest.fixture(autouse=True)
+def _no_push_network(monkeypatch):
+    """Tests never reach Firebase: the FCM channel's HTTP call fails loudly unless faked."""
+
+    def blocked(url, *args, **kwargs):
+        raise RuntimeError(f"Push network calls are disabled in tests; fake the channel ({url})")
+
+    monkeypatch.setattr("integrations.push.fcm.send_request", blocked)
+
+
+class QueuedTasks:
+    """Celery calls recorded instead of sent: tests never need a broker or a worker."""
+
+    def __init__(self):
+        self.calls: list[tuple[str, tuple, dict]] = []
+
+    def recorder(self, name):
+        def record(*args, **kwargs):
+            self.calls.append((name, args, kwargs))
+
+        return record
+
+    def named(self, name) -> list[tuple[tuple, dict]]:
+        return [(args, kwargs) for n, args, kwargs in self.calls if n == name]
+
+
+@pytest.fixture(autouse=True)
+def queued_tasks(monkeypatch):
+    from worker import tasks
+
+    queued = QueuedTasks()
+    monkeypatch.setattr(
+        tasks.monitor_portfolios, "apply_async", queued.recorder("monitor_portfolios")
+    )
+    monkeypatch.setattr(tasks.send_notification, "delay", queued.recorder("send_notification"))
+    return queued
+
+
 @pytest.fixture
 def client():
     return TestClient(app)

@@ -36,6 +36,14 @@ const BacktestReportPage = named(
   'BacktestReportPage',
 );
 const ChatPage = named(() => import('./features/chat/ChatPage'), 'ChatPage');
+const NotificationsPage = named(
+  () => import('./features/notifications/NotificationsPage'),
+  'NotificationsPage',
+);
+const NotificationSettingsPage = named(
+  () => import('./features/notifications/NotificationSettingsPage'),
+  'NotificationSettingsPage',
+);
 const ComingSoonPage = lazy(() =>
   import('./features/common/ComingSoonPage').then((m) => ({ default: m.ComingSoonPage })),
 );
@@ -157,15 +165,24 @@ function App() {
               }
             />
 
-            {/* Later phases (Phases.md) */}
             <Route
               path="/notifications"
               element={
                 <AppPage>
-                  <ComingSoonPage section="notifications" phase={7} />
+                  <NotificationsPage />
                 </AppPage>
               }
             />
+            <Route
+              path="/notifications/settings"
+              element={
+                <AppPage>
+                  <NotificationSettingsPage />
+                </AppPage>
+              }
+            />
+
+            {/* Later phases (Phases.md) */}
             <Route
               path="/admin"
               element={

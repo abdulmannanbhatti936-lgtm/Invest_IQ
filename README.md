@@ -132,6 +132,8 @@ Beat runs on Asia/Karachi time. It schedules:
 | Dividend refresh   | 18:15 Mon-Fri (dividend events and their adjustment decision)                    |
 | News and sentiment | Every 3 hours (Profit and Mettis Global; then FinBERT scoring)                   |
 | Predictions        | 18:30 Mon-Fri                                                                    |
+| Monitoring agent   | Right after the predictions finish; fallback 19:30 Mon-Fri (Phase 7)             |
+| Quiet-hour pushes  | Every 5 minutes (pushes held back by a user's quiet hours)                       |
 | Model retraining   | Saturdays at 22:00 (a candidate with its full report; never goes live by itself) |
 
 ### 4. ML models (first run only)
@@ -182,6 +184,24 @@ Set the provider in `services/api/.env` (see `.env.example`): `LLM_PROVIDER=groq
 
 - **Do not run the evaluation scripts (`python -m services.chat_eval`) on a demo day**: one full adversarial run uses most of a day's Groq tokens.
 - For real users the path is a paid key, or the Claude adapter (`LLM_PROVIDER=claude`, `LLM_MODEL`, `CLAUDE_API_KEY`); switching is a `.env` change.
+
+### 7b. Notifications (Phase 7)
+
+The monitoring agent runs after the evening forecasts and writes suggestions to each opted-in user's notification list (the bell). It is advisory only and never trades. Every type starts off; a user turns them on from the bell or `/notifications/settings`.
+
+To see it without waiting for the schedule, for one account that has a portfolio and has switched suggestions on:
+
+```bash
+python -m services.notification_agent run-now --user <email>
+```
+
+It uses the same rules, daily cap and dedupe as the schedule, inserts nothing invented, and refuses to run on stale data: the newest forecasts must be made today (Pakistan time) from a close at most 2 trading days old. On a non-trading evening, run the price refresh and the predictions first. A portfolio generated from today's forecasts has nothing to suggest yet (no signal has changed since, and a roll needs 20 trading days); the reason for every run is in the `agent_runs` table.
+
+**Browser push (optional).** Without Firebase the list works on its own. To turn push on:
+
+1. `services/api/.env`: `FIREBASE_SERVICE_ACCOUNT_FILE=<absolute path to the service account JSON>`. Keep the file **outside the repository** (a path inside it is refused) and never commit it.
+2. `apps/web/.env`: `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`, `VITE_FIREBASE_VAPID_KEY` (see `apps/web/.env.example` for the Firebase console screen each comes from).
+3. Restart the API, the Celery worker and the web dev server; then on `/notifications/settings` switch on "Show notifications from this browser".
 
 ### 8. Mobile app
 

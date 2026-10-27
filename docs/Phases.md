@@ -233,9 +233,9 @@
 
 **Exit criteria:**
 
-- [ ] A simulated buy/sell/roll trigger produces a real push notification on both web and mobile within the 5-second latency target
-- [ ] Notification includes real reasoning text, not a placeholder
-- [ ] User can adjust notification sensitivity and see the effect
+- [ ] A simulated buy/sell/roll trigger produces a real push notification on both web and mobile within the 5-second latency target — **partly (2026-10-25):** a simulated sell trigger on the MOCK market reaches the in-app list in 19-153 ms (measured, stored as `delivery_latency_ms`); web push through FCM is built and tested against a faked FCM, but the real end-to-end check waits for the team's Firebase values (Memory.md §4); mobile push is Phase 10 (Expo, same channel interface)
+- [x] Notification includes real reasoning text, not a placeholder — fixed en/ur templates filled with stored figures from the cost engine and roll check (2026-10-25)
+- [x] User can adjust notification sensitivity and see the effect — "Only strong suggestions" drops the low-confidence sell (`test_strong_only_drops_a_low_confidence_sell`, Playwright settings flow) (2026-10-25)
 
 ---
 

@@ -19,6 +19,8 @@ email-validator==2.3.0
 python-multipart==0.0.32
 # LLM provider calls (Mistral, Claude) over plain HTTPS; also the test client's transport
 httpx==0.28.1
+# Signs in to Firebase Cloud Messaging with the service account (Phase 7 web push)
+google-auth==2.61.0
 
 # Data + ML
 yfinance==1.7.0
